@@ -1,0 +1,205 @@
+#!/bin/sh
+
+first_result=1
+only_link_err=0
+show_direct_deps=0
+test_all=0
+
+# $1 - package to check
+# $pkg_deps - global var for returning package dependencies
+check_for_link_errors() {
+	pkg_deps=""
+	local package=$1 javavm link_leftover link_noexist
+
+	local pkg_libs=$(pkg info -lq $package | while read file; do
+		[ -L "$file" ] && continue
+
+		ldd "$file" 2>/dev/null | awk '/=>/ {
+			if (!match($3,"^(/lib|/usr/lib)"))
+				if ($3 == "not")
+					print "not_found" $1;
+				else
+					print $3;
+			}'
+	done | sort -u)
+
+	local pkg_files=$(pkg info -lq $package 2>/dev/null)
+
+	for lib in $pkg_libs; do
+		# skip libraries from package we are checking
+		case $pkg_files in *${lib##not_found}*)
+			continue
+		esac
+
+		# library not found on system
+		case $lib in not_found*)
+			if [ -z "$javavm" ]; then
+				javavm=$(pkg info -dq $package | egrep "jdk|jre")
+				[ -z "$javavm" ] && javavm="no"
+			fi
+
+			[ "$javavm" != "no" ] && \
+			[ -n "$(pkg info -lq $javavm | grep ${lib##not_found})" ] && \
+				continue
+		
+			[ $show_direct_deps -eq 0 ] && \
+				link_noexist="$link_noexist ${lib##not_found}"
+			continue
+		esac
+
+		lib_owner=$(pkg which -q $lib 2>/dev/null);
+
+		# skip false positive libGL - this library is shared between packages
+		if [ $? -ne 70 -a "${lib%%*/lib/libGL.so.*}" ]; then
+			[ $show_direct_deps -eq 0 ] && \
+				link_leftover="$link_leftover $lib"
+			continue
+		fi
+
+		case $pkg_deps in
+		*$lib_owner*)
+			;;
+		*)
+			case $lib_owner in 
+			$package*)
+				# some libs path have '..' in them confusing
+				# package's own libraries detection, without
+				# this missing dependency on self can happen
+				;;
+			*)	
+				pkg_deps="$pkg_deps $lib_owner"
+			esac
+		esac
+	done
+	[ -z "$link_noexist" -a -z "$link_leftover" ] && return 0
+	
+	print_header $package
+	for err in $link_noexist; do 
+		echo "linked to non existent: $err"
+	done | sort -u
+	for err in $link_leftover; do
+		echo "linked to leftover: $err"
+	done | sort -u
+	
+	return 1
+}
+
+# $1 - package to check
+# $2 - are there any linking problems
+# $pkg_deps - global var set in check_for_link_errors()
+check_for_missing_deps() {
+	local all_deps missing_deps package=$1 prefix registered_deps
+
+	[ $show_direct_deps -eq 0 ] && \
+		registered_deps=$(pkg info -dq $package 2>/dev/null)
+	for dep in $pkg_deps; do
+		case $registered_deps in
+		*$dep*)
+			;;
+		*)
+			missing_deps="$missing_deps $dep"
+		esac
+	done
+
+	[ -z "$missing_deps" ] && return
+
+	[ $2 -eq 0 ] && print_header $package
+	[ $show_direct_deps -eq 0 ] && prefix="missing "
+	all_deps=$(pkg info -dq $missing_deps | sort -u)
+	for dep in $missing_deps; do
+		case $all_deps in
+		*$dep*)
+			;;
+		*)
+	
+			echo $prefix"dependency: $(pkg info -oq $dep 2>/dev/null)"
+		esac
+	done | sort
+}
+
+display_usage() {
+	echo "Usage:"
+	echo "  pkg-lib-check <pkg_name> - do all pkg library checks"
+	echo "  pkg-lib-check -a - test all installed packages"
+	echo "  pkg-lib-check -d <pkg_name> - show direct dependencies"
+	echo "  pkg-lib-check -l <pkg_name> - check only for link problems"
+	echo "  pkg-lib-check -s <lib_name> <pkg_name> - show files linked to lib_name"
+	exit
+}
+
+# $1 - package name
+# $2 - search string
+find_linked_to() {
+	local package=$1 query=$2
+
+	local ret=$(pkg info -lq $package | while read file; do
+		[ -L "$file" ] && continue
+	
+		[ -n "$(ldd "$file" 2>/dev/null | grep -i ".*$query.*=>")" ] \
+			&& echo $file
+	done)
+	[ -z "$ret" ] && return
+	
+	print_header $package
+	for file in $ret; do echo $file; done
+}
+
+# $1 - package name
+print_header() {
+	if [ $first_result -eq 1 ]; then
+		first_result=0
+	else		
+		echo ""
+	fi
+	echo "$1:"
+}
+
+while getopts "adls:" option; do
+	case $option in
+	a)
+		test_all=1 ;;
+	d)
+		[ $only_link_err -eq 1 -o -n "$search_str" ] && display_usage
+		show_direct_deps=1 ;;
+	l)
+		[ $show_direct_deps -eq 1 -o -n "$search_str" ] && display_usage
+		only_link_err=1 ;;
+	s)
+		[ $show_direct_deps -eq 1 -o $only_link_err -eq 1 -o \
+			-z "$OPTARG" ] && display_usage
+		search_str=$OPTARG ;;
+	?)
+		display_usage
+	esac
+done
+
+if [ $test_all -eq 0 ]; then
+	shift $(($OPTIND-1))
+	packages=$@
+	[ -z "$packages" ] && display_usage
+else
+	packages=$(pkg query '%n-%v')
+	if [ -z "$packages" ]; then
+		echo "No packages installed"
+		exit
+	fi
+fi
+
+for pkg in $packages; do 
+	if [ $test_all -eq 0 ]; then
+		pkg info -e $pkg 2>/dev/null
+		if [ $? -ne 0 ]; then
+			echo "$pkg: no such package"
+			continue
+		fi
+	fi
+	if [ -n "$search_str" ]; then
+		find_linked_to $pkg $search_str
+		continue
+	fi
+	check_for_link_errors $pkg
+	ret=$?
+	[ $only_link_err -eq 1 ] && continue
+	
+	check_for_missing_deps $pkg $ret
+done
