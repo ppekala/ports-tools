@@ -1,0 +1,80 @@
+#!/bin/sh
+
+if [ "$(id -u)" != "0" ]; then
+	echo "You need root privileges to remove packages"
+	exit
+fi
+
+number_humanize() {
+	echo "$1" | awk '{
+		bytes = $0;
+		gb=2^30; mb=2^20; kb=2^10;	
+		
+		if (bytes > gb) {
+			size = bytes/gb;
+			unit = "GB";
+		} else if (bytes > mb) {
+			size = bytes/mb;
+			unit = "MB";
+		} else if (bytes > kb) {
+			size = bytes/kb;
+			unit = "kB";
+		} else {
+			size = bytes;
+			unit = "B ";
+		}
+		if (unit == "GB" || unit == "MB")
+			printf "%.1f %s", size, unit;
+		else
+			printf "%.0f %s", size, unit;		
+	}' | tr ',' '.'
+}
+
+rm_count=0
+
+while true; do 
+	pkg_leafs=$(pkg query -e '%#r = 0' %n-%v@%sb)
+	count=0
+	items=""
+
+	for pkg in $pkg_leafs; do
+		case $pkg_seen in *${pkg%@*}*) continue;; esac
+
+		size=$(number_humanize ${pkg#*@})
+		pkg_seen="$pkg_seen ${pkg%@*}"
+		items="$items ${pkg%@*} \"$(printf '%8s' "$size")\" off"
+		count=$((count+1))
+	done
+
+	if [ $rm_count -gt 0 -a $count -gt 0 ]; then
+		dialog --yesno "There are new leaf packages. Continue?" 5 43
+		[ $? -eq 1 ] && break
+	fi
+	
+	[ $count -eq 0 ] && break
+
+	[ -z "$tmpfile" ] && tmpfile=$(mktemp)
+	echo "--checklist \"Select packages to delete ($count items):\" \
+		21 70 19 $items" > $tmpfile
+
+	ret=$(dialog --stdout --file $tmpfile | sed 's|"||g')
+	[ -z "$ret" ] && break
+	
+	for bytes in $(pkg query '%sb' $ret); do 
+		rm_freed=$((rm_freed+bytes));
+		rm_count=$((rm_count+1));
+	done
+
+	dialog --clear
+	pkg-static delete $ret
+done
+
+if [ -n "$tmpfile" ]; then
+	rm $tmpfile
+	dialog --clear
+fi
+
+[ -z "$pkg_seen" ] && echo "No leaf packages to remove"
+
+[ $rm_count -gt 0 ] && \
+	echo "Packages removed: $rm_count  Disk space freed: $(number_humanize $rm_freed)"

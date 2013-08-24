@@ -1,0 +1,17 @@
+#!/bin/sh
+
+PKGNAME=$(make -V PKGNAME 2>/dev/null)
+cmd=${1:-check}
+
+[ -z "$PKGNAME" ] && echo "===> This is not port directory" && exit
+[ ! -d work ] && echo "===> No work directory" && exit
+
+find work -name "*.bak" -print | while read file; do
+	case $cmd in
+	check)
+		[ -z "$(diff "$file" "${file%.bak}")" ] && \
+			echo "File ${file%.bak} not modified" ;;
+	show)
+		diff -u "$file" "${file%.bak}"
+	esac
+done 

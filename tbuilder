@@ -1,0 +1,68 @@
+#!/bin/sh
+
+PORTSDIR=${PORTSDIR:-/usr/ports}
+TBDIR=${TBDIR:-/usr/local/tinderbox}
+build=${3:-none}
+
+if [ "$(id -u)" = "0" ]; then
+	tc_script="./tc"
+else
+	tc_script="sudo ./tc"
+fi
+
+# $1 tinderbox buildname, $2 port to build
+build_queue_add() {
+	echo "Adding $2 to $1 build queue"
+	cd $TBDIR/scripts && $tc_script \
+		addBuildPortsQueueEntry -u corn -b $1 -d $2
+}
+
+display_usage() {
+	echo "Usage: $0 <command> <query> <build_name|all>"
+	echo ""
+	echo " commands: bdeps - build ports having <query> build dependency"
+	echo "           grep  - build ports containing <query> port in Makefile"
+	echo "                   <query> must be in category/portname format"
+	echo "           match - build port matching <query>"
+	echo "           name  - build port <query>"
+	echo "                   if <query> = "." build port from current directory"
+	exit
+}
+
+case $1 in
+bdeps)
+	[-z "$2" ] && display_usage
+	ports=$($PORTSDIR/Tools/scripts/portsearch -b $2 \
+		| grep Path: | cut -f 4- -d '/') ;;
+grep)
+	#[ ! -d $PORTSDIR/$2 ] && display_usage
+	ports=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
+		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g') ;;
+match)
+	[ -z "$2" ] && display_usage
+	ports=$($PORTSDIR/Tools/scripts/portsearch -n $2 \
+		| grep Path: | cut -f 4- -d '/') ;;
+name)
+	[ -z "$2" -o $build = "none" ] && display_usage
+	ports=$2
+	[ "$ports" = "." ] && ports=$(echo $PWD | \
+		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')
+#	[ ! -d $PORTSDIR/$ports ] && \
+#		echo "===> Port $ports does not exist" && exit
+	;;
+*)
+	display_usage
+esac
+
+all_builds=$(cd $TBDIR/scripts && $tc_script listBuilds | grep -v "\-TDE")
+
+for port in $ports; do
+	case $build in
+	none)
+		echo "Found match: $port" ;;
+	all)
+		for b in $all_builds; do build_queue_add $b $port; done ;;
+	*)
+		build_queue_add $build $port
+	esac
+done

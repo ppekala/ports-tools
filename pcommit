@@ -1,0 +1,66 @@
+#!/bin/sh
+
+PAGER=${PAGER:-less}
+PORTSDIR=${PORTSDIR:-/usr/ports}
+PATH=$PATH:$PORTSDIR/Tools/scripts
+
+files_dir_removed="no"
+
+rej_files=$(find . -name "*.rej")
+if [ -n "$rej_files" ]; then
+	printf "===> Found rejected patch files, bailing\n "
+	echo $rej_files | sed 's|^./||g'
+	exit 0
+fi
+
+if [ -n "$(grep 'New ports collection' Makefile 2>/dev/null)" ]; then
+	convert-makefile-header.pl -N 2>/dev/null
+	echo "===> Converted old style Makefile header"
+fi
+
+find . \( -name "*.orig" -or -size 0 \) -delete
+
+if [ -z "$(ls files 2>&1)" ]; then
+	svn rm files && files_dir_removed="yes" && \
+	echo "===> Removed empty files dir"
+fi
+
+svn status | while read line; do
+	change=$(echo "$line" | awk '{ print $1 }')
+	file=$(echo "$line" | awk '{ print $2 }')
+
+	case $change in
+	M)
+		#echo "[MOD] $file"
+		;;
+	!)
+		case $file in files/*)
+			[ "$files_dir_removed" = "yes" ] && continue ;;
+		esac
+		svn rm "$file" ;;
+	?)
+		svn add "$file" ;;
+	*)
+		echo "[???] $file, change_char=$change"
+		exit
+	esac
+done | sort -k2,2
+
+while true; do
+	echo ""
+	echo "[c]ommit [v]iew diff [q]uit"
+	echo -n "> "
+	read cmd
+	
+	case $cmd in
+	c)
+		psvn commit
+		exit ;;
+	q)
+		exit ;;
+	v)
+		svn diff | $PAGER ;;
+	*)
+		echo "No such command: $cmd"
+	esac
+done

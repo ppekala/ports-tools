@@ -1,0 +1,18 @@
+#!/bin/sh
+
+PKGNAME=$(make -V PKGNAME 2>/dev/null)
+TBDIR=${TBDIR:-/usr/local/tinderbox}
+build=${1:-9.1-FreeBSD}
+
+[ -z "$PKGNAME" ] && echo "===> This is not port directory" && exit
+
+logfile=$TBDIR/logs/$build/$PKGNAME.log
+echo "===> Build selected: $build"
+
+if [ -f "$logfile" ]; then
+	echo "===> Uploading to http://people.freebsd.org/~pawel/buildlogs/$PKGNAME.log"
+	sudo -u corn scp "$logfile" pawel@freebsd.org:public_html/buildlogs/
+else
+	echo "===> Logfile $logfile does not exists"
+	exit 0
+fi

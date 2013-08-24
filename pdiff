@@ -1,0 +1,24 @@
+#!/bin/sh
+
+PORTSDIR=${PORTSDIR:-/usr/ports}
+base_dir=$PWD
+category=$(make -V CATEGORIES | awk '{print $1}')
+port=$(basename $PWD)
+
+[ -z "$port" -o -z "$category" ] && echo "===> This is not port directory" && exit
+
+new_ver_dir=$category/$port
+old_ver_dir=$PORTSDIR/$new_ver_dir
+
+[ -d "$base_dir/work" ] && make clean > /dev/null
+find . -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
+
+if [ -d "$old_ver_dir" ]; then
+	[ -d "$old_ver_dir/work" ] && cd $old_ver_dir && make clean > /dev/null
+	find "$old_ver_dir" -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
+else
+	echo "===> Orginal port directory does not exist"
+	exit
+fi
+
+cd $base_dir/../../ && diff -urN $old_ver_dir $new_ver_dir

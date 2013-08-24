@@ -1,0 +1,205 @@
+#!/bin/sh
+
+PKGNAME=$(make -V PKGNAME 2>/dev/null)
+PREFIX=$(make -V PREFIX 2>/dev/null)
+plist_file=${1:-pkg-plist}
+
+if [ -z "$PKGNAME" -o -z "$PREFIX" ]; then
+	echo "===> This is not port directory"
+	exit
+fi
+
+make_args="OPTIONSFILE=/dev/null OPTIONS_FILE=/dev/null"
+for opt in $(make -V ALL_OPTIONS); do
+	make_args="$make_args WITH_$opt=true"
+done
+
+awk -v prefix="$PREFIX/" -v plist_subs="$(make $make_args -V PLIST_SUB)" '
+BEGIN { 
+	n_cmds=1;
+
+	n = split(plist_subs, s_array, " ");
+	if (n > 0) {
+		for(pair=1; pair<=n; pair++) {
+			if (split(s_array[pair], p_array, "=") != 2)
+				continue;
+		
+			gsub("\"", "", p_array[2]);
+			if (p_array[2] == "" || p_array[2] == "@comment")
+				subs[p_array[1]] = "null"
+			else
+				subs[p_array[1]] = p_array[2];
+		}
+	}
+}
+
+function str_replace(string, pattern, new_pattern) {
+	new_str=""
+	n = split(string, array, pattern);
+	if (n > 1) {
+		for (i=1; i <= n; i++) {
+			if (i != n)
+				new_str = new_str array[i] new_pattern;
+			else
+				new_str = new_str array[i];
+		}
+	} else
+		return string;
+
+	return new_str;
+}
+
+function update_plist_subs (string) {
+	if (string == "") {
+		subs[string] = "null";
+		return;
+	}
+	if (match(string, "^PYTHON_"))
+		make_args = " USE_PYTHON=yes";
+	if (subs[string] == "") {
+		"make -V " string make_args | getline s;
+		if (s != "")
+			subs[string] = str_replace(s, prefix, "");
+		else
+			subs[string] = "null";
+		close("make -V " string make_args);
+	}
+	make_args = "";
+}
+
+function plist_split(string, array) {
+	n = index(string, " ");
+	array[1] = substr(string,1, n-1);
+	array[2] = substr(string, n+1);
+}
+
+/^(%%[0-9A-Z_]*%%)*([a-z]|\/)+/ { # files
+	n = split($0, array, "%%");
+
+	if (n == 1) {
+		files[array[1]] = array[1];
+		next;
+	}
+	for (i=1; i <= n; i++) {
+		if ((i%2) == 0) {
+			update_plist_subs(array[i]);
+			if (subs[array[i]] != "null")
+				path = path subs[array[i]];
+			chunks = chunks " " array[i];
+		} else 
+			path = path array[i];
+	}
+	
+	files[path] = path " " chunks;
+	path = chunks = "";
+} 
+
+/^(%%[0-9A-Z_]*%%)*@dirrm/ { # dirs
+	n = split($0, array, "%%");
+	
+	if (n == 1) { # @dirrm path
+		plist_split(array[1], p);
+		dirs[p[2]] = p[2] " " p[1];
+		next;
+	}
+
+	for (i=1; i <= n; i++) {
+		if (match(array[i], "^@dirrm")) {
+			plist_split(array[i], p);
+			path = p[2];
+			chunks = chunks " " p[1];
+			continue;
+		}
+		
+		if ((i%2) == 0) {
+			update_plist_subs(array[i]);
+			if (subs[array[i]] != "null")
+				path = path subs[array[i]];
+			chunks = chunks " " array[i];
+		} else
+			path = path array[i];
+	}
+	
+	dirs[path] = path " " chunks;
+	path = chunks = "";
+}
+
+#/^(%%[0-9A-Z_]*%%)*@exec/ {
+#
+#}
+#
+#/^(%%[0-9A-Z_]*%%)*@unexec/ {
+#	
+#}
+
+/^(%%[0-9A-Z_]*%%)*@[^dirrm]+/ { # other commands, @exec, @unexec etc
+	cmds[n_cmds++] = $0;
+}
+
+END {
+	"mktemp" | getline tmpfile;
+	close("mktemp");
+	
+	for (i in cmds)
+		if (match(cmds[i], "^@comment \\$FreeBSD")) {
+			print cmds[i];
+			delete cmds[i];
+			o--;
+			break;
+		}
+		
+	for (i in files) print files[i] | ("sort -u -k1,1 >" tmpfile);
+	close("sort -u -k1,1 >" tmpfile);
+	
+	while((getline line < tmpfile) > 0) {
+		n = split(line, p, " "); 
+		path = p[1];
+
+		if (n == 1) {
+			print path;
+			continue;
+		}
+		for (i=2; i<=n; i++) {
+			if (subs[p[i]] != "null")
+				path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
+			else if (i == 2)
+				path = "%%" p[i] "%%" path;
+		}
+		print path;
+	}
+	close(tmpfile);
+
+	for (i in dirs) print dirs[i] | ("sort -u -k1,1r >" tmpfile);
+	close("sort -u -k1,1r >" tmpfile);
+	
+	while((getline line < tmpfile) > 0) {
+		n = split(line, p, " ");
+		path = p[1];
+	
+		if (n == 2) {
+			printf("%s %s\n", p[2], path);
+			continue;
+		}
+		for (i=2; i <= n; i++) {
+			if (match(p[i], "^@dirrm")) {
+				cmd = cmd p[i];
+				continue;
+			}
+			if (cmd == "")
+				cmd = "%%" p[i] "%%";
+			else if (subs[p[i]] != "null")
+				path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
+		}
+		printf("%s %s\n", cmd, path);
+		cmd = "";
+	}
+	close(tmpfile);
+	system("rm " tmpfile);
+	
+	if (n_cmds > 1) {
+		printf("\n@comment Lines below should be sorted manually\n");
+		for (i in cmds) print cmds[i];
+	}
+	
+#	for (i in subs) printf("%s\t  = %s\n", i, subs[i]);
+}' $plist_file
