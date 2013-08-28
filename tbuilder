@@ -2,6 +2,7 @@
 
 PORTSDIR=${PORTSDIR:-/usr/ports}
 TBDIR=${TBDIR:-/usr/local/tinderbox}
+TBUSER=${TBUSER:-corn}
 build=${3:-none}
 
 if [ "$(id -u)" = "0" ]; then
@@ -14,7 +15,7 @@ fi
 build_queue_add() {
 	echo "Adding $2 to $1 build queue"
 	cd $TBDIR/scripts && $tc_script \
-		addBuildPortsQueueEntry -u corn -b $1 -d $2
+		addBuildPortsQueueEntry -u $TBUSER -b $1 -d $2
 }
 
 display_usage() {
@@ -54,7 +55,7 @@ name)
 	display_usage
 esac
 
-all_builds=$(cd $TBDIR/scripts && $tc_script listBuilds | grep -v "\-TDE")
+all_builds=$(cd $TBDIR/scripts && $tc_script listBuilds)
 
 for port in $ports; do
 	case $build in
