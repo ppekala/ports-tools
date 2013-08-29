@@ -21,4 +21,4 @@ else
 	exit
 fi
 
-cd $base_dir/../../ && diff -urN $old_ver_dir $new_ver_dir
+cd $base_dir/../../ && diff -urN $* $old_ver_dir $new_ver_dir
