@@ -5,20 +5,34 @@ base_dir=$PWD
 category=$(make -V CATEGORIES | awk '{print $1}')
 port=$(basename $PWD)
 
-[ -z "$port" -o -z "$category" ] && echo "===> This is not port directory" && exit
+portdir_clean() {
+	local dir=$1
+	
+	if [ -d "$dir/work" ]; then
+		cd "$dir"
+		if [ -n "$(make clean | grep 'not writable')" ]; then
+			echo "===> Failed to make clean in $dir"
+			exit
+		fi
+	fi
+	find "$dir" -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
+}
 
-new_ver_dir=$category/$port
-old_ver_dir=$PORTSDIR/$new_ver_dir
+if [ -z "$port" -o -z "$category" ]; then
+	echo "===> This is not port directory"
+	exit
+fi
 
-[ -d "$base_dir/work" ] && make clean > /dev/null
-find . -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
+new_ver_dir="$category/$port"
+old_ver_dir="$PORTSDIR/$new_ver_dir"
+
+portdir_clean "$PWD"
 
 if [ -d "$old_ver_dir" ]; then
-	[ -d "$old_ver_dir/work" ] && cd $old_ver_dir && make clean > /dev/null
-	find "$old_ver_dir" -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
+	portdir_clean "$old_ver_dir"
 else
 	echo "===> Orginal port directory does not exist"
 	exit
 fi
 
-cd $base_dir/../../ && diff -urN $* $old_ver_dir $new_ver_dir
+cd "$base_dir/../../" && diff -urN $* "$old_ver_dir" "$new_ver_dir"
