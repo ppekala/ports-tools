@@ -1,9 +1,14 @@
 #!/bin/sh
 
-if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to remove packages"
+rm_count=0
+sel_status="off"
+
+display_usage() {
+	echo "Usage:"
+	echo "  pkg-cutter -h - show this help"
+	echo "  pkg-cutter -o - set selection to on by default"
 	exit
-fi
+}
 
 number_humanize() {
 	echo "$1" | awk '{
@@ -30,7 +35,19 @@ number_humanize() {
 	}' | tr ',' '.'
 }
 
-rm_count=0
+if [ "$(id -u)" != "0" ]; then
+	echo "You need root privileges to remove packages"
+	exit
+fi
+
+while getopts "ho" option; do
+	case $option in
+	h)
+		display_usage ;;
+	o)
+		sel_status="on"
+	esac
+done
 
 while true; do 
 	pkg_leafs=$(pkg query -e '%#r = 0' %n-%v@%sb)
@@ -42,7 +59,7 @@ while true; do
 
 		size=$(number_humanize ${pkg#*@})
 		pkg_seen="$pkg_seen ${pkg%@*}"
-		items="$items ${pkg%@*} \"$(printf '%8s' "$size")\" off"
+		items="$items ${pkg%@*} \"$(printf '%8s' "$size")\" $sel_status"
 		count=$((count+1))
 	done
 
