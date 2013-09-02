@@ -1,14 +1,15 @@
 #!/bin/sh
 
 first_result=1
+full_check=0
 only_link_err=0
 show_direct_deps=0
 test_all=0
 
 # $1 - package to check
-# $pkg_deps - global var for returning package dependencies
+# $2 - print link errors
 check_for_link_errors() {
-	pkg_deps=""
+	PKG_DEPS=""
 	local package=$1 javavm link_leftover link_noexist
 
 	local pkg_libs=$(pkg info -lq $package | while read file; do
@@ -56,7 +57,7 @@ check_for_link_errors() {
 			continue
 		fi
 
-		case $pkg_deps in
+		case $PKG_DEPS in
 		*$lib_owner*)
 			;;
 		*)
@@ -67,10 +68,12 @@ check_for_link_errors() {
 				# this missing dependency on self can happen
 				;;
 			*)	
-				pkg_deps="$pkg_deps $lib_owner"
+				PKG_DEPS="$PKG_DEPS $lib_owner"
 			esac
 		esac
 	done
+	
+	[ $2 -eq 0 ] && return 0
 	[ -z "$link_noexist" -a -z "$link_leftover" ] && return 0
 	
 	print_header $package
@@ -85,14 +88,13 @@ check_for_link_errors() {
 }
 
 # $1 - package to check
-# $2 - are there any linking problems
-# $pkg_deps - global var set in check_for_link_errors()
+# $2 - package dependencies
 check_for_missing_deps() {
-	local all_deps missing_deps package=$1 prefix registered_deps
+	local package=$1 deps=$2 missing_deps
 
 	[ $show_direct_deps -eq 0 ] && \
 		registered_deps=$(pkg info -dq $package 2>/dev/null)
-	for dep in $pkg_deps; do
+	for dep in $deps; do
 		case $registered_deps in
 		*$dep*)
 			;;
@@ -103,18 +105,61 @@ check_for_missing_deps() {
 
 	[ -z "$missing_deps" ] && return
 
-	[ $2 -eq 0 ] && print_header $package
-	[ $show_direct_deps -eq 0 ] && prefix="missing "
 	all_deps=$(pkg info -dq $missing_deps | sort -u)
 	for dep in $missing_deps; do
 		case $all_deps in
 		*$dep*)
 			;;
 		*)
-	
-			echo $prefix"dependency: $(pkg info -oq $dep 2>/dev/null)"
+			echo $dep
 		esac
 	done | sort
+}
+
+check_registered_deps() {
+	local broken=0 dep
+	
+	for dep in $(pkg info -dq $1); do
+		pkg info -e $dep 2>/dev/null
+		if [ $? -ne 0 ]; then
+			echo "non-existent dependency: $dep"
+			broken=1
+		fi
+	done
+	
+	[ $broken -eq 1 ] &&
+		echo "===> Wrong dependencies, checks may return false data"
+}
+
+dependency_is_inherited() {
+	local pkg=$1 dep=$2 inh
+
+	for p_dep in $(pkg info -dq $pkg); do
+		case $PKG_DEPS_OK in *$p_dep*)
+			continue
+		esac
+		
+		check_for_link_errors $p_dep 0
+		ret_deps=$(check_for_missing_deps $p_dep "$PKG_DEPS")
+
+		[ -z "$ret_deps" ] && PKG_DEPS_OK="$PKG_DEPS_OK $p_dep"
+		
+		case $ret_deps in
+		*$dep*)
+			if [ -n "$inh" ]; then
+				[ -z "$(pkg info -rq $inh | grep $p_dep)" ] && \
+					inh=$p_dep
+			else
+				inh=$p_dep
+			fi
+		esac
+	done
+
+	if [ -n "$inh" ]; then
+		INH=$(pkg info -qo $inh)
+	else
+		INH=""
+	fi
 }
 
 display_usage() {
@@ -122,6 +167,7 @@ display_usage() {
 	echo "  pkg-lib-check <pkg_name> - do all pkg library checks"
 	echo "  pkg-lib-check -a - test all installed packages"
 	echo "  pkg-lib-check -d <pkg_name> - show direct dependencies"
+	echo "  pkg-lib-check -f <pkg_name> - do full checks with inheritance detection (slow)"
 	echo "  pkg-lib-check -l <pkg_name> - check only for link problems"
 	echo "  pkg-lib-check -s <lib_name> <pkg_name> - show files linked to lib_name"
 	exit
@@ -154,13 +200,16 @@ print_header() {
 	echo "$1:"
 }
 
-while getopts "adls:" option; do
+while getopts "adfls:" option; do
 	case $option in
 	a)
 		test_all=1 ;;
 	d)
 		[ $only_link_err -eq 1 -o -n "$search_str" ] && display_usage
 		show_direct_deps=1 ;;
+	f)
+		[ $show_direct_deps -eq 1 -o -n "$search_str" ] && display_usage		
+		full_check=1 ;;
 	l)
 		[ $show_direct_deps -eq 1 -o -n "$search_str" ] && display_usage
 		only_link_err=1 ;;
@@ -185,6 +234,8 @@ else
 	fi
 fi
 
+[ $show_direct_deps -eq 0 ] && prefix="missing "
+
 for pkg in $packages; do 
 	if [ $test_all -eq 0 ]; then
 		pkg info -e $pkg 2>/dev/null
@@ -197,9 +248,24 @@ for pkg in $packages; do
 		find_linked_to $pkg $search_str
 		continue
 	fi
-	check_for_link_errors $pkg
-	ret=$?
+
+	[ $full_check -eq 1 ] && check_registered_deps $pkg	
+
+	check_for_link_errors $pkg 1
+	link_errors=$?
+
 	[ $only_link_err -eq 1 ] && continue
-	
-	check_for_missing_deps $pkg $ret
+
+	m_deps=$(check_for_missing_deps $pkg "$PKG_DEPS")
+	[ $link_errors -eq 0 -a -n "$m_deps" ] && print_header $pkg
+
+	for md in $m_deps; do
+		[ $full_check -eq 1 ] && dependency_is_inherited $pkg $md 
+
+		if [ -z "$INH" ]; then
+			echo $prefix"dependency: $(pkg info -qo $md)"
+		else
+			echo "missing dependency: $(pkg info -qo $md) (inherited from $INH)"
+		fi
+	done
 done
