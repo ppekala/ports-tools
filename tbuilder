@@ -13,13 +13,20 @@ fi
 
 # $1 tinderbox buildname, $2 port to build
 build_queue_add() {
+	local ptree="$TBDIR/portstrees/$($tc_script getPortsTreeForBuild -b $1)/ports"
+
+	if [ ! -d "$ptree/$2" ]; then
+		echo "$1: $2 does not exists"
+		return	
+	fi
+	
 	echo "Adding $2 to $1 build queue"
 	cd $TBDIR/scripts && $tc_script \
 		addBuildPortsQueueEntry -u $TBUSER -b $1 -d $2
 }
 
 display_usage() {
-	echo "Usage: $0 <command> <query> <build_name|all>"
+	echo "Usage: tbuilder <command> <query> <build_name|all>"
 	echo ""
 	echo " commands: bdeps - build ports having <query> build dependency"
 	echo "           grep  - build ports containing <query> port in Makefile"
@@ -36,7 +43,6 @@ bdeps)
 	ports=$($PORTSDIR/Tools/scripts/portsearch -b $2 \
 		| grep Path: | cut -f 4- -d '/') ;;
 grep)
-	#[ ! -d $PORTSDIR/$2 ] && display_usage
 	ports=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
 		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g') ;;
 match)
@@ -48,8 +54,6 @@ name)
 	ports=$2
 	[ "$ports" = "." ] && ports=$(echo $PWD | \
 		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')
-#	[ ! -d $PORTSDIR/$ports ] && \
-#		echo "===> Port $ports does not exist" && exit
 	;;
 *)
 	display_usage
