@@ -5,15 +5,9 @@ TBDIR=${TBDIR:-/usr/local/tinderbox}
 TBUSER=${TBUSER:-corn}
 build=${3:-none}
 
-if [ "$(id -u)" = "0" ]; then
-	tc_script="./tc"
-else
-	tc_script="sudo ./tc"
-fi
-
 # $1 tinderbox buildname, $2 port to build
 build_queue_add() {
-	local ptree="$TBDIR/portstrees/$($tc_script getPortsTreeForBuild -b $1)/ports"
+	local ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $1)/ports"
 
 	if [ ! -d "$ptree/$2" ]; then
 		echo "$1: $2 does not exists"
@@ -21,8 +15,7 @@ build_queue_add() {
 	fi
 	
 	echo "Adding $2 to $1 build queue"
-	cd $TBDIR/scripts && $tc_script \
-		addBuildPortsQueueEntry -u $TBUSER -b $1 -d $2
+	tc_cmd addBuildPortsQueueEntry -u $TBUSER -b $1 -d $2
 }
 
 display_usage() {
@@ -35,6 +28,18 @@ display_usage() {
 	echo "           name  - build port <query>"
 	echo "                   if <query> = "." build port from current directory"
 	exit
+}
+
+tc_cmd() {
+	local tc_script
+	
+	if [ "$(id -u)" = "0" ]; then
+		tc_script="./tc"
+	else
+		tc_script="sudo ./tc"
+	fi
+
+	cd $TBDIR/scripts && $tc_script $*
 }
 
 case $1 in
@@ -59,7 +64,7 @@ name)
 	display_usage
 esac
 
-all_builds=$(cd $TBDIR/scripts && $tc_script listBuilds)
+all_builds=$(tc_cmd listBuilds)
 
 for port in $ports; do
 	case $build in
