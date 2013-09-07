@@ -1,6 +1,7 @@
 #!/bin/sh
 
 PORTSDIR=${PORTSDIR:-/usr/ports}
+PATH=$PATH:$PORTSDIR/Tools/scripts
 TBDIR=${TBDIR:-/usr/local/tinderbox}
 TBUSER=${TBUSER:-corn}
 build=${3:-none}
@@ -23,7 +24,6 @@ display_usage() {
 	echo ""
 	echo " commands: bdeps - build ports having <query> build dependency"
 	echo "           grep  - build ports containing <query> port in Makefile"
-	echo "                   <query> must be in category/portname format"
 	echo "           match - build port matching <query>"
 	echo "           name  - build port <query>"
 	echo "                   if <query> = "." build port from current directory"
@@ -44,16 +44,14 @@ tc_cmd() {
 
 case $1 in
 bdeps)
-	[-z "$2" ] && display_usage
-	ports=$($PORTSDIR/Tools/scripts/portsearch -b $2 \
-		| grep Path: | cut -f 4- -d '/') ;;
+	[ -z "$2" ] && display_usage
+	ports=$(portsearch -b $2 | grep Path: | cut -f 4- -d '/') ;;
 grep)
 	ports=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
 		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g') ;;
 match)
 	[ -z "$2" ] && display_usage
-	ports=$($PORTSDIR/Tools/scripts/portsearch -n $2 \
-		| grep Path: | cut -f 4- -d '/') ;;
+	ports=$(portsearch -n $2 | grep Path: | cut -f 4- -d '/') ;;
 name)
 	[ -z "$2" -o $build = "none" ] && display_usage
 	ports=$2
@@ -64,14 +62,12 @@ name)
 	display_usage
 esac
 
-all_builds=$(tc_cmd listBuilds)
-
 for port in $ports; do
 	case $build in
 	none)
 		echo "Found match: $port" ;;
 	all)
-		for b in $all_builds; do build_queue_add $b $port; done ;;
+		for b in $(tc_cmd listBuilds); do build_queue_add $b $port; done ;;
 	*)
 		build_queue_add $build $port
 	esac
