@@ -1,12 +1,18 @@
 #!/bin/sh
 
+readonly XDG_HOME_CONFIG=${XDG_HOME_CONFIG:-$HOME/.config}
+readonly EXCLUDE_CONF="$XDG_HOME_CONFIG/pkg-cutter"
+
+exclude_opt=0
 rm_count=0
 sel_status="off"
 
 display_usage() {
 	echo "Usage:"
-	echo "  pkg-cutter -h - show this help"
-	echo "  pkg-cutter -o - set selection to on by default"
+	echo "  pkg-cutter"
+	echo "    -h - show this help"
+	echo "    -o - set selection to on by default"
+	echo "    -x - update exclude list"
 	exit
 }
 
@@ -35,19 +41,53 @@ number_humanize() {
 	}' | tr ',' '.'
 }
 
+update_exclude_list() {
+	count=0
+	
+	for pkg in $(pkg query '%n@%v'); do
+		status="off"
+		case $pkg_exclude in *${pkg%@*}*) status="on" ;; esac
+		items="$items ${pkg%@*} ${pkg#*@} $status"
+		count=$((count+1))
+	done
+
+	tmpfile=$(mktemp)
+	echo "--checklist \"Select packages to exclude ($count items):\" \
+		21 70 19 $items" > $tmpfile
+	excluded=$(dialog --stdout --file $tmpfile | sed 's|"||g')
+	dialog --clear
+	rm $tmpfile
+
+	[ -z "$excluded" ] && exit
+	[ -d "$XDG_HOME_CONFIG" ] || mkdir "$XDG_HOME_CONFIG"
+	[ -f "$EXCLUDE_CONF" ] && rm -f "$EXCLUDE_CONF"
+
+	for pkg in $excluded; do
+		printf "$pkg\n" >> "$EXCLUDE_CONF"
+	done
+	exit
+}
+
 if [ "$(id -u)" != "0" ]; then
 	echo "You need root privileges to remove packages"
 	exit
 fi
 
-while getopts "ho" option; do
+while getopts "hox" option; do
 	case $option in
-	h)
-		display_usage ;;
 	o)
-		sel_status="on"
+		[ $exclude_opt -eq 1 ] && display_usage
+		sel_status="on" ;;
+	x)
+		[ "$sel_status" = "on" ] && display_usage
+		exclude_opt=1 ;;
+	*)
+		display_usage	
 	esac
 done
+
+[ -f "$EXCLUDE_CONF" ] && pkg_exclude=$(grep -v '^#' "$EXCLUDE_CONF")
+[ $exclude_opt -eq 1 ] && update_exclude_list
 
 while true; do 
 	pkg_leafs=$(pkg query -e '%#r = 0' %n-%v@%sb)
@@ -56,6 +96,7 @@ while true; do
 
 	for pkg in $pkg_leafs; do
 		case $pkg_seen in *${pkg%@*}*) continue;; esac
+		case $pkg_exclude in *${pkg%-*}*) continue;; esac
 
 		size=$(number_humanize ${pkg#*@})
 		pkg_seen="$pkg_seen ${pkg%@*}"
