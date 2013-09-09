@@ -79,7 +79,6 @@ newer_library_available() {
 		
 		END { print so_bump; }
 	')
-	#echo "library: $lib so_bump: $ret"
 	return $ret
 }
 
@@ -139,6 +138,8 @@ if [ -z "$TMP_SEM" -o -z "$TMP_STALE" -o -z "$TMP_BAD" ]; then
 	exit_clean 1
 fi
 
+trap 'exit_clean 0' int
+
 packages=$(pkg query '%n-%v')
 pkg_all=$(echo $packages | wc -w)
 pkg_curr=0
@@ -196,7 +197,7 @@ pkg_stale=$(cat $TMP_STALE)
 if [ -z "$pkg_stale" ]; then
 	echo "No packages linked to stale libs found"
 	echo ""
-	exit
+	exit_clean 0
 fi
 
 echo "Following packages are linked to stale libs:"
@@ -215,9 +216,10 @@ while true; do
 	read answer
 	case $answer in	
 	[Nn])
-		exit_clean 0 ;;
+		;;
 	[Yy]) 
 		rebuild_ports $pkg_re
-		exit_clean 0
 	esac
 done
+
+exit_clean 0
