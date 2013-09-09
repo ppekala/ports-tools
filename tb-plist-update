@@ -1,8 +1,8 @@
 #!/bin/sh
 
-PKGNAME=$(make -V PKGNAME 2>/dev/null)
-TBDIR=${TBDIR:-/usr/local/tinderbox}
-build=${1:-9.1-FreeBSD};
+readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
+readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
+readonly build=${1:-9.1-FreeBSD};
 
 [ -z "$(whereis -bq plist-sort)" ] && \
 	echo "===> Required script plist-sort not found" && exit

@@ -1,9 +1,9 @@
 #!/bin/sh
 
-PORTSDIR=${PORTSDIR:-/usr/ports}
-base_dir=$PWD
-category=$(make -V CATEGORIES | awk '{print $1}')
-port=$(basename $PWD)
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly base_dir=$PWD
+readonly category=$(make -V CATEGORIES | awk '{print $1}')
+readonly port=$(basename $PWD)
 
 portdir_clean() {
 	local dir=$1

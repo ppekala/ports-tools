@@ -1,10 +1,10 @@
 #!/bin/sh
 
-PORTSDIR=${PORTSDIR:-/usr/ports}
-PATH=$PATH:$PORTSDIR/Tools/scripts
-TBDIR=${TBDIR:-/usr/local/tinderbox}
-TBUSER=${TBUSER:-corn}
-build=${3:-none}
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly PATH=$PATH:$PORTSDIR/Tools/scripts
+readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
+readonly TBUSER=${TBUSER:-corn}
+readonly build=${3:-none}
 
 # $1 tinderbox buildname, $2 port to build
 build_queue_add() {

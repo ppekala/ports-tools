@@ -1,7 +1,6 @@
 #!/bin/sh
 
-TMPDIR=${TMPDIR:-/tmp}
-aspell_check="aspell --dont-backup --lang=en check"
+readonly aspell_check="aspell --dont-backup --lang=en check"
 
 reinplace_file() {
 	local file=$1 expr=$2

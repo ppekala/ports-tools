@@ -1,8 +1,8 @@
 #!/bin/sh
 
-PAGER=${PAGER:-less}
-PORTSDIR=${PORTSDIR:-/usr/ports}
-PATH=$PATH:$PORTSDIR/Tools/scripts
+readonly PAGER=${PAGER:-less}
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 
 files_dir_removed="no"
 
