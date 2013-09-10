@@ -174,12 +174,10 @@ for pkg in $packages; do
 			newer_library_available $lib
 			if [ $? -lt 1 ]; then
 				echo $pkg >> $TMP_BAD
-				echo >> $TMP_BAD
 				exit
 			fi
 		done
 		echo "$pkg@$ret" | sed 's| |@|g' >> $TMP_STALE
-		echo >> $TMP_STALE
 	) &
 done
 
