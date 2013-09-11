@@ -163,13 +163,14 @@ dependency_is_inherited() {
 }
 
 display_usage() {
-	echo "Usage:"
-	echo "  pkg-lib-check <pkg_name> - do all pkg library checks"
-	echo "  pkg-lib-check -a - test all installed packages"
-	echo "  pkg-lib-check -d <pkg_name> - show direct dependencies"
-	echo "  pkg-lib-check -f <pkg_name> - do full checks with inheritance detection (slow)"
-	echo "  pkg-lib-check -l <pkg_name> - check only for link problems"
-	echo "  pkg-lib-check -s <lib_name> <pkg_name> - show files linked to lib_name"
+	echo "Usage: pkg-lib-check [-d|-f|-l|-s grep_pattern] <-a|pkg_name>"
+	echo ""
+	echo "    -a - test all installed packages"
+	echo "    -d - show direct dependencies"
+	echo "    -f - do full checks with inheritance detection (slow)"
+	echo "    -l - check only for link problems"
+	echo "    -s - show files linked to 'grep_pattern'"
+	echo ""
 	exit
 }
 
@@ -205,17 +206,20 @@ while getopts "adfls:" option; do
 	a)
 		test_all=1 ;;
 	d)
-		[ $only_link_err -eq 1 -o -n "$search_str" ] && display_usage
+		[ $full_check -eq 1 -o $only_link_err -eq 1 -o \
+			-n "$search_str" ] && display_usage
 		show_direct_deps=1 ;;
 	f)
-		[ $show_direct_deps -eq 1 -o -n "$search_str" ] && display_usage		
+		[ $show_direct_deps -eq 1 -o $show_direct_deps -eq 1 -o \
+			-n "$search_str" ] && display_usage		
 		full_check=1 ;;
 	l)
-		[ $show_direct_deps -eq 1 -o -n "$search_str" ] && display_usage
+		[ $show_direct_deps -eq 1 -o $full_check -eq 1 -o \
+			-n "$search_str" ] && display_usage
 		only_link_err=1 ;;
 	s)
-		[ $show_direct_deps -eq 1 -o $only_link_err -eq 1 -o \
-			-z "$OPTARG" ] && display_usage
+		[ $show_direct_deps -eq 1 -o $full_check -eq 1 -o \
+			$only_link_err -eq 1 -o -z "$OPTARG" ] && display_usage
 		search_str=$OPTARG ;;
 	?)
 		display_usage
