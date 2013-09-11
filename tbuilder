@@ -48,18 +48,17 @@ tc_cmd() {
 	cd $TBDIR/scripts && $tc_script $*
 }
 
+[ -z "$2" ] && display_usage
+
 case $1 in
 bdeps)
-	[ -z "$2" ] && display_usage
 	ports=$(portsearch -b $2 | grep Path: | cut -f 4- -d '/') ;;
 grep)
 	ports=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
 		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g') ;;
 match)
-	[ -z "$2" ] && display_usage
 	ports=$(portsearch -n $2 | grep Path: | cut -f 4- -d '/') ;;
 name)
-	[ -z "$2" -o $build = "none" ] && display_usage
 	ports=$2
 	[ "$ports" = "." ] && ports=$(echo $PWD | \
 		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')
@@ -71,7 +70,7 @@ esac
 for port in $ports; do
 	case $build in
 	none)
-		echo "Found match: $port" ;;
+		[ "$1" != "name" ] && echo "Found match: $port" ;;
 	all)
 		for b in $(tc_cmd listBuilds); do build_queue_add $b $port; done ;;
 	*)
