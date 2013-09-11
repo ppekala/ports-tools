@@ -20,13 +20,19 @@ build_queue_add() {
 }
 
 display_usage() {
-	echo "Usage: tbuilder <command> <query> <build_name|all>"
+	echo "Usage: tbuilder <command> <query> [build_name]"
 	echo ""
-	echo " commands: bdeps - build ports having <query> build dependency"
-	echo "           grep  - build ports containing <query> port in Makefile"
-	echo "           match - build port matching <query>"
-	echo "           name  - build port <query>"
-	echo "                   if <query> = "." build port from current directory"
+	echo " command: bdeps - build ports having certain build dependency"
+	echo "          grep  - build ports containing phrase in Makefile"
+	echo "          match - build ports with name matching certain phrase"
+	echo "          name  - build specific port"
+	echo ""
+	echo " query: (bdeps|name) - portname"
+	echo "        (grep) - grep pattern"
+	echo "        (name) - category/port or '.' to build port from current directory"
+	echo ""
+	echo " build_name: tinderbox build name or 'all' for all available builds"
+	echo ""
 	exit
 }
 
