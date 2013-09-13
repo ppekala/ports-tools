@@ -4,25 +4,61 @@ readonly PAGER=${PAGER:-less}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 
-files_dir_removed="no"
+remove_dir_if_empty() {
+	local dir=$(dirname $1)
+	[ -d $dir ] || return 
+	
+	if [ -z "$(ls $dir 2>&1)" ]; then
+		svn rm $dir
+	else
+		svn rm $1
+	fi
+}
 
-rej_files=$(find . -name "*.rej")
+trim_header() {
+	local file=$1
+
+	if [ -n "$(grep 'New ports collection' $file)" ]; then
+		cd $(dirname $file) && convert-makefile-header.pl -N 2>/dev/null
+		echo "===> Converted old style Makefile header: $file"
+	fi
+}
+
+if [ -n "$(make -V PORTNAME)" ]; then
+	depth=2
+else 
+	if [ -n "$(make -V PORTSTOP)" ]; then
+		depth=4
+		clean_exp="-and -not -path './.svn/*'"
+	else
+		depth=3
+	fi
+fi
+
+wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
+if [ -n "$wrk_dirs" ]; then
+	for wdir in $wrk_dirs; do
+		ret=$(make -C "${wdir%%/work}" clean)
+		if [ -n "$(echo $ret | grep 'not writable')" ]; then
+			echo "===> Failed to make clean in ${wdir%%/work}"
+			exit 0
+		fi
+	done
+fi
+
+rej_files=$(find . -name "*.rej" -depth $depth | sed 's|^./||g')
 if [ -n "$rej_files" ]; then
 	printf "===> Found rejected patch files, bailing\n "
-	echo $rej_files | sed 's|^./||g'
+	echo $rej_files | tr ' ' '\n'
 	exit 0
 fi
 
-if [ -n "$(grep 'New ports collection' Makefile 2>/dev/null)" ]; then
-	convert-makefile-header.pl -N 2>/dev/null
-	echo "===> Converted old style Makefile header"
-fi
-
-find . \( -name "*.orig" -or -size 0 \) -delete
-
-if [ -z "$(ls files 2>&1)" ]; then
-	svn rm files && files_dir_removed="yes" && \
-	echo "===> Removed empty files dir"
+old_files=$(find . \( -name "*.orig" -or -size 0 \) $clean_exp -delete \
+		-print -depth $depth | sed 's|^./||g')
+if [ -n "$old_files" ]; then
+	printf "===> Removed old temporary files\n"
+	echo $old_files | tr ' ' '\n'
+	echo ""
 fi
 
 svn status | while read line; do
@@ -31,20 +67,23 @@ svn status | while read line; do
 
 	case $change in
 	M)
-		#echo "[MOD] $file"
-		;;
+		case $file in *Makefile) trim_header $file ;; esac ;;
 	!)
-		case $file in files/*)
-			[ "$files_dir_removed" = "yes" ] && continue ;;
-		esac
-		svn rm "$file" ;;
+		case $file in
+		*files/*) #scripts
+			remove_dir_if_empty $file ;;
+		*)
+			svn rm "$file"
+		esac 
+		;;
 	?)
+		case $file in svn-commit*) continue ;; esac
 		svn add "$file" ;;
 	*)
 		echo "[???] $file, change_char=$change"
 		exit
 	esac
-done | sort -k2,2
+done
 
 while true; do
 	echo ""
