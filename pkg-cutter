@@ -8,11 +8,12 @@ rm_count=0
 sel_status="off"
 
 display_usage() {
-	echo "Usage:"
-	echo "  pkg-cutter"
+	echo "Usage: pkg-cutter [-h|-o|-x]"
+	echo ""
 	echo "    -h - show this help"
 	echo "    -o - set selection to on by default"
 	echo "    -x - update exclude list"
+	echo ""
 	exit
 }
 
