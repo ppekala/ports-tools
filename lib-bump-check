@@ -214,7 +214,7 @@ while true; do
 	read answer
 	case $answer in	
 	[Nn])
-		;;
+		break ;;
 	[Yy]) 
 		rebuild_ports $pkg_re
 		break
