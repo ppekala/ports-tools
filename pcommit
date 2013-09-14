@@ -4,6 +4,17 @@ readonly PAGER=${PAGER:-less}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 
+non_interactive=0
+
+display_usage() {
+	echo "Usage: pcommit [-h|-n]"
+	echo ""
+	echo "    -h - show this help"
+	echo "    -n - non-interactive mode"
+	echo ""
+	exit
+}
+
 remove_dir_if_empty() {
 	local dir=$(dirname $1)
 	[ -d $dir ] || return 
@@ -23,6 +34,15 @@ trim_header() {
 		echo "===> Converted old style Makefile header: $file"
 	fi
 }
+
+while getopts "hn" option; do
+	case $option in
+	n)
+		non_interactive=1 ;;
+	*)
+		display_usage
+	esac
+done
 
 if [ -n "$(make -V PORTNAME)" ]; then
 	depth=2
@@ -85,9 +105,14 @@ svn status | while read line; do
 	esac
 done
 
+if [ $non_interactive -eq 1 ]; then
+	psvn commit
+	exit
+fi
+
 while true; do
 	echo ""
-	echo "[c]ommit [v]iew diff [q]uit"
+	echo "[c]ommit [v]iew diff [s]vn status [q]uit"
 	echo -n "> "
 	read cmd
 	
@@ -97,6 +122,8 @@ while true; do
 		exit ;;
 	q)
 		exit ;;
+	s)
+		svn status ;;
 	v)
 		svn diff | $PAGER ;;
 	*)
