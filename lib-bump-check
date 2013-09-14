@@ -217,6 +217,7 @@ while true; do
 		;;
 	[Yy]) 
 		rebuild_ports $pkg_re
+		break
 	esac
 done
 
