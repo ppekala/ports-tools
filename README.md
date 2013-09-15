@@ -70,12 +70,12 @@ tb-plist-update
 Reads tinderbox build log and tries to update plist if there any files
 left behind after build.
 
+tbopt
+-----
+Sets port options in specific or all tinderbox builds.
+
 tbuilder
 --------
 
 Wrapper that makes easier to queue multiple builds of one port, ports with
 certain names, ports with Makefile containing phrase, etc.
-
-tbopt
------
-Sets port options in specific or all tinderbox builds.
