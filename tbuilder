@@ -4,6 +4,7 @@ readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
 readonly TBUSER=${TBUSER:-corn}
+readonly UID=$(id -u)
 readonly build=${3:-none}
 
 # $1 tinderbox buildname, $2 port to build
@@ -39,7 +40,7 @@ display_usage() {
 tc_cmd() {
 	local tc_script
 	
-	if [ "$(id -u)" = "0" ]; then
+	if [ $UID -eq 0 ]; then
 		tc_script="./tc"
 	else
 		tc_script="sudo ./tc"
