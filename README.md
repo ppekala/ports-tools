@@ -1,5 +1,5 @@
-bsd-scripts
-===========
+FreeBSD ports tools
+===================
 
 FreeBSD developer's scripts
 
@@ -57,7 +57,7 @@ determined conditional files.
 plogsend
 --------
 
-Easy way to send tinderbuild logs to your FreeBSD account by scp.
+Easy way to send tinderbox build logs to your FreeBSD account by scp.
 
 reinplace-check
 ---------------
@@ -67,7 +67,7 @@ Checks for files with stale REINPLACE_CMD actions or shows diff's of them.
 tb-plist-update
 ---------------
 
-Reads tinderbuild log and tries to update plist if there any files
+Reads tinderbox build log and tries to update plist if there any files
 left behind after build.
 
 tbuilder
@@ -75,3 +75,7 @@ tbuilder
 
 Wrapper that makes easier to queue multiple builds of one port, ports with
 certain names, ports with Makefile containing phrase, etc.
+
+tbopt
+-----
+Sets port options in specific or all tinderbox builds.
