@@ -43,6 +43,8 @@ builds=$3
 
 [ "$builds" = "all" ] && builds=$(tc_cmd listBuilds)
 
+readonly OPTDIR=$(tc_cmd configOptions | awk -F= '/OPTIONS_DIR/ { print $2 }')
+
 for build in $builds; do
 	ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $build)/ports"
 	
@@ -51,7 +53,7 @@ for build in $builds; do
 		continue
 	fi
 	
-	make_args="PORT_DBDIR=$TBDIR/options/$build"
+	make_args="PORT_DBDIR=$OPTDIR/$build"
 
 	case $cmd in
 	del)
