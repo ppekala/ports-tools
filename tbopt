@@ -62,6 +62,6 @@ for build in $builds; do
 		cd "$ptree/$port" && make $make_args config ;;
 	show)
 		echo "===> Build $build:"
-		cd "$ptree/$port" && make $make_args showconfig
+		cd "$ptree/$port" && make $make_args pretty-print-config
 	esac
 done
