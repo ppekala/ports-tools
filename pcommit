@@ -26,15 +26,6 @@ remove_dir_if_empty() {
 	fi
 }
 
-trim_header() {
-	local file=$1
-
-	if [ -n "$(grep 'New ports collection' $file)" ]; then
-		cd $(dirname $file) && convert-makefile-header.pl -N 2>/dev/null
-		echo "===> Converted old style Makefile header: $file"
-	fi
-}
-
 while getopts "hn" option; do
 	case $option in
 	n)
@@ -87,7 +78,7 @@ svn status | while read line; do
 
 	case $change in
 	M)
-		case $file in *Makefile) trim_header $file ;; esac ;;
+		;;
 	!)
 		case $file in
 		*files/*) #scripts
