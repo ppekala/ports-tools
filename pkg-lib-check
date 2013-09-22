@@ -27,6 +27,9 @@ check_for_link_errors() {
 	local pkg_files=$(pkg info -lq $package 2>/dev/null)
 
 	for lib in $pkg_libs; do
+		case $lib in *..*)
+			lib=$(realpath "$lib")
+		esac
 		# skip libraries from package we are checking
 		case $pkg_files in *${lib##not_found}*)
 			continue
@@ -61,15 +64,7 @@ check_for_link_errors() {
 		*$lib_owner*)
 			;;
 		*)
-			case $lib_owner in 
-			$package*)
-				# some libs path have '..' in them confusing
-				# package's own libraries detection, without
-				# this missing dependency on self can happen
-				;;
-			*)	
-				PKG_DEPS="$PKG_DEPS $lib_owner"
-			esac
+			PKG_DEPS="$PKG_DEPS $lib_owner"
 		esac
 	done
 	
