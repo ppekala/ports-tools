@@ -1,5 +1,6 @@
 #!/bin/sh
 
+readonly PAGER=${PAGER:-less}
 readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
 readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
 readonly build=${1:-9.1-FreeBSD};
@@ -144,3 +145,20 @@ END {
 
 plist-sort $tempfile > $plist_out
 rm $tempfile
+
+if [ "$plist_out" != "pkg-plist" ]; then
+	diff -u pkg-plist $plist_out | $PAGER
+	
+	while true; do
+		echo -n "Use newly generated plist (y/n)? "
+		read cmd
+		
+		case $cmd in
+		y)
+			mv $plist_out pkg-plist
+			break ;;
+		n)
+			break
+		esac
+	done
+fi
