@@ -3,15 +3,52 @@
 readonly PAGER=${PAGER:-less}
 readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
 readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
-readonly build=${1:-9.1-FreeBSD};
+readonly UID=$(id -u)
 
-[ -z "$(whereis -bq plist-sort)" ] && \
-	echo "===> Required script plist-sort not found" && exit
+tc_cmd() {
+	local tc_script
+	
+	if [ $UID -eq 0 ]; then
+		tc_script="./tc"
+	else
+		tc_script="sudo ./tc"
+	fi
 
-[ -z "$PKGNAME" ] && echo "===> This is not port directory" && exit
+	cd $TBDIR/scripts && $tc_script $*
+}
 
-logfile="$TBDIR/logs/$build/$PKGNAME.log"
-[ ! -f "$logfile" ] && echo "===> Logfile $logfile does not exist" && exit
+
+if [ -z "$(whereis -bq plist-sort)" ]; then
+	echo "===> Required script plist-sort not found"
+	exit
+fi
+
+if [ -z "$PKGNAME" ]; then
+	echo "===> This is not port directory"
+	exit
+fi
+
+builds=$1
+if [ -z "$builds" ]; then
+	builds=$(tc_cmd listBuilds)
+	for build in $builds; do
+		if [ -f "$TBDIR/logs/$build/$PKGNAME.log" ]; then
+			logfile="$TBDIR/logs/$build/$PKGNAME.log"
+			break
+		fi
+	done
+	
+	if [ -z "$logfile" ]; then
+		echo "===> Could not find any build logs for $PKGNAME"
+		exit
+	fi
+else
+	logfile="$TBDIR/logs/$builds/$PKGNAME.log"
+	if [ ! -f "$logfile" ]; then
+		echo "===> Logfile $logfile does not exist"
+		exit
+	fi
+fi
 
 tempfile=$(mktemp)
 if [ -f pkg-plist ]; then
@@ -145,8 +182,9 @@ END {
 
 plist-sort $tempfile > $plist_out
 rm $tempfile
+[ "$plist_out" = "pkg-plist" ] && exit
 
-if [ "$plist_out" != "pkg-plist" ]; then
+if [ -n "$(cmp pkg-plist $plist_out 2>/dev/null)" ]; then
 	diff -u pkg-plist $plist_out | $PAGER
 	
 	while true; do
@@ -161,4 +199,6 @@ if [ "$plist_out" != "pkg-plist" ]; then
 			break
 		esac
 	done
+else
+	rm $plist_out
 fi
