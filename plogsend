@@ -1,18 +1,49 @@
 #!/bin/sh
 
+readonly FREEBSD_LOGIN=${FREEBSD_LOGIN:-$USER}
 readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
 readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
-readonly build=${1:-9.1-FreeBSD}
+readonly UID=$(id -u)
 
-[ -z "$PKGNAME" ] && echo "===> This is not port directory" && exit
+tc_cmd() {
+	local tc_script
+	
+	if [ $UID -eq 0 ]; then
+		tc_script="./tc"
+	else
+		tc_script="sudo ./tc"
+	fi
 
-logfile=$TBDIR/logs/$build/$PKGNAME.log
-echo "===> Build selected: $build"
+	cd $TBDIR/scripts && $tc_script $*
+}
 
-if [ -f "$logfile" ]; then
-	echo "===> Uploading to http://people.freebsd.org/~pawel/buildlogs/$PKGNAME.log"
-	sudo -u corn scp "$logfile" pawel@freebsd.org:public_html/buildlogs/
-else
-	echo "===> Logfile $logfile does not exists"
-	exit 0
+if [ -z "$PKGNAME" ]; then
+	echo "===> This is not port directory"
+	exit
 fi
+
+builds=$1
+if [ -z "$builds" ]; then
+	builds=$(tc_cmd listBuilds)
+	for build in $builds; do
+		if [ -f "$TBDIR/logs/$build/$PKGNAME.log" ]; then
+			logfile="$TBDIR/logs/$build/$PKGNAME.log"
+			break
+		fi
+	done
+	
+	if [ -z "$logfile" ]; then
+		echo "===> Could not find any build logs for $PKGNAME"
+		exit
+	fi
+else
+	logfile="$TBDIR/logs/$builds/$PKGNAME.log"
+	if [ ! -f "$logfile" ]; then
+		echo "===> Logfile $logfile does not exist"
+		exit
+	fi
+fi
+
+echo "===> Build selected: $build"
+echo "===> Uploading to http://people.freebsd.org/~$FREEBSD_LOGIN/buildlogs/$PKGNAME.log"
+scp "$logfile" $FREEBSD_LOGIN@freebsd.org:public_html/buildlogs/
