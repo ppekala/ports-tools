@@ -81,7 +81,9 @@ svn status | while read line; do
 		;;
 	!)
 		case $file in
-		*files/*) #scripts
+		*files/*)
+			remove_dir_if_empty $file ;;
+		*scripts/*)
 			remove_dir_if_empty $file ;;
 		*)
 			svn rm "$file"
