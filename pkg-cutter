@@ -2,6 +2,7 @@
 
 readonly XDG_HOME_CONFIG=${XDG_HOME_CONFIG:-$HOME/.config}
 readonly EXCLUDE_CONF="$XDG_HOME_CONFIG/pkg-cutter"
+readonly LOCALBASE=${LOCALBASE:-/usr/local}
 
 exclude_opt=0
 rm_count=0
@@ -68,6 +69,11 @@ update_exclude_list() {
 	done
 	exit
 }
+
+if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
+	echo "This script requires pkgNG (ports-mgmt/pkg)"
+	exit
+fi
 
 if [ "$(id -u)" != "0" ]; then
 	echo "You need root privileges to remove packages"
