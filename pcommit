@@ -90,7 +90,7 @@ svn status | while read line; do
 		esac 
 		;;
 	?)
-		case $file in svn-commit*) continue ;; esac
+		case $file in *svn-commit*) continue ;; esac
 		svn add "$file" ;;
 	*)
 		echo "[???] $file, change_char=$change"
