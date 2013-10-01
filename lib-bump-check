@@ -40,6 +40,15 @@ check_package() {
 	done
 }
 
+display_usage() {
+	echo "Usage: lib-bump-check [-h | -r pkgname]"
+	echo ""
+	echo "    -h - show this help"
+	echo "    -r - check only packages that depend on pkgname"
+	echo ""
+	exit
+}
+
 exit_clean() {
 	[ -f "$TMP_SEM" ] && rm -f "$TMP_SEM"
 	[ -f "$TMP_STALE" ] && rm -f "$TMP_STALE"
@@ -135,6 +144,30 @@ rebuild_ports() {
 	fi
 }
 
+while getopts "hr:" option; do
+	case $option in
+	r)
+		[ -n "$OPTARG" ] || display_usage
+		PKG_PARENT="$OPTARG" ;;
+	*)
+		display_usage
+	esac
+done
+
+if [ -n "$PKG_PARENT" ]; then
+	packages=$(pkg info -rq $PKG_PARENT 2>/dev/null)
+else
+	packages=$(pkg query '%n-%v' 2>/dev/null)
+fi
+
+pkg_all=$(echo $packages | wc -w)
+if [ $pkg_all -eq 0 ]; then
+	echo "No packages to check found"
+	exit
+fi
+
+pkg_curr=0
+
 readonly TMP_SEM=$(mktemp -t "lbc-sem")
 readonly TMP_STALE=$(mktemp -t "lbc-stale")
 readonly TMP_BAD=$(mktemp -t "lbc-bad")
@@ -146,28 +179,23 @@ fi
 
 trap 'exit_clean 0' int
 
-packages=$(pkg query '%n-%v')
-pkg_all=$(echo $packages | wc -w)
-pkg_curr=0
-
 if [ -f "$IGNORE_FILE" ]; then
 	n=0
 	pkg_ignore=$(grep -v '^#' "$IGNORE_FILE")
 	for pkg in $pkg_ignore; do n=$((n+1)); done
 	if [ $n -gt 0 ]; then 
 		echo "Read $IGNORE_FILE, $n entries found"
-		pkg_all=$((pkg_all-n))
 	fi
 fi
 
 lockf -k "$TMP_SEM" echo $(sysctl -n hw.ncpu 2>/dev/null || echo 1) > "$TMP_SEM"
 
 for pkg in $packages; do
+	pkg_curr=$((pkg_curr+1))
 	if [ -n "$pkg_ignore" ]; then
 		pkg_is_ignored $pkg
 		[ $? -eq 1 ] && continue
 	fi
-	pkg_curr=$((pkg_curr+1))
 
 	job_register $pkg_curr $pkg_all
 	(
