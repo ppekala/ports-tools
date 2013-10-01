@@ -41,8 +41,9 @@ check_package() {
 }
 
 display_usage() {
-	echo "Usage: lib-bump-check [-h | -r pkgname]"
+	echo "Usage: lib-bump-check [-h | -r pkgname] [ -j jobs ]"
 	echo ""
+	echo "    -j - set number of parallel checks to jobs"
 	echo "    -h - show this help"
 	echo "    -r - check only packages that depend on pkgname"
 	echo ""
@@ -144,8 +145,11 @@ rebuild_ports() {
 	fi
 }
 
-while getopts "hr:" option; do
+while getopts "j:hr:" option; do
 	case $option in
+	j)
+		[ -n "$OPTARG" ] || display_usage
+		JOBS="$OPTARG" ;;
 	r)
 		[ -n "$OPTARG" ] || display_usage
 		PKG_PARENT="$OPTARG" ;;
@@ -153,6 +157,8 @@ while getopts "hr:" option; do
 		display_usage
 	esac
 done
+
+[ -n "$JOBS" ] || JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1)
 
 if [ -n "$PKG_PARENT" ]; then
 	packages=$(pkg info -rq $PKG_PARENT 2>/dev/null)
@@ -188,7 +194,7 @@ if [ -f "$IGNORE_FILE" ]; then
 	fi
 fi
 
-lockf -k "$TMP_SEM" echo $(sysctl -n hw.ncpu 2>/dev/null || echo 1) > "$TMP_SEM"
+lockf -k "$TMP_SEM" echo $JOBS > "$TMP_SEM"
 
 for pkg in $packages; do
 	pkg_curr=$((pkg_curr+1))
