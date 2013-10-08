@@ -10,7 +10,7 @@ portdir_clean() {
 	
 	if [ -d "$dir/work" ]; then
 		cd "$dir"
-		if [ -n "$(make clean | grep 'not writable')" ]; then
+		if [ -n "$(make clean 2>/dev/null | grep 'not writable')" ]; then
 			echo "===> Failed to make clean in $dir"
 			exit
 		fi

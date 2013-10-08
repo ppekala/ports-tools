@@ -49,7 +49,7 @@ fi
 wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
 if [ -n "$wrk_dirs" ]; then
 	for wdir in $wrk_dirs; do
-		ret=$(make -C "${wdir%%/work}" clean)
+		ret=$(make -C "${wdir%%/work}" clean 2>/dev/null)
 		if [ -n "$(echo $ret | grep 'not writable')" ]; then
 			echo "===> Failed to make clean in ${wdir%%/work}"
 			exit 0
