@@ -89,8 +89,6 @@ svn status | while read line; do
 	file=$(echo "$line" | awk '{ print $2 }')
 
 	case $change in
-	M)
-		;;
 	!)
 		case $file in
 		*files/*)
@@ -103,10 +101,7 @@ svn status | while read line; do
 		;;
 	?)
 		case $file in *svn-commit*) continue ;; esac
-		svn add "$file" ;;
-	*)
-		echo "[???] $file, change_char=$change"
-		exit
+		svn add "$file"
 	esac
 done
 
