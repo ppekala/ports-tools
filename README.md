@@ -12,6 +12,11 @@ and have it's PORTREVISION not increased. This script scans your installed
 packages and tries to find those that need to be rebuilt and offers to do
 it for you. Requires pkgNG.
 
+mkpatch
+-------
+
+Makes patch from (all or pattern matched) modified files in WRKSRC directory.
+
 pcheck
 ------
 
