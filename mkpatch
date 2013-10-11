@@ -1,0 +1,47 @@
+#!/bin/sh
+
+readonly patterns="$@"
+readonly WRKSRC=$(make -V WRKSRC)
+
+if [ -n "$WRKSRC" ]; then
+	if [ ! -d "$WRKSRC" ]; then
+		while true; do
+			echo -n "WRKSRC does not exist, run 'make configure' (y/n)? " >/dev/stderr
+			read answer
+			
+			case $answer in
+			[Yy])
+				make configure >/dev/null 2>/dev/null
+				break ;;
+			[Nn])
+				exit
+			esac
+		done
+	fi
+	
+	cd $WRKSRC
+fi
+
+p_files=$(find . -name '*.orig' | sed 's#^./##')
+if [ -z "$p_files" ]; then
+	echo "No patched files found"
+	exit
+fi
+
+for f in $p_files; do
+	if [ -n "$patterns" ]; then
+		matched=0
+	
+		for p in $patterns; do
+			case "$f" in 
+			*$p*)
+				matched=1
+				break
+			esac
+		done
+		
+		[ $matched -eq 1 ] || continue
+	fi
+
+	diff -u "$f" "${f%%.orig}"
+done
