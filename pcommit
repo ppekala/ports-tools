@@ -8,7 +8,7 @@ clean_only=0
 non_interactive=0
 
 display_usage() {
-	echo "Usage: pcommit [-h|-n]"
+	echo "Usage: pcommit [-c|-h|-n]"
 	echo ""
 	echo "    -c - clean temp files only"
 	echo "    -h - show this help"
