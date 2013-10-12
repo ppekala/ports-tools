@@ -4,11 +4,13 @@ readonly PAGER=${PAGER:-less}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 
+clean_only=0
 non_interactive=0
 
 display_usage() {
 	echo "Usage: pcommit [-h|-n]"
 	echo ""
+	echo "    -c - clean temp files only"
 	echo "    -h - show this help"
 	echo "    -n - non-interactive mode"
 	echo ""
@@ -26,8 +28,10 @@ remove_dir_if_empty() {
 	fi
 }
 
-while getopts "hn" option; do
+while getopts "chn" option; do
 	case $option in
+	c)
+		clean_only=1 ;;
 	n)
 		non_interactive=1 ;;
 	*)
@@ -51,7 +55,7 @@ if [ -n "$wrk_dirs" ]; then
 	for wdir in $wrk_dirs; do
 		if [ $depth -ne 2 ]; then
 			echo "===> Running 'make clean' in ${wdir%%/work}"
-			make_args="-C \"${wdir%%/work}\""
+			make_args="-C ${wdir%%/work}"
 		else
 			echo "===> Running 'make clean'"
 			make_args=""
@@ -76,13 +80,15 @@ if [ -n "$rej_files" ]; then
 	exit 0
 fi
 
-old_files=$(find . \( -name "*.orig" -or -size 0 \) $clean_exp -delete \
-		-print -depth $depth | sed 's|^./||g')
+old_files=$(find . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
+		$clean_exp -delete -print -depth $depth | sed 's|^./||g')
 if [ -n "$old_files" ]; then
 	printf "===> Removed old temporary files\n"
 	echo $old_files | tr ' ' '\n'
 	echo ""
 fi
+
+[ $clean_only -eq 0 ] || exit
 
 svn status | while read line; do
 	change=$(echo "$line" | awk '{ print $1 }')
