@@ -123,14 +123,14 @@ while true; do
 	read cmd
 	
 	case $cmd in
-	c)
+	[Cc])
 		psvn commit
 		exit ;;
-	q)
+	[Qq])
 		exit ;;
-	s)
+	[Ss])
 		svn status ;;
-	v)
+	[Vv])
 		svn diff | $PAGER ;;
 	*)
 		echo "No such command: $cmd"

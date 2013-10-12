@@ -192,10 +192,10 @@ if [ -n "$(cmp pkg-plist $plist_out 2>/dev/null)" ]; then
 		read cmd
 		
 		case $cmd in
-		y)
+		[Yy])
 			mv $plist_out pkg-plist
 			break ;;
-		n)
+		[Nn])
 			break
 		esac
 	done
