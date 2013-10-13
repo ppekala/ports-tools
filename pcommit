@@ -90,9 +90,23 @@ fi
 
 [ $clean_only -eq 0 ] || exit
 
-svn status | while read line; do
-	change=$(echo "$line" | awk '{ print $1 }')
-	file=$(echo "$line" | awk '{ print $2 }')
+svn --show-updates status | while read line; do
+	change=$(echo "$line" | awk '{
+		if (match($0, "^Status"))
+			next;
+			
+		mod = substr($0,1,1);
+		if (mod == "?")
+			mod="N";
+		
+		upg = substr($0,9,1);
+		if (mod == "M" && upg == "*")
+			mod="U";
+		
+		print mod;
+	}')
+	[ -n "$change" ] || continue
+	file=$(echo "$line" | awk '{ print $NF }')
 
 	case $change in
 	!)
@@ -105,9 +119,12 @@ svn status | while read line; do
 			svn rm "$file"
 		esac 
 		;;
-	?)
+	N)
 		case $file in *svn-commit*) continue ;; esac
-		svn add "$file"
+		svn add "$file" ;;
+	U)
+		echo "===> Updating $file"
+		svn up "$file" 1>/dev/null 2>/dev/null
 	esac
 done
 
