@@ -1,0 +1,61 @@
+#!/bin/sh
+
+echo "===> Removing work dirs..."
+
+if [ -n "$(make -V PORTNAME)" ]; then
+	depth=2
+else 
+	if [ -n "$(make -V PORTSTOP)" ]; then
+		depth=4
+	else
+		depth=3
+	fi
+fi
+
+wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
+if [ -n "$wrk_dirs" ]; then
+	for wdir in $wrk_dirs; do
+		if [ $depth -ne 2 ]; then
+			echo "===> Running 'make clean' in ${wdir%%/work}"
+			make_args="-C ${wdir%%/work}"
+		else
+			echo "===> Running 'make clean'"
+			make_args=""
+		fi
+
+		ret=$(make $make_args clean 2>/dev/null)
+		if [ -n "$(echo $ret | grep 'not writable')" ]; then
+			if [ $depth -ne 2 ]; then
+				echo "  Failed to 'make clean' in ${wdir%%/work}"
+			else
+				echo "  Failed to 'make clean'"
+			fi
+			exit 0
+		fi
+	done
+fi
+
+echo "===> Running 'svn revert'..."
+
+svn revert --depth infinity .
+
+echo "===> Removing leftover files..."
+
+svn status | while read line; do
+	status=$(echo $line | awk '{ print $1 }')
+	file=$(echo $line | awk ' { print $2 }')
+	
+	[ -z "$status" -o -z "$file" ] && continue
+	
+	if [ "$status" = "?" ]; then
+		echo "  $file"
+		
+		if [ -d "$file" ]; then
+			rm -rf "$file"
+		else
+			rm "$file"
+		fi
+	else
+		echo "file=$file status=$status"
+	fi
+done

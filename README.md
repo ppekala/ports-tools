@@ -26,6 +26,11 @@ Check for various errors that portlint don't catch:
 * leading articles in COMMENT, tabs in WWW lines
 * not longer used make variables.
 
+pclean
+------
+
+Keeps your ports svn repo tidy.
+
 pcommit
 -------
 
