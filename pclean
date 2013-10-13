@@ -30,7 +30,6 @@ if [ -n "$wrk_dirs" ]; then
 			else
 				echo "  Failed to 'make clean'"
 			fi
-			exit 0
 		fi
 	done
 fi
