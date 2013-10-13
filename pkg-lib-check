@@ -77,12 +77,8 @@ check_for_link_errors() {
 	[ -z "$link_noexist" -a -z "$link_leftover" ] && return 0
 	
 	print_header $package
-	for err in $link_noexist; do 
-		echo "linked to non existent: $err"
-	done | sort -u
-	for err in $link_leftover; do
-		echo "linked to leftover: $err"
-	done | sort -u
+	print_list "$link_noexist" "linked to non existent: "
+	print_list "$link_leftover" "linked to leftover: "
 	
 	return 1
 }
@@ -188,7 +184,7 @@ find_linked_to() {
 	[ -z "$ret" ] && return
 	
 	print_header $package
-	for file in $ret; do echo $file; done
+	print_list "$ret"
 }
 
 # $1 - package name
@@ -199,6 +195,14 @@ print_header() {
 		echo ""
 	fi
 	echo "$1:"
+}
+
+# $1 - list
+# $2 - prefix
+print_list() {
+	for item in $1; do 
+		echo "$2$item"
+	done | sort -u
 }
 
 if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
