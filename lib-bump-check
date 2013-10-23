@@ -5,16 +5,6 @@ readonly IGNORE_FILE="$XDG_CONFIG_HOME/lib-bump-check"
 readonly LOCALBASE=${LOCALBASE:-/usr/local}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
-if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
-	echo "This script requires pkgNG (ports-mgmt/pkg)"
-	exit
-fi
-
-if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to rebuild packages"
-	exit
-fi
-
 check_package() {
 	local javavm pkg=$1
 
@@ -157,6 +147,16 @@ while getopts "j:hr:" option; do
 		display_usage
 	esac
 done
+
+if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
+	echo "This script requires pkgNG (ports-mgmt/pkg)"
+	exit
+fi
+
+if [ "$(id -u)" != "0" ]; then
+	echo "You need root privileges to rebuild packages"
+	exit
+fi
 
 [ -n "$JOBS" ] || JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1)
 

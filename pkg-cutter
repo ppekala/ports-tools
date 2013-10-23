@@ -70,16 +70,6 @@ update_exclude_list() {
 	exit
 }
 
-if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
-	echo "This script requires pkgNG (ports-mgmt/pkg)"
-	exit
-fi
-
-if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to remove packages"
-	exit
-fi
-
 while getopts "hox" option; do
 	case $option in
 	o)
@@ -92,6 +82,16 @@ while getopts "hox" option; do
 		display_usage	
 	esac
 done
+
+if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
+	echo "This script requires pkgNG (ports-mgmt/pkg)"
+	exit
+fi
+
+if [ "$(id -u)" != "0" ]; then
+	echo "You need root privileges to remove packages"
+	exit
+fi
 
 [ -f "$EXCLUDE_CONF" ] && pkg_exclude=$(grep -v '^#' "$EXCLUDE_CONF")
 [ $exclude_opt -eq 1 ] && update_exclude_list
