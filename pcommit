@@ -7,6 +7,24 @@ readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 clean_only=0
 non_interactive=0
 
+ask_yesno() {
+	[ $non_interactive -eq 0 ] || return 0
+
+	while true; do
+		echo -n "$1 (y/n)? [y] "
+		
+		read answer
+		[ -n "$answer" ] || answer="y"
+
+		case $answer in
+		[Nn])
+			return 1 ;;
+		[Yy])
+			return 0
+		esac
+	done
+}
+
 display_usage() {
 	echo "Usage: pcommit [-c|-h|-n]"
 	echo ""
@@ -15,6 +33,24 @@ display_usage() {
 	echo "    -n - non-interactive mode"
 	echo ""
 	exit
+}
+
+file_add() {
+	local file=$1
+	
+	if ask_yesno "Add file $file"; then
+	 	[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
+		svn add "$file"
+	fi
+}
+
+file_remove() {
+	local file=$1
+
+	if ask_yesno "Remove file $file"; then 
+		[ $non_interactive -eq 0 ] || echo "===> Removing file $file"
+		svn rm "$file"
+	fi
 }
 
 remove_dir_if_empty() {
@@ -90,7 +126,19 @@ fi
 
 [ $clean_only -eq 0 ] || exit
 
-svn --show-updates status | while read line; do
+tempfile=$(mktemp -t pcommit)
+svn --show-updates status > $tempfile
+
+if [ $? -ne 0 ]; then
+	echo "===> 'svn status' failed, bailing"
+	rm $tempfile
+	exit
+fi
+
+old_IFS=$IFS
+IFS=$'\n'
+
+for line in $(cat $tempfile); do
 	change=$(echo "$line" | awk '{
 		if (match($0, "^Status"))
 			next;
@@ -116,17 +164,20 @@ svn --show-updates status | while read line; do
 		*scripts/*)
 			remove_dir_if_empty $file ;;
 		*)
-			svn rm "$file"
+			file_remove "$file"
 		esac 
 		;;
 	N)
 		case $file in *svn-commit*) continue ;; esac
-		svn add "$file" ;;
+		file_add "$file" ;;
 	U)
 		echo "===> Updating $file"
-		svn up "$file" 1>/dev/null 2>/dev/null
+		svn update "$file"
 	esac
 done
+
+rm $tempfile
+IFS=$old_IFS
 
 if [ $non_interactive -eq 1 ]; then
 	psvn commit
