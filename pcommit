@@ -40,6 +40,9 @@ file_add() {
 	if ask_yesno "Add file $file"; then
 	 	[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
 		svn -q add "$file"
+		return 0
+	else
+		return 1
 	fi
 }
 
@@ -176,6 +179,7 @@ for line in $(cat $tempfile); do
 	}')
 	[ -n "$change" ] || continue
 	file=$(echo "$line" | awk '{ print $NF }')
+	tracked=0
 
 	case $change in
 	!)
@@ -190,13 +194,14 @@ for line in $(cat $tempfile); do
 		;;
 	N)
 		case $file in *svn-commit*) continue ;; esac
-		file_add "$file" ;;
+		file_add "$file"
+		tracked=$? ;;
 	U)
 		echo "===> Updating $file"
 		svn -q update "$file"
 	esac
 
-	file_set_props "$file"
+	[ $tracked -eq 1 ] || file_set_props "$file"
 done
 
 rm $tempfile
