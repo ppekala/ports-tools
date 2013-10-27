@@ -2,7 +2,6 @@
 
 readonly PAGER=${PAGER:-less}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
-readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 
 clean_only=0
 non_interactive=0
@@ -51,6 +50,27 @@ file_remove() {
 		[ $non_interactive -eq 0 ] || echo "===> Removing file $file"
 		svn rm "$file"
 	fi
+}
+
+file_set_props() {
+	local file=$1
+	
+	[ -d "$file" -o ! -e "$file" ] && return 1
+	
+	case $(egrep -- '\$FreeBSD\$|\$[BDFSer]+:' "$file" >/dev/null || echo $?) in
+	"")	# matched pattern
+		svn -q -- propset svn:keywords "FreeBSD=%H" "$file"
+		svn -q -- propdel fbsd:nokeywords "$file" ;;
+	1)	# no match
+		svn -q -- propset fbsd:nokeywords yes "$file"
+		svn -q -- propdel svn:keywords "$file" ;;
+	esac
+
+	if [ "${_file##/*}" != "bsd.port.mk" ] ; then
+		svn -q -- propset svn:eol-style native "$file"
+	fi
+	svn -q -- propset svn:mime-type text/plain "$file"
+	svn -q -- propdel cvs2svn:cvs-rev "$file"
 }
 
 remove_dir_if_empty() {
@@ -174,13 +194,15 @@ for line in $(cat $tempfile); do
 		echo "===> Updating $file"
 		svn update "$file"
 	esac
+
+	file_set_props "$file"
 done
 
 rm $tempfile
 IFS=$old_IFS
 
 if [ $non_interactive -eq 1 ]; then
-	psvn commit
+	svn commit
 	exit
 fi
 
@@ -192,7 +214,7 @@ while true; do
 	
 	case $cmd in
 	[Cc])
-		psvn commit
+		svn commit
 		exit ;;
 	[Qq])
 		exit ;;
