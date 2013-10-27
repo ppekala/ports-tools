@@ -60,7 +60,7 @@ remove_dir_if_empty() {
 	if [ -z "$(ls $dir 2>&1)" ]; then
 		svn rm $dir
 	else
-		svn rm $1
+		file_remove $1
 	fi
 }
 
