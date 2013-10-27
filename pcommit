@@ -39,7 +39,7 @@ file_add() {
 	
 	if ask_yesno "Add file $file"; then
 	 	[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
-		svn add "$file"
+		svn -q add "$file"
 	fi
 }
 
@@ -48,7 +48,7 @@ file_remove() {
 
 	if ask_yesno "Remove file $file"; then 
 		[ $non_interactive -eq 0 ] || echo "===> Removing file $file"
-		svn rm "$file"
+		svn -q rm "$file"
 	fi
 }
 
@@ -78,7 +78,8 @@ remove_dir_if_empty() {
 	[ -d $dir ] || return 
 	
 	if [ -z "$(ls $dir 2>&1)" ]; then
-		svn rm $dir
+		echo "===> Removing empty dir $dir"
+		svn -q rm $dir
 	else
 		file_remove $1
 	fi
@@ -192,7 +193,7 @@ for line in $(cat $tempfile); do
 		file_add "$file" ;;
 	U)
 		echo "===> Updating $file"
-		svn update "$file"
+		svn -q update "$file"
 	esac
 
 	file_set_props "$file"
