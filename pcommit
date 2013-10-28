@@ -177,7 +177,7 @@ for line in $(cat $tempfile); do
 		
 		print mod;
 	}')
-	[ -n "$change" ] || continue
+	[ "$change" = " " -o -z "$change" ] && continue
 	file=$(echo "$line" | awk '{ print $NF }')
 	tracked=0
 
