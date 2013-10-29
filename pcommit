@@ -4,6 +4,8 @@ readonly PAGER=${PAGER:-less}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
 clean_only=0
+dir_cache=""
+dir_cache_ignore=""
 non_interactive=0
 
 ask_yesno() {
@@ -24,6 +26,17 @@ ask_yesno() {
 	done
 }
 
+dir_cache_add() {
+	local dir=$1
+
+	case $dir_cache in
+	*$dir*)
+		;;
+	*)
+		dir_cache="$dir_cache $dir"
+	esac
+}
+
 display_usage() {
 	echo "Usage: pcommit [-c|-h|-n]"
 	echo ""
@@ -36,6 +49,8 @@ display_usage() {
 
 file_add() {
 	local file=$1
+
+	case $file in *svn-commit*) return 1 ;; esac
 	
 	if ask_yesno "Add file $file"; then
 	 	[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
@@ -47,11 +62,20 @@ file_add() {
 }
 
 file_remove() {
-	local file=$1
+	local dir=$(dirname $1) file=$1
 
 	if ask_yesno "Remove file $file"; then 
 		[ $non_interactive -eq 0 ] || echo "===> Removing file $file"
 		svn -q rm "$file"
+		
+		case $file in
+		*files/*)
+			dir_cache_add $dir ;;
+		*scripts/*)
+			dir_cache_add $dir
+		esac
+	else
+		dir_cache_ignore="$dir_cache_ignore $dir"
 	fi
 }
 
@@ -76,16 +100,16 @@ file_set_props() {
 	svn -q -- propdel cvs2svn:cvs-rev "$file"
 }
 
-remove_dir_if_empty() {
-	local dir=$(dirname $1)
-	[ -d $dir ] || return 
-	
-	if [ -z "$(ls $dir 2>&1)" ]; then
-		echo "===> Removing empty dir $dir"
-		svn -q rm $dir
-	else
-		file_remove $1
-	fi
+remove_empty_dirs() {
+	for dir in "$dir_cache"; do
+		[ -d $dir ] || continue
+		case $dir_cache_ignore in *$dir*) continue ;; esac
+		
+		if [ -z "$(ls $dir 2>&1)" ]; then
+			echo "===> Removing empty dir $dir"
+			svn -q rm $dir
+		fi
+	done
 }
 
 while getopts "chn" option; do
@@ -183,17 +207,9 @@ for line in $(cat $tempfile); do
 
 	case $change in
 	!)
-		case $file in
-		*files/*)
-			remove_dir_if_empty $file ;;
-		*scripts/*)
-			remove_dir_if_empty $file ;;
-		*)
-			file_remove "$file"
-		esac 
-		;;
+		file_remove "$file"
+		tracked=1 ;;
 	N)
-		case $file in *svn-commit*) continue ;; esac
 		file_add "$file"
 		tracked=$? ;;
 	U)
@@ -206,6 +222,8 @@ done
 
 rm $tempfile
 IFS=$old_IFS
+
+remove_empty_dirs
 
 if [ $non_interactive -eq 1 ]; then
 	svn commit
