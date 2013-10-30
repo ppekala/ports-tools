@@ -139,7 +139,13 @@ while getopts "j:hr:" option; do
 	case $option in
 	j)
 		[ -n "$OPTARG" ] || display_usage
-		JOBS="$OPTARG" ;;
+		case $OPTARG in
+		[1-9])
+			JOBS="$OPTARG" ;;
+		*)
+			echo "-j requires numerical argument"
+			exit
+		esac ;;
 	r)
 		[ -n "$OPTARG" ] || display_usage
 		PKG_PARENT="$OPTARG" ;;
