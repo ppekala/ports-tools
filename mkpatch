@@ -1,7 +1,12 @@
 #!/bin/sh
 
 readonly patterns="$@"
-readonly WRKSRC=$(make -V WRKSRC)
+
+if [ -f pkg-descr ]; then
+	WRKSRC=$(make -V WRKSRC)
+else
+	WRKSRC="."
+fi
 
 if [ -n "$WRKSRC" ]; then
 	if [ ! -d "$WRKSRC" ]; then
