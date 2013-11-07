@@ -55,6 +55,13 @@ file_add() {
 	if ask_yesno "Add file $file"; then
 	 	[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
 		svn -q add "$file"
+
+		if [ -d "$file" ]; then
+			for child in $(ls "$file"); do
+				file_set_props $child
+			done
+		fi
+
 		return 0
 	else
 		return 1
