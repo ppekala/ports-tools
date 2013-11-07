@@ -58,7 +58,7 @@ file_add() {
 
 		if [ -d "$file" ]; then
 			for child in $(ls "$file"); do
-				file_set_props $child
+				file_set_props "$file/$child"
 			done
 		fi
 
