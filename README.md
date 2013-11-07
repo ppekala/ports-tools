@@ -89,3 +89,8 @@ tbuilder
 
 Wrapper that makes easier to queue multiple builds of one port, ports with
 certain names, ports with Makefile containing phrase, etc.
+
+upgrade-ports
+-------------
+
+Helper script for updating ports tree and upgrading your ports.

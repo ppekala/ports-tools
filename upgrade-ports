@@ -1,0 +1,142 @@
+#!/bin/sh
+
+readonly XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
+readonly PAGER=${PAGER:-less}
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+
+last_read=0
+wait_for_key=0
+
+ask_yesno() {
+	while true; do
+		echo -n "$1 (y/n)? [y] "
+		
+		read answer
+		[ -n "$answer" ] || answer="y"
+
+		case $answer in
+		[Nn])
+			return 1 ;;
+		[Yy])
+			return 0
+		esac
+	done
+}
+
+display_usage() {
+	echo "Usage: upgrade-ports [-h|-w]"
+	echo ""
+	echo "    -h - show this help"
+	echo "    -w - wait for key press after finish"
+	echo ""
+	exit
+}
+
+get_entry_dates() {
+	egrep "^[0-9]{8}:" $PORTSDIR/UPDATING | sed 's/://'
+}
+
+updating_commands() {
+	awk -v entry="$1" '
+	BEGIN { in_entry=0; }
+	
+	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
+		sub(":", "", $0);
+		if (entry == $0)
+			in_entry=1;
+		else
+			if (in_entry == 1)
+				exit;
+	}
+
+	{
+		if (in_entry == 1 && match ($0, "^[ \t#]*portmaster")) {
+			cmd = substr($0, index($0, "portmaster"));
+			print cmd;
+		}
+	}' $PORTSDIR/UPDATING
+}
+
+updating_entry() {
+	echo ""
+	awk -v entry="$1" '
+	BEGIN { in_entry=0; }
+	
+	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
+		sub(":", "", $0);
+		if (entry == $0)
+			in_entry=1;
+		else
+			if (in_entry == 1)
+				exit;
+	}
+
+	{
+		if (in_entry == 1)
+			print $0;
+	}' $PORTSDIR/UPDATING
+	echo ""
+}
+
+while getopts "hw" option; do
+	case $option in
+	w)
+		wait_for_key=1 ;;
+	*)
+		display_usage
+	esac
+done
+
+
+if [ -z "$(whereis -bq sudo)" ]; then
+	echo "===> sudo not found"
+	exit
+fi
+
+if [ -z "$(whereis -bq portmaster)" ]; then
+	echo "===> portmaster not found"
+	exit
+fi
+
+if [ -f "$CONFIG" ]; then
+	last_read=$(cat "$CONFIG")
+else
+	[ -d "$XDG_CONFIG_HOME" ] || mkdir $(basename "$XDG_CONFIG_HOME")
+fi
+
+[ -n "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
+
+sudo /usr/sbin/portsnap fetch update
+last_upd=$(get_entry_dates | head -n 1)
+
+if [ $last_read -lt $last_upd ]; then
+	tmpfile=$(mktemp -t upgrade-ports)
+
+	for entry in $(get_entry_dates | sort -u); do
+		[ $entry -gt $last_read ] || continue
+		
+		updating_entry $entry
+		updating_commands $entry > $tmpfile
+
+		old_IFS=$IFS
+		IFS=$'\n'
+		
+		for cmd in $(cat $tmpfile); do
+			if ask_yesno "Run '$cmd'"; then
+				sudo $cmd
+			fi
+		done
+		
+		IFS=$old_IFS
+	done
+
+	rm $tmpfile
+	echo $last_upd > $CONFIG	
+	ask_yesno "Update ports with 'portmaster -a'"
+	[ $? -eq 0 ] || exit
+	
+fi
+
+sudo portmaster -a
+[ $wait_for_key -eq 0 ] || read key
