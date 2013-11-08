@@ -166,7 +166,7 @@ fi
 
 rej_files=$(find . -name "*.rej" -depth $depth | sed 's|^./||g')
 if [ -n "$rej_files" ]; then
-	printf "===> Found rejected patch files, bailing\n "
+	echo "===> Found rejected patch files, bailing"
 	echo $rej_files | tr ' ' '\n'
 	exit 0
 fi
@@ -174,7 +174,7 @@ fi
 old_files=$(find . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
 		$clean_exp -delete -print -depth $depth | sed 's|^./||g')
 if [ -n "$old_files" ]; then
-	printf "===> Removed old temporary files\n"
+	echo "===> Removed old temporary files"
 	echo $old_files | tr ' ' '\n'
 	echo ""
 fi
