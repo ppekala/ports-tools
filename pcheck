@@ -35,7 +35,7 @@ done
 
 rej_files=$(find . -name "*.rej")
 if [ -n "$rej_files" ]; then
-	echo "===> Found rejected patch files, bailing"
+	echo "===> Found rejected patch files"
 	echo $rej_files | sed 's|./||g'
 	exit 0
 fi

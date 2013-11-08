@@ -166,7 +166,7 @@ fi
 
 rej_files=$(find . -name "*.rej" -depth $depth | sed 's|^./||g')
 if [ -n "$rej_files" ]; then
-	echo "===> Found rejected patch files, bailing"
+	echo "===> Found rejected patch files"
 	echo $rej_files | tr ' ' '\n'
 	exit 0
 fi
@@ -185,7 +185,7 @@ tempfile=$(mktemp -t pcommit)
 svn --show-updates status > $tempfile
 
 if [ $? -ne 0 ]; then
-	echo "===> 'svn status' failed, bailing"
+	echo "===> 'svn status' failed"
 	rm $tempfile
 	exit
 fi
