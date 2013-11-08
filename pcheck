@@ -35,7 +35,7 @@ done
 
 rej_files=$(find . -name "*.rej")
 if [ -n "$rej_files" ]; then
-	printf "===> Found rejected patch files, bailing\n "
+	echo "===> Found rejected patch files, bailing"
 	echo $rej_files | sed 's|./||g'
 	exit 0
 fi
@@ -66,10 +66,6 @@ if [ -n "$(echo $comment | grep -E '^(A|An) ')" ]; then
 		print toupper( substr($0, 1, 1) ) substr($0, 2); }')
 	sed_expr="s|^COMMENT=.*|COMMENT=	$new_comment|"
 	echo "===> Removed leading article from COMMENT"
-fi
-if [ -n "$(make -V MAKE_JOBS_SAFE)" ]; then
-	sed_expr="$sed_expr /^MAKE_JOBS_SAFE=/d;"
-	echo "===> Removed no-op MAKE_JOBS_SAFE=yes"
 fi
 reinplace_file Makefile "$sed_expr"
 
