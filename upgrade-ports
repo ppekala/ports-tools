@@ -5,7 +5,6 @@ readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
 readonly PAGER=${PAGER:-less}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
-last_read=0
 wait_for_key=0
 
 ask_yesno() {
@@ -115,6 +114,7 @@ if [ $? -ne 0 ]; then
 fi
 
 last_upd=$(get_entry_dates | head -n 1)
+echo $last_upd > $CONFIG
 
 if [ $last_read -lt $last_upd ]; then
 	tmpfile=$(mktemp -t upgrade-ports)
@@ -138,7 +138,7 @@ if [ $last_read -lt $last_upd ]; then
 	done
 
 	rm $tmpfile
-	echo $last_upd > $CONFIG	
+
 	ask_yesno "Update ports with 'portmaster -a'"
 	[ $? -eq 0 ] || exit
 	
