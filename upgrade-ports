@@ -108,6 +108,12 @@ fi
 [ -n "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
 
 sudo /usr/sbin/portsnap fetch update
+if [ $? -ne 0 ]; then
+	echo "===> Ports tree update failed"
+	[ $wait_for_key -eq 0 ] || read key
+	exit
+fi
+
 last_upd=$(get_entry_dates | head -n 1)
 
 if [ $last_read -lt $last_upd ]; then
