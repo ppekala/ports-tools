@@ -90,12 +90,12 @@ done
 
 if [ -z "$(whereis -bq sudo)" ]; then
 	echo "===> sudo not found"
-	exit
+	exit 1
 fi
 
 if [ -z "$(whereis -bq portmaster)" ]; then
 	echo "===> portmaster not found"
-	exit
+	exit 1
 fi
 
 if [ -f "$CONFIG" ]; then
@@ -110,7 +110,7 @@ sudo /usr/sbin/portsnap fetch update
 if [ $? -ne 0 ]; then
 	echo "===> Ports tree update failed"
 	[ $wait_for_key -eq 0 ] || read key
-	exit
+	exit 1
 fi
 
 last_upd=$(get_entry_dates | head -n 1)
@@ -145,4 +145,6 @@ if [ $last_read -lt $last_upd ]; then
 fi
 
 sudo portmaster -a
+ret=$?
 [ $wait_for_key -eq 0 ] || read key
+exit $ret

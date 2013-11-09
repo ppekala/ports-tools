@@ -159,7 +159,7 @@ if [ -n "$wrk_dirs" ]; then
 			else
 				echo "===> Failed to 'make clean'"
 			fi
-			exit 0
+			exit 1
 		fi
 	done
 fi
@@ -168,7 +168,7 @@ rej_files=$(find . -name "*.rej" -depth $depth | sed 's|^./||g')
 if [ -n "$rej_files" ]; then
 	echo "===> Found rejected patch files"
 	echo $rej_files | tr ' ' '\n'
-	exit 0
+	exit 1
 fi
 
 old_files=$(find . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
@@ -187,7 +187,7 @@ svn --show-updates status > $tempfile
 if [ $? -ne 0 ]; then
 	echo "===> 'svn status' failed"
 	rm $tempfile
-	exit
+	exit 1 
 fi
 
 old_IFS=$IFS
@@ -234,7 +234,7 @@ remove_empty_dirs
 
 if [ $non_interactive -eq 1 ]; then
 	svn commit
-	exit
+	exit $?
 fi
 
 while true; do
@@ -246,7 +246,7 @@ while true; do
 	case $cmd in
 	[Cc])
 		svn commit
-		exit ;;
+		exit $? ;;
 	[Qq])
 		exit ;;
 	[Ss])

@@ -3,8 +3,15 @@
 readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
 readonly cmd=${1:-check}
 
-[ -z "$PKGNAME" ] && echo "===> This is not port directory" && exit
-[ ! -d work ] && echo "===> No work directory" && exit
+if [ -z "$PKGNAME" ]; then
+	echo "===> This is not port directory"
+	exit 1
+fi
+
+if [ ! -d work ]; then
+	echo "===> No work directory"
+	exit 1
+fi
 
 find work -name "*.bak" -print | while read file; do
 	case $cmd in

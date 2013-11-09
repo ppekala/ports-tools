@@ -6,7 +6,7 @@ readonly plist_file=${1:-pkg-plist}
 
 if [ -z "$PKGNAME" -o -z "$PREFIX" ]; then
 	echo "===> This is not port directory"
-	exit
+	exit 1
 fi
 
 make_args="OPTIONSFILE=/dev/null OPTIONS_FILE=/dev/null"

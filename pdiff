@@ -12,7 +12,7 @@ portdir_clean() {
 		cd "$dir"
 		if [ -n "$(make clean 2>/dev/null | grep 'not writable')" ]; then
 			echo "===> Failed to make clean in $dir"
-			exit
+			exit 1
 		fi
 	fi
 	find "$dir" -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
@@ -20,7 +20,7 @@ portdir_clean() {
 
 if [ -z "$port" -o -z "$category" ]; then
 	echo "===> This is not port directory"
-	exit
+	exit 1
 fi
 
 new_ver_dir="$category/$port"
@@ -32,7 +32,7 @@ if [ -d "$old_ver_dir" ]; then
 	portdir_clean "$old_ver_dir"
 else
 	echo "===> Orginal port directory does not exist"
-	exit
+	exit 1
 fi
 
 cd "$base_dir/../../" && diff -urN $* "$old_ver_dir" "$new_ver_dir"

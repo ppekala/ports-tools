@@ -20,12 +20,12 @@ tc_cmd() {
 
 if [ -z "$(whereis -bq plist-sort)" ]; then
 	echo "===> Required script plist-sort not found"
-	exit
+	exit 1
 fi
 
 if [ -z "$PKGNAME" ]; then
 	echo "===> This is not port directory"
-	exit
+	exit 1
 fi
 
 builds=$1
@@ -40,13 +40,13 @@ if [ -z "$builds" ]; then
 	
 	if [ -z "$logfile" ]; then
 		echo "===> Could not find any build logs for $PKGNAME"
-		exit
+		exit 1
 	fi
 else
 	logfile="$TBDIR/logs/$builds/$PKGNAME.log"
 	if [ ! -f "$logfile" ]; then
 		echo "===> Logfile $logfile does not exist"
-		exit
+		exit 1
 	fi
 fi
 

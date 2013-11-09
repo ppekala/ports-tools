@@ -144,7 +144,7 @@ while getopts "j:hr:" option; do
 			JOBS="$OPTARG" ;;
 		*)
 			echo "-j requires numerical argument"
-			exit
+			exit 1
 		esac ;;
 	r)
 		[ -n "$OPTARG" ] || display_usage
@@ -156,12 +156,12 @@ done
 
 if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
 	echo "This script requires pkgNG (ports-mgmt/pkg)"
-	exit
+	exit 1
 fi
 
 if [ "$(id -u)" != "0" ]; then
 	echo "You need root privileges to rebuild packages"
-	exit
+	exit 1
 fi
 
 [ -n "$JOBS" ] || JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1)

@@ -32,14 +32,14 @@ done
 
 if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
 	echo "===> This is not port directory"
-	exit 0
+	exit 1
 fi
 
 rej_files=$(find . -name "*.rej")
 if [ -n "$rej_files" ]; then
 	echo "===> Found rejected patch file(s)"
 	echo " $rej_files" | sed 's|./||g'
-	exit 0
+	exit 1
 fi
 
 find . \( -name "*.orig" -or -size 0 \) -delete
