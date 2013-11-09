@@ -30,13 +30,15 @@ while getopts "hs" option; do
 	esac
 done
 
-[ -z "$(make -V PKGNAME 2>/dev/null)" ] && \
-	echo "===> This is not port directory" && exit 0
+if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
+	echo "===> This is not port directory"
+	exit 0
+fi
 
 rej_files=$(find . -name "*.rej")
 if [ -n "$rej_files" ]; then
-	echo "===> Found rejected patch files"
-	echo $rej_files | sed 's|./||g'
+	echo "===> Found rejected patch file(s)"
+	echo " $rej_files" | sed 's|./||g'
 	exit 0
 fi
 
@@ -53,17 +55,23 @@ if [ $skip_spellcheck -eq 0 ]; then
 fi
 
 find . \( -type f -and ! -path './work/*' \) | while read file; do
-	[ -z "$(tail -n 1 $file | tr '\n' '%' | grep '%$')" ] && \
-		echo >> $file && mod_files="$mod_files ${file##./}"
+	if [ -z "$(tail -n 1 $file | tr '\n' '%' | grep '%$')" ]; then
+		echo >> $file
+		mod_files="$mod_files ${file##./}"
+	fi
 done
-[ -n "$mod_files" ] && \
-	printf "===> Added final newlines to file(s):\n %s\n" "$mod_files"
+
+if [ -n "$mod_files" ]; then
+	echo "===> Added final newlines to file(s):"
+	echo " $mod_files"
+fi
 
 comment=$(make -V COMMENT)
 if [ -n "$(echo $comment | grep -E '^(A|An) ')" ]; then
 	new_comment=$(echo $comment | awk '{ 
 		gsub("^(A|An) ", "", $0); 
-		print toupper( substr($0, 1, 1) ) substr($0, 2); }')
+		print toupper( substr($0, 1, 1) ) substr($0, 2);
+	}')
 	sed_expr="s|^COMMENT=.*|COMMENT=	$new_comment|"
 	echo "===> Removed leading article from COMMENT"
 fi
@@ -74,6 +82,7 @@ if [ -n "$(grep '^Author:' pkg-descr)" ]; then
 	sed_expr="/^Author:/d;"
 	echo "===> Deleting Author: line from pkg-descr"
 fi
+
 if [ -n "$(grep '^WWW:	' pkg-descr)" ]; then
 	sed_expr="$sed_expr s|^WWW:	|WWW: |g;"
 	echo "===> Fixing tab after WWW: in pkg-descr"
@@ -81,6 +90,7 @@ fi
 reinplace_file pkg-descr "$sed_expr"
 
 if [ -n "$(whereis -bq portlint)" ]; then
+	echo "===> Portlint output:"
 	portlint -abt
 else
 	echo "===> Portlint not found, skipping port checks"
