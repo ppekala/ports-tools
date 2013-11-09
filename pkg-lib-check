@@ -159,10 +159,11 @@ dependency_is_inherited() {
 }
 
 display_usage() {
-	echo "Usage: pkg-lib-check [-d|-f|-l|-s grep_pattern] <-a|pkg_name>"
+	echo "Usage: pkg-lib-check [-d|-h|-f|-l|-s grep_pattern] <-a|pkg_name>"
 	echo ""
 	echo "    -a - test all installed packages"
 	echo "    -d - show direct dependencies"
+	echo "    -h - show this help"
 	echo "    -f - do full checks with inheritance detection (slow)"
 	echo "    -l - check only for link problems"
 	echo "    -s - show files linked to 'grep_pattern'"
@@ -210,7 +211,7 @@ if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
 	exit 1
 fi
 
-while getopts "adfls:" option; do
+while getopts "adhfls:" option; do
 	case $option in
 	a)
 		test_all=1 ;;
