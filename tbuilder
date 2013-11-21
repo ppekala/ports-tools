@@ -9,15 +9,18 @@ readonly build=${3:-none}
 
 # $1 tinderbox buildname, $2 port to build
 build_queue_add() {
-	local ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $1)/ports"
+	local bname=$1 port=${2%%:*} option=${2##*:}
+	local ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $bname)/ports"
 
-	if [ ! -d "$ptree/$2" ]; then
-		echo "$1: $2 does not exists"
+	if [ ! -d "$ptree/$port" ]; then
+		echo "$bname: $port does not exists"
 		return	
 	fi
 	
-	echo "Adding $2 to $1 build queue"
-	tc_cmd addBuildPortsQueueEntry -u $TBUSER -b $1 -d $2
+	[ "$port" = "$option" ] || tbopt set $port $bname
+	
+	echo "Adding $port to $bname build queue"
+	tc_cmd addBuildPortsQueueEntry -u $TBUSER -b $bname -d $port
 }
 
 display_usage() {
@@ -25,11 +28,13 @@ display_usage() {
 	echo ""
 	echo " command: bdeps - build ports having certain build dependency"
 	echo "          grep  - build ports containing phrase in Makefile"
+	echo "          ldeps - build ports linking with certain library"
 	echo "          match - build ports with name matching certain phrase"
 	echo "          name  - build specific port"
 	echo ""
-	echo " query: (bdeps|name) - portname"
+	echo " query: (bdeps|match) - portname"
 	echo "        (grep) - grep pattern"
+	echo "        (ldeps) - category/port"
 	echo "        (name) - category/port or '.' to build port from current directory"
 	echo ""
 	echo " build_name: tinderbox build name or 'all' for all available builds"
@@ -57,6 +62,27 @@ bdeps)
 grep)
 	ports=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
 		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g') ;;
+ldeps)
+	tmp=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
+		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g')
+
+	for path in $tmp; do
+		cd $PORTSDIR/$path
+		if [ -n "$(make -V LIB_DEPENDS | grep $2)" ]; then
+			ports="$ports $path"
+			continue
+		fi
+		
+		for option in $(make pretty-print-config); do
+			[ -n "$(echo $option | grep ^-)" ] || continue
+			[ -n "$(make -V LIB_DEPENDS WITH_${option#-}=yes | grep $2)" ] || continue
+			ports="$ports $path:${option#-}"
+			continue 2
+		done
+		
+		ports="$ports $path:OPT_UNKNOWN"
+	done
+	;;	
 match)
 	ports=$(portsearch -n $2 | grep Path: | cut -f 4- -d '/') ;;
 name)
@@ -71,7 +97,17 @@ esac
 for port in $ports; do
 	case $build in
 	none)
-		[ "$1" != "name" ] && echo "Found match: $port" ;;
+		if [ "$1" != "name" ]; then
+			case ${port##*:} in
+			"$port")
+				echo "Found match: ${port%%:*}" ;;
+			"OPT_UNKNOWN")
+				echo "Found match: ${port%%:*}, unknown option needed" ;;
+			*)
+				echo "Found match: ${port%%:*}, needs ${port##*:}=on" ;;
+			esac
+		fi
+		;;
 	all)
 		for b in $(tc_cmd listBuilds); do build_queue_add $b $port; done ;;
 	*)
