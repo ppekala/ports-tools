@@ -65,7 +65,7 @@ update_exclude_list() {
 	[ -f "$EXCLUDE_CONF" ] && rm -f "$EXCLUDE_CONF"
 
 	for pkg in $excluded; do
-		printf "$pkg\n" >> "$EXCLUDE_CONF"
+		echo "$pkg" >> "$EXCLUDE_CONF"
 	done
 	exit
 }
@@ -131,7 +131,7 @@ while true; do
 	done
 
 	dialog --clear
-	pkg-static delete $ret
+	pkg-static delete -y $ret
 done
 
 if [ -n "$tmpfile" ]; then
