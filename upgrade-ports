@@ -130,7 +130,9 @@ if [ $last_read -lt $last_upd ]; then
 		
 		for cmd in $(cat $tmpfile); do
 			if ask_yesno "Run '$cmd'"; then
+				IFS=$old_IFS
 				sudo $cmd
+				IFS=$'\n'
 			fi
 		done
 		
