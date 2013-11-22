@@ -5,6 +5,8 @@ readonly IGNORE_FILE="$XDG_CONFIG_HOME/lib-bump-check"
 readonly LOCALBASE=${LOCALBASE:-/usr/local}
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
+bump_ignore=0
+
 check_package() {
 	local javavm pkg=$1
 
@@ -33,6 +35,7 @@ check_package() {
 display_usage() {
 	echo "Usage: lib-bump-check [-h | -r pkgname] [ -j jobs ]"
 	echo ""
+	echo "    -b - disable check for library newer version"
 	echo "    -j - set number of parallel checks to jobs"
 	echo "    -h - show this help"
 	echo "    -r - check only packages that depend on pkgname"
@@ -71,6 +74,8 @@ job_register() {
 newer_library_available() {
 	local lib=$1
 	
+	[ $bump_ignore -eq 0 ] || return 1
+
 	local ret=$(ldconfig -r | awk -v so_ver="${lib##*.}" '
 		BEGIN { so_bump=0; }
 
@@ -135,8 +140,10 @@ rebuild_ports() {
 	fi
 }
 
-while getopts "j:hr:" option; do
+while getopts "bj:hr:" option; do
 	case $option in
+	b)
+		bump_ignore=1 ;;
 	j)
 		[ -n "$OPTARG" ] || display_usage
 		case $OPTARG in
