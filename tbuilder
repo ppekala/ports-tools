@@ -3,7 +3,7 @@
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 readonly PATH=$PATH:$PORTSDIR/Tools/scripts
 readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
-readonly TBUSER=${TBUSER:-corn}
+readonly TBUSER=${TBUSER:-$USER}
 readonly UID=$(id -u)
 readonly build=${3:-none}
 
