@@ -33,7 +33,7 @@ check_package() {
 }
 
 display_usage() {
-	echo "Usage: lib-bump-check [-h | -r pkgname] [ -j jobs ]"
+	echo "Usage: lib-bump-check [-b] [-h] [-j jobs] [-r pkgname]"
 	echo ""
 	echo "    -b - disable check for library newer version"
 	echo "    -j - set number of parallel checks to jobs"
