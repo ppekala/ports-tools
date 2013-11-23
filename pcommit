@@ -164,7 +164,7 @@ if [ -n "$wrk_dirs" ]; then
 	done
 fi
 
-rej_files=$(find . -name "*.rej" -depth $depth | sed 's|^./||g')
+rej_files=$(find . -name "*.rej" -maxdepth $depth | sed 's|^./||g')
 if [ -n "$rej_files" ]; then
 	echo "===> Found rejected patch files"
 	echo $rej_files | tr ' ' '\n'
@@ -172,7 +172,7 @@ if [ -n "$rej_files" ]; then
 fi
 
 old_files=$(find . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
-		$clean_exp -delete -print -depth $depth | sed 's|^./||g')
+		$clean_exp -delete -print -maxdepth $depth | sed 's|^./||g')
 if [ -n "$old_files" ]; then
 	echo "===> Removed old temporary files"
 	echo $old_files | tr ' ' '\n'
