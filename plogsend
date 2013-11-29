@@ -1,9 +1,9 @@
 #!/bin/sh
 
-readonly FREEBSD_LOGIN=${FREEBSD_LOGIN:-$USER}
-readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
-readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
-readonly UID=$(id -u)
+readonly FREEBSD_LOGIN="${FREEBSD_LOGIN:-$USER}"
+readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
+readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
+readonly UID="$(id -u)"
 
 tc_cmd() {
 	local tc_script
@@ -22,10 +22,9 @@ if [ -z "$PKGNAME" ]; then
 	exit 1
 fi
 
-builds=$1
+builds="$1"
 if [ -z "$builds" ]; then
-	builds=$(tc_cmd listBuilds)
-	for build in $builds; do
+	for build in $(tc_cmd listBuilds); do
 		if [ -f "$TBDIR/logs/$build/$PKGNAME.log" ]; then
 			logfile="$TBDIR/logs/$build/$PKGNAME.log"
 			break

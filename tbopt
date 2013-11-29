@@ -1,7 +1,7 @@
 #!/bin/sh
 
-readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
-readonly UID=$(id -u)
+readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
+readonly UID="$(id -u)"
 
 display_usage() {
 	echo "Usage: tbopt <command> <portname> <buildname>"
@@ -31,19 +31,19 @@ tc_cmd() {
 
 [ $# -lt 3 ] && display_usage
 
-cmd=$1
-port=$2
-builds=$3
+cmd="$1"
+port="$2"
+builds="$3"
 
 [ "$cmd" != "del" -a "$cmd" != "set" -a "$cmd" != "show" ] && \
 	display_usage
 
 [ "$port" = "." ] && \
-	port=$(echo $PWD | awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')
+	port="$(echo $PWD | awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')"
 
-[ "$builds" = "all" ] && builds=$(tc_cmd listBuilds)
+[ "$builds" = "all" ] && builds="$(tc_cmd listBuilds)"
 
-readonly OPTDIR=$(tc_cmd configOptions | awk -F= '/OPTIONS_DIR/ { print $2 }')
+readonly OPTDIR="$(tc_cmd configOptions | awk -F= '/OPTIONS_DIR/ { print $2 }')"
 
 for build in $builds; do
 	ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $build)/ports"

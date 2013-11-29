@@ -14,7 +14,7 @@ display_usage() {
 }
 
 reinplace_file() {
-	local file=$1 expr=$2
+	local file="$1" expr="$2"
 	
 	[ -n "$expr" ] || return
 	sed "$expr" $file > $file.new
@@ -35,7 +35,7 @@ if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
 	exit 1
 fi
 
-rej_files=$(find . -name "*.rej")
+rej_files="$(find . -name "*.rej")"
 if [ -n "$rej_files" ]; then
 	echo "===> Found rejected patch file(s)"
 	echo " $rej_files" | sed 's|./||g'
@@ -66,12 +66,12 @@ if [ -n "$mod_files" ]; then
 	echo " $mod_files"
 fi
 
-comment=$(make -V COMMENT)
+comment="$(make -V COMMENT)"
 if [ -n "$(echo $comment | grep -E '^(A|An) ')" ]; then
-	new_comment=$(echo $comment | awk '{ 
+	new_comment="$(echo $comment | awk '{ 
 		gsub("^(A|An) ", "", $0); 
 		print toupper( substr($0, 1, 1) ) substr($0, 2);
-	}')
+	}')"
 	sed_expr="s|^COMMENT=.*|COMMENT=	$new_comment|"
 	echo "===> Removed leading article from COMMENT"
 fi

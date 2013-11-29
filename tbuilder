@@ -1,15 +1,15 @@
 #!/bin/sh
 
-readonly PORTSDIR=${PORTSDIR:-/usr/ports}
-readonly PATH=$PATH:$PORTSDIR/Tools/scripts
-readonly TBDIR=${TBDIR:-/usr/local/tinderbox}
-readonly TBUSER=${TBUSER:-$USER}
-readonly UID=$(id -u)
-readonly build=${3:-none}
+readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
+readonly PATH="$PATH:$PORTSDIR/Tools/scripts"
+readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
+readonly TBUSER="${TBUSER:-$USER}"
+readonly UID="$(id -u)"
+readonly build="${3:-none}"
 
 # $1 tinderbox buildname, $2 port to build
 build_queue_add() {
-	local bname=$1 port=${2%%:*} option=${2##*:}
+	local bname="$1" port="${2%%:*}" option="${2##*:}"
 	local ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $bname)/ports"
 
 	if [ ! -d "$ptree/$port" ]; then
@@ -58,13 +58,13 @@ tc_cmd() {
 
 case $1 in
 bdeps)
-	ports=$(portsearch -b $2 | grep Path: | cut -f 4- -d '/') ;;
+	ports="$(portsearch -b $2 | grep Path: | cut -f 4- -d '/')" ;;
 grep)
-	ports=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
-		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g') ;;
+	ports="$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
+		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
-	tmp=$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
-		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g')
+	tmp="$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
+		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g')"
 
 	for path in $tmp; do
 		cd $PORTSDIR/$path
@@ -84,11 +84,11 @@ ldeps)
 	done
 	;;	
 match)
-	ports=$(portsearch -n $2 | grep Path: | cut -f 4- -d '/') ;;
+	ports="$(portsearch -n $2 | grep Path: | cut -f 4- -d '/')" ;;
 name)
-	ports=$2
-	[ "$ports" = "." ] && ports=$(echo $PWD | \
-		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')
+	ports="$2"
+	[ "$ports" = "." ] && ports="$(echo $PWD | \
+		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')"
 	;;
 *)
 	display_usage

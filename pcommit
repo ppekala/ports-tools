@@ -1,7 +1,7 @@
 #!/bin/sh
 
-readonly PAGER=${PAGER:-less}
-readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly PAGER="${PAGER:-less}"
+readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 clean_only=0
 dir_cache=""
@@ -27,7 +27,7 @@ ask_yesno() {
 }
 
 dir_cache_add() {
-	local dir=$1
+	local dir="$1"
 
 	case $dir_cache in
 	*$dir*)
@@ -48,7 +48,7 @@ display_usage() {
 }
 
 file_add() {
-	local file=$1
+	local file="$1"
 
 	case $file in *svn-commit*) return 1 ;; esac
 	
@@ -69,7 +69,7 @@ file_add() {
 }
 
 file_remove() {
-	local dir=$(dirname $1) file=$1
+	local dir="$(dirname $1)" file="$1"
 
 	if ask_yesno "Remove file $file"; then 
 		[ $non_interactive -eq 0 ] || echo "===> Removing file $file"
@@ -87,7 +87,7 @@ file_remove() {
 }
 
 file_set_props() {
-	local file=$1
+	local file="$1"
 	
 	[ -d "$file" -o ! -e "$file" ] && return 1
 	
@@ -141,7 +141,7 @@ else
 	fi
 fi
 
-wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
+wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
 if [ -n "$wrk_dirs" ]; then
 	for wdir in $wrk_dirs; do
 		if [ $depth -ne 2 ]; then
@@ -152,7 +152,7 @@ if [ -n "$wrk_dirs" ]; then
 			make_args=""
 		fi
 
-		ret=$(make $make_args clean 2>/dev/null)
+		ret="$(make $make_args clean 2>/dev/null)"
 		if [ -n "$(echo $ret | grep 'not writable')" ]; then
 			if [ $depth -ne 2 ]; then
 				echo "===> Failed to 'make clean' in ${wdir%%/work}"
@@ -164,15 +164,15 @@ if [ -n "$wrk_dirs" ]; then
 	done
 fi
 
-rej_files=$(find . -name "*.rej" -maxdepth $depth | sed 's|^./||g')
+rej_files="$(find . -name "*.rej" -maxdepth $depth | sed 's|^./||g')"
 if [ -n "$rej_files" ]; then
 	echo "===> Found rejected patch files"
 	echo $rej_files | tr ' ' '\n'
 	exit 1
 fi
 
-old_files=$(find . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
-		$clean_exp -delete -print -maxdepth $depth | sed 's|^./||g')
+old_files="$(find . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
+		$clean_exp -delete -print -maxdepth $depth | sed 's|^./||g')"
 if [ -n "$old_files" ]; then
 	echo "===> Removed old temporary files"
 	echo $old_files | tr ' ' '\n'
@@ -181,7 +181,7 @@ fi
 
 [ $clean_only -eq 0 ] || exit
 
-tempfile=$(mktemp -t pcommit)
+tempfile="$(mktemp -t pcommit)"
 svn --show-updates status > $tempfile
 
 if [ $? -ne 0 ]; then
@@ -190,11 +190,11 @@ if [ $? -ne 0 ]; then
 	exit 1 
 fi
 
-old_IFS=$IFS
-IFS=$'\n'
+old_IFS="$IFS"
+IFS="$'\n'"
 
 for line in $(cat $tempfile); do
-	change=$(echo "$line" | awk '{
+	change="$(echo "$line" | awk '{
 		if (match($0, "^Status"))
 			next;
 			
@@ -207,9 +207,9 @@ for line in $(cat $tempfile); do
 			mod="U";
 		
 		print mod;
-	}')
+	}')"
 	[ "$change" = " " -o -z "$change" ] && continue
-	file=$(echo "$line" | awk '{ print $NF }')
+	file="$(echo "$line" | awk '{ print $NF }')"
 	tracked=0
 
 	case $change in
@@ -228,7 +228,7 @@ for line in $(cat $tempfile); do
 done
 
 rm $tempfile
-IFS=$old_IFS
+IFS="$old_IFS"
 
 remove_empty_dirs
 

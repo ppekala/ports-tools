@@ -1,9 +1,9 @@
 #!/bin/sh
 
-readonly XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
-readonly PAGER=${PAGER:-less}
-readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly PAGER="${PAGER:-less}"
+readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 wait_for_key=0
 
@@ -99,12 +99,12 @@ if [ -z "$(whereis -bq portmaster)" ]; then
 fi
 
 if [ -f "$CONFIG" ]; then
-	last_read=$(cat "$CONFIG")
+	last_read="$(cat "$CONFIG")"
 else
 	[ -d "$XDG_CONFIG_HOME" ] || mkdir $(basename "$XDG_CONFIG_HOME")
 fi
 
-[ -n "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
+[ -n "$last_read" ] || last_read="$(get_entry_dates | head -n 1)"
 
 sudo /usr/sbin/portsnap fetch update
 if [ $? -ne 0 ]; then
@@ -113,11 +113,11 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-last_upd=$(get_entry_dates | head -n 1)
+last_upd="$(get_entry_dates | head -n 1)"
 echo $last_upd > $CONFIG
 
 if [ $last_read -lt $last_upd ]; then
-	tmpfile=$(mktemp -t upgrade-ports)
+	tmpfile="$(mktemp -t upgrade-ports)"
 
 	for entry in $(get_entry_dates | sort -u); do
 		[ $entry -gt $last_read ] || continue
@@ -125,18 +125,18 @@ if [ $last_read -lt $last_upd ]; then
 		updating_entry $entry
 		updating_commands $entry > $tmpfile
 
-		old_IFS=$IFS
-		IFS=$'\n'
+		old_IFS="$IFS"
+		IFS="$'\n'"
 		
 		for cmd in $(cat $tmpfile); do
 			if ask_yesno "Run '$cmd'"; then
-				IFS=$old_IFS
+				IFS="$old_IFS"
 				sudo $cmd
-				IFS=$'\n'
+				IFS="$'\n'"
 			fi
 		done
 		
-		IFS=$old_IFS
+		IFS="$old_IFS"
 	done
 
 	rm $tmpfile

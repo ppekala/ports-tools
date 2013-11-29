@@ -1,28 +1,28 @@
 #!/bin/sh
 
-readonly XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly IGNORE_FILE="$XDG_CONFIG_HOME/lib-bump-check"
-readonly LOCALBASE=${LOCALBASE:-/usr/local}
-readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly LOCALBASE="${LOCALBASE:-/usr/local}"
+readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 bump_ignore=0
 
 check_package() {
-	local javavm pkg=$1
+	local javavm pkg="$1"
 
-	local libs=$(pkg info -lq $pkg | while read file; do
+	local libs="$(pkg info -lq $pkg | while read file; do
 		[ -L "$file" ] && continue
 		ldd "$file" 2>/dev/null | awk '/not found/ { print $1 }'
-	done | sort -u)
+	done | sort -u)"
 	[ -z "$libs" ] && return
 
-	local pkg_files=$(pkg info -lq $pkg)
+	local pkg_files="$(pkg info -lq $pkg)"
 	for lib in $libs; do 
 		case $pkg_files in *$lib*)
 			continue
 		esac
 		if [ -z "$javavm" ]; then
-			javavm=$(pkg info -dq $pkg | egrep "jdk|jre")
+			javavm="$(pkg info -dq $pkg | egrep 'jdk|jre')"
 			[ -z "$javavm" ] && javavm="no"
 		fi
 		[ "$javavm" != "no" ] && \
@@ -72,11 +72,11 @@ job_register() {
 }
 
 newer_library_available() {
-	local lib=$1
+	local lib="$1"
 	
 	[ $bump_ignore -eq 0 ] || return 1
 
-	local ret=$(ldconfig -r | awk -v so_ver="${lib##*.}" '
+	local ret="$(ldconfig -r | awk -v so_ver="${lib##*.}" '
 		BEGIN { so_bump=0; }
 
 		/'${lib%.*}'/ {
@@ -89,12 +89,12 @@ newer_library_available() {
 		}
 		
 		END { print so_bump; }
-	')
+	')"
 	return $ret
 }
 
 pkg_is_ignored() {
-	local pkg=$1
+	local pkg="$1"
 	
 	for ignored in $pkg_ignore; do
 		case $pkg in *$ignored*) return 1 ;; esac
@@ -107,7 +107,7 @@ rebuild_ports() {
 	local origin rebuild_err
 
 	for port in $*; do
-		origin=$(pkg query '%o' $port)
+		origin="$(pkg query '%o' $port)"
 		if [ -d $PORTSDIR/$origin ]; then
 			cd $PORTSDIR/$origin
 		else
@@ -171,15 +171,15 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
-[ -n "$JOBS" ] || JOBS=$(sysctl -n hw.ncpu 2>/dev/null || echo 1)
+[ -n "$JOBS" ] || JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
 
 if [ -n "$PKG_PARENT" ]; then
-	packages=$(pkg info -rq $PKG_PARENT 2>/dev/null)
+	packages="$(pkg info -rq $PKG_PARENT 2>/dev/null)"
 else
-	packages=$(pkg query '%n-%v' 2>/dev/null)
+	packages="$(pkg query '%n-%v' 2>/dev/null)"
 fi
 
-pkg_all=$(echo $packages | wc -w)
+pkg_all="$(echo $packages | wc -w)"
 if [ $pkg_all -eq 0 ]; then
 	echo "No packages to check found"
 	exit
@@ -187,9 +187,9 @@ fi
 
 pkg_curr=0
 
-readonly TMP_SEM=$(mktemp -t "lbc-sem")
-readonly TMP_STALE=$(mktemp -t "lbc-stale")
-readonly TMP_BAD=$(mktemp -t "lbc-bad")
+readonly TMP_SEM="$(mktemp -t lbc-sem)"
+readonly TMP_STALE="$(mktemp -t lbc-stale)"
+readonly TMP_BAD="$(mktemp -t lbc-bad)"
 
 if [ -z "$TMP_SEM" -o -z "$TMP_STALE" -o -z "$TMP_BAD" ]; then
 	echo "Failed to create temporary files"
@@ -200,7 +200,7 @@ trap 'exit_clean 0' int
 
 if [ -f "$IGNORE_FILE" ]; then
 	n=0
-	pkg_ignore=$(grep -v '^#' "$IGNORE_FILE")
+	pkg_ignore="$(grep -v '^#' "$IGNORE_FILE")"
 	for pkg in $pkg_ignore; do n=$((n+1)); done
 	if [ $n -gt 0 ]; then 
 		echo "Read $IGNORE_FILE, $n entries found"
@@ -220,7 +220,7 @@ for pkg in $packages; do
 	(
 		trap 'job_free' EXIT
 		
-		ret=$(check_package $pkg)
+		ret="$(check_package $pkg)"
 		[ -z "$ret" ] && exit
 
 		for lib in $ret; do
@@ -236,7 +236,7 @@ done
 
 printf "\n\n"
 
-pkg_bad_deps=$(cat $TMP_BAD)
+pkg_bad_deps="$(cat $TMP_BAD)"
 if [ -n "$pkg_bad_deps" ]; then
 	echo "Following packages were ignored due probable packaging problems:"
 	echo ""
@@ -244,7 +244,7 @@ if [ -n "$pkg_bad_deps" ]; then
 	echo ""
 fi
 
-pkg_stale=$(cat $TMP_STALE)
+pkg_stale="$(cat $TMP_STALE)"
 if [ -z "$pkg_stale" ]; then
 	echo "No packages linked to stale libs found"
 	echo ""

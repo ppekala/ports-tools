@@ -12,7 +12,7 @@ else
 	fi
 fi
 
-wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
+wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
 if [ -n "$wrk_dirs" ]; then
 	for wdir in $wrk_dirs; do
 		if [ $depth -ne 2 ]; then
@@ -23,7 +23,7 @@ if [ -n "$wrk_dirs" ]; then
 			make_args=""
 		fi
 
-		ret=$(make $make_args clean 2>/dev/null)
+		ret="$(make $make_args clean 2>/dev/null)"
 		if [ -n "$(echo $ret | grep 'not writable')" ]; then
 			if [ $depth -ne 2 ]; then
 				echo "  Failed to 'make clean' in ${wdir%%/work}"
@@ -41,8 +41,8 @@ svn revert --depth infinity .
 echo "===> Removing leftover files..."
 
 svn status | while read line; do
-	status=$(echo $line | awk '{ print $1 }')
-	file=$(echo $line | awk ' { print $2 }')
+	status="$(echo $line | awk '{ print $1 }')"
+	file="$(echo $line | awk ' { print $2 }')"
 	
 	[ -z "$status" -o -z "$file" ] && continue
 	

@@ -1,8 +1,8 @@
 #!/bin/sh
 
-readonly XDG_HOME_CONFIG=${XDG_HOME_CONFIG:-$HOME/.config}
+readonly XDG_HOME_CONFIG="${XDG_HOME_CONFIG:-$HOME/.config}"
 readonly EXCLUDE_CONF="$XDG_HOME_CONFIG/pkg-cutter"
-readonly LOCALBASE=${LOCALBASE:-/usr/local}
+readonly LOCALBASE="${LOCALBASE:-/usr/local}"
 
 exclude_opt=0
 rm_count=0
@@ -53,10 +53,10 @@ update_exclude_list() {
 		count=$((count+1))
 	done
 
-	tmpfile=$(mktemp)
+	tmpfile="$(mktemp -t pkg-cutter)"
 	echo "--checklist \"Select packages to exclude ($count items):\" \
 		21 70 19 $items" > $tmpfile
-	excluded=$(dialog --stdout --file $tmpfile | sed 's|"||g')
+	excluded="$(dialog --stdout --file $tmpfile | sed 's|"||g')"
 	dialog --clear
 	rm $tmpfile
 
@@ -93,11 +93,11 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
-[ -f "$EXCLUDE_CONF" ] && pkg_exclude=$(grep -v '^#' "$EXCLUDE_CONF")
+[ -f "$EXCLUDE_CONF" ] && pkg_exclude="$(grep -v '^#' "$EXCLUDE_CONF")"
 [ $exclude_opt -eq 1 ] && update_exclude_list
 
 while true; do 
-	pkg_leafs=$(pkg query -e '%#r = 0' %n-%v@%sb)
+	pkg_leafs="$(pkg query -e '%#r = 0' %n-%v@%sb)"
 	count=0
 	items=""
 
@@ -105,7 +105,7 @@ while true; do
 		case $pkg_seen in *${pkg%@*}*) continue;; esac
 		case $pkg_exclude in *${pkg%-*}*) continue;; esac
 
-		size=$(number_humanize ${pkg#*@})
+		size="$(number_humanize ${pkg#*@})"
 		pkg_seen="$pkg_seen ${pkg%@*}"
 		items="$items ${pkg%@*} \"$(printf '%8s' "$size")\" $sel_status"
 		count=$((count+1))
@@ -118,11 +118,11 @@ while true; do
 	
 	[ $count -eq 0 ] && break
 
-	[ -z "$tmpfile" ] && tmpfile=$(mktemp)
+	[ -z "$tmpfile" ] && tmpfile="$(mktemp -t pkg-cutter)"
 	echo "--checklist \"Select packages to delete ($count items):\" \
 		21 70 19 $items" > $tmpfile
 
-	ret=$(dialog --stdout --file $tmpfile | sed 's|"||g')
+	ret="$(dialog --stdout --file $tmpfile | sed 's|"||g')"
 	[ -z "$ret" ] && break
 	
 	for bytes in $(pkg query '%sb' $ret); do 

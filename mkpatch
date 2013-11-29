@@ -3,7 +3,7 @@
 readonly patterns="$@"
 
 if [ -f pkg-descr ]; then
-	WRKSRC=$(make -V WRKSRC)
+	WRKSRC="$(make -V WRKSRC)"
 else
 	WRKSRC="."
 fi
@@ -27,7 +27,7 @@ if [ -n "$WRKSRC" ]; then
 	cd $WRKSRC
 fi
 
-p_files=$(find . -name '*.orig' | sed 's#^./##')
+p_files="$(find . -name '*.orig' | sed 's#^./##')"
 if [ -z "$p_files" ]; then
 	echo "No patched files found"
 	exit
