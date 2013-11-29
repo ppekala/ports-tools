@@ -109,7 +109,7 @@ check_for_missing_deps() {
 		*)
 			echo $dep
 		esac
-	done | sort
+	done
 }
 
 check_registered_deps() {
@@ -281,5 +281,5 @@ for pkg in $packages; do
 		else
 			echo "missing dependency: $(pkg info -qo $md) (inherited from $INH)"
 		fi
-	done
+	done | sort
 done
