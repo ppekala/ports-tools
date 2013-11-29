@@ -151,11 +151,7 @@ dependency_is_inherited() {
 		esac
 	done
 
-	if [ -n "$inh" ]; then
-		INH="$(pkg info -qo $inh)"
-	else
-		INH=""
-	fi
+	[ -z "$inh" ] || echo "$(pkg info -qo $inh)"
 }
 
 display_usage() {
@@ -274,12 +270,16 @@ for pkg in $packages; do
 	[ $link_errors -eq 0 -a -n "$m_deps" ] && print_header $pkg
 
 	for md in $m_deps; do
-		[ $full_check -eq 1 ] && dependency_is_inherited $pkg $md 
+		if [ $full_check -eq 1 ]; then
+			inh="$(dependency_is_inherited $pkg $md)"
+		else
+			inh=""
+		fi
 
-		if [ -z "$INH" ]; then
+		if [ -z "$inh" ]; then
 			echo $prefix"dependency: $(pkg info -qo $md)"
 		else
-			echo "missing dependency: $(pkg info -qo $md) (inherited from $INH)"
+			echo "missing dependency: $(pkg info -qo $md) (inherited from $inh)"
 		fi
 	done | sort
 done
