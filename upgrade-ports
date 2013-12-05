@@ -125,18 +125,18 @@ if [ $last_read -lt $last_upd ]; then
 		updating_entry $entry
 		updating_commands $entry > $tmpfile
 
-		old_IFS="$IFS"
-		IFS="$'\n'"
+		old_IFS=$IFS
+		IFS=$'\n'
 		
 		for cmd in $(cat $tmpfile); do
 			if ask_yesno "Run '$cmd'"; then
-				IFS="$old_IFS"
+				IFS=$old_IFS
 				sudo $cmd
-				IFS="$'\n'"
+				IFS=$'\n'
 			fi
 		done
 		
-		IFS="$old_IFS"
+		IFS=$old_IFS
 	done
 
 	rm $tmpfile

@@ -190,8 +190,8 @@ if [ $? -ne 0 ]; then
 	exit 1 
 fi
 
-old_IFS="$IFS"
-IFS="$'\n'"
+old_IFS=$IFS
+IFS=$'\n'
 
 for line in $(cat $tempfile); do
 	change="$(echo "$line" | awk '{
@@ -228,7 +228,7 @@ for line in $(cat $tempfile); do
 done
 
 rm $tempfile
-IFS="$old_IFS"
+IFS=$old_IFS
 
 remove_empty_dirs
 
