@@ -50,9 +50,11 @@ updating_commands() {
 	}
 
 	{
-		if (in_entry == 1 && match ($0, "^[ \t#]*portmaster")) {
-			cmd = substr($0, index($0, "portmaster"));
-			print cmd;
+		if (in_entry == 1) {
+			if(match($0, "^[ \t#]*pkg "))
+				print substr($0, index($0, "pkg "));
+			if(match($0, "^[ \t#]*portmaster"))
+				print substr($0, index($0, "portmaster"));
 		}
 	}' $PORTSDIR/UPDATING
 }
