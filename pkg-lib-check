@@ -29,11 +29,8 @@ check_for_link_errors() {
 	local pkg_files="$(pkg info -lq $package 2>/dev/null)"
 
 	for lib in $pkg_libs; do
-		case $lib in 
-		*..*)
-			lib="$(realpath "$lib")" ;;
-		*//*)
-			lib="$(echo "$lib" | sed 's|//|/|g')"
+		case $lib in *..*|*//*)
+			lib="$(realpath "$lib")"
 		esac
 		# skip libraries from package we are checking
 		case $pkg_files in *${lib##not_found}*)

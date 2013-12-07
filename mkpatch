@@ -16,7 +16,7 @@ if [ -n "$WRKSRC" ]; then
 			
 			case $answer in
 			[Yy])
-				make configure >/dev/null 2>/dev/null
+				make configure >/dev/null 2>&1
 				break ;;
 			[Nn])
 				exit
@@ -38,8 +38,7 @@ for f in $p_files; do
 		matched=0
 	
 		for p in $patterns; do
-			case "$f" in 
-			*$p*)
+			case $f in *$p*)
 				matched=1
 				break
 			esac

@@ -53,7 +53,7 @@ file_add() {
 	case $file in *svn-commit*) return 1 ;; esac
 	
 	if ask_yesno "Add file $file"; then
-	 	[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
+		[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
 		svn -q add "$file"
 
 		if [ -d "$file" ]; then
@@ -75,10 +75,7 @@ file_remove() {
 		[ $non_interactive -eq 0 ] || echo "===> Removing file $file"
 		svn -q rm "$file"
 		
-		case $file in
-		*files/*)
-			dir_cache_add $dir ;;
-		*scripts/*)
+		case $file in *files/*|*scripts/*)
 			dir_cache_add $dir
 		esac
 	else

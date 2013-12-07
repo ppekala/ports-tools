@@ -88,8 +88,7 @@ match)
 name)
 	ports="$2"
 	[ "$ports" = "." ] && ports="$(echo $PWD | \
-		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')"
-	;;
+		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')" ;;
 *)
 	display_usage
 esac
