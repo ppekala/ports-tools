@@ -95,12 +95,13 @@ newer_library_available() {
 
 pkg_is_ignored() {
 	local pkg="$1"
-	
+	[ -n "$pkg_ignore" ] || return 1
+
 	for ignored in $pkg_ignore; do
-		case $pkg in *$ignored*) return 1 ;; esac
+		case $pkg in *$ignored*) return 0 ;; esac
 	done
 	
-	return 0
+	return 1
 }
 
 rebuild_ports() {
@@ -202,19 +203,14 @@ if [ -f "$IGNORE_FILE" ]; then
 	n=0
 	pkg_ignore="$(grep -v '^#' "$IGNORE_FILE")"
 	for pkg in $pkg_ignore; do n=$((n+1)); done
-	if [ $n -gt 0 ]; then 
-		echo "Read $IGNORE_FILE, $n entries found"
-	fi
+	[ $n -eq 0 ] || echo "Read $IGNORE_FILE, $n entries found"
 fi
 
 lockf -k "$TMP_SEM" echo $JOBS > "$TMP_SEM"
 
 for pkg in $packages; do
 	pkg_curr=$((pkg_curr+1))
-	if [ -n "$pkg_ignore" ]; then
-		pkg_is_ignored $pkg
-		[ $? -eq 1 ] && continue
-	fi
+	pkg_is_ignored $pkg && continue
 
 	job_register $pkg_curr $pkg_all
 	(
@@ -263,8 +259,10 @@ done
 while true; do
 	echo ""
 	echo "Total: $n_stale package(s)"
-	echo -e "Do you want to reinstall them (y/n)? \c"
+	echo -e "Do you want to reinstall them (y/n)? [y] \c"
 	read answer
+	[ -n "$answer" ] || answer="y"
+
 	case $answer in	
 	[Nn])
 		break ;;
