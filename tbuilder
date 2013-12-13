@@ -27,12 +27,14 @@ display_usage() {
 	echo "Usage: tbuilder <command> <query> [build_name]"
 	echo ""
 	echo " command: bdeps - build ports having certain build dependency"
+	echo "          file  - build ports read from file"   
 	echo "          grep  - build ports containing phrase in Makefile"
 	echo "          ldeps - build ports linking with certain library"
 	echo "          match - build ports with name matching certain phrase"
 	echo "          name  - build specific port"
 	echo ""
 	echo " query: (bdeps|match) - portname"
+	echo "        (file) - name of file to read category/port entries from"
 	echo "        (grep) - grep pattern"
 	echo "        (ldeps) - category/port"
 	echo "        (name) - category/port or '.' to build port from current directory"
@@ -59,6 +61,12 @@ tc_cmd() {
 case $1 in
 bdeps)
 	ports="$(portsearch -b $2 | grep Path: | cut -f 4- -d '/')" ;;
+file)
+	if [ ! -f "$2" ]; then
+		echo "File $2 does not exists"
+		exit 1
+	fi
+	ports="$(cat "$2")" ;;
 grep)
 	ports="$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
 		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
