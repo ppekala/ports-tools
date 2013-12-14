@@ -1,5 +1,7 @@
 #!/bin/sh
 
+LANG=C
+
 readonly PAGER="${PAGER:-less}"
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
@@ -7,6 +9,7 @@ clean_only=0
 dir_cache=""
 dir_cache_ignore=""
 non_interactive=0
+removed_dirs=""
 
 ask_yesno() {
 	[ $non_interactive -eq 0 ] || return 0
@@ -26,6 +29,10 @@ ask_yesno() {
 	done
 }
 
+cache_concat() {
+	[ -z "$1" ] && echo "$2" || echo "$1 $2"
+}
+
 dir_cache_add() {
 	local dir="$1"
 
@@ -33,7 +40,7 @@ dir_cache_add() {
 	*$dir*)
 		;;
 	*)
-		dir_cache="$dir_cache $dir"
+		dir_cache="$(cache_concat "$dir_cache" "$dir")"
 	esac
 }
 
@@ -69,17 +76,32 @@ file_add() {
 }
 
 file_remove() {
-	local dir="$(dirname $1)" file="$1"
+	local file="$1" n_kind="$(svn info "$1"|awk '/^Node Kind/ { print $3 }')"
 
-	if ask_yesno "Remove file $file"; then 
-		[ $non_interactive -eq 0 ] || echo "===> Removing file $file"
+	if [ "$n_kind" = "file" ]; then
+		for dir in $removed_dirs; do
+			case $file in $dir/*)
+				return
+			esac
+		done
+	fi
+
+	if ask_yesno "Remove $n_kind $file"; then 
+		[ $non_interactive -eq 0 ] || echo "===> Removing $n_kind $file"
 		svn -q rm "$file"
 		
-		case $file in *files/*|*scripts/*)
-			dir_cache_add $dir
-		esac
+		if [ "$n_kind" = "file" ]; then 
+			case $file in *files/*|*scripts/*)
+				dir_cache_add "$(dirname "$file")"
+			esac
+		else
+			removed_dirs="$(cache_concat "$removed_dirs" "$file")"
+		fi
 	else
-		dir_cache_ignore="$dir_cache_ignore $dir"
+		if [ "$n_kind" = "file" ]; then
+			dir="$(dirname "$file")"
+			dir_cache_ignore="$(cache_concat "$dir_cache_ignore" "$dir")"
+		fi
 	fi
 }
 
@@ -105,12 +127,12 @@ file_set_props() {
 }
 
 remove_empty_dirs() {
-	for dir in "$dir_cache"; do
+	for dir in $dir_cache; do
 		[ -d $dir ] || continue
 		case $dir_cache_ignore in *$dir*) continue ;; esac
 		
 		if [ -z "$(ls $dir 2>&1)" ]; then
-			echo "===> Removing empty dir $dir"
+			echo "===> Removing empty directory $dir"
 			svn -q rm $dir
 		fi
 	done
