@@ -6,14 +6,8 @@ readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
 readonly UID="$(id -u)"
 
 tc_cmd() {
-	local tc_script
-	
-	if [ $UID -eq 0 ]; then
-		tc_script="./tc"
-	else
-		tc_script="sudo ./tc"
-	fi
-
+	local tc_script="./tc"
+	[ $UID -eq 0 ] || tc_script="sudo $tc_script"
 	cd $TBDIR/scripts && $tc_script $*
 }
 
