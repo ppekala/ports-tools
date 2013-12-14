@@ -27,6 +27,7 @@ if [ -z "$builds" ]; then
 	for build in $(tc_cmd listBuilds); do
 		if [ -f "$TBDIR/logs/$build/$PKGNAME.log" ]; then
 			logfile="$TBDIR/logs/$build/$PKGNAME.log"
+			sel_build="$build"
 			break
 		fi
 	done
@@ -41,9 +42,10 @@ else
 		echo "===> Logfile $logfile does not exist"
 		exit 1
 	fi
+	sel_build="$builds"
 fi
 
-echo "===> Build selected: $build"
+echo "===> Build selected: $sel_build"
 echo "===> Uploading to http://people.freebsd.org/~$FREEBSD_LOGIN/buildlogs/$PKGNAME.log"
 scp "$logfile" $FREEBSD_LOGIN@freefall.freebsd.org:public_html/buildlogs/
 exit $?
