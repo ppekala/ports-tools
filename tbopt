@@ -4,10 +4,12 @@ readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
 readonly UID="$(id -u)"
 
 display_usage() {
-	echo "Usage: tbopt <command> <portname> <buildname>"
+	echo "Usage: tbopt <del|set|show> <portname> <buildname>"
+	echo "       tbopt list <buildname>"
 	echo ""
-	echo " command: del - remove set options"
-	echo "          set - set options"
+	echo " command: del  - remove set options"
+	echo "          list - list ports with changed options"
+	echo "          set  - set options"
 	echo "          show - show current options state"
 	echo ""
 	echo " portname: category/port or '.' to build port from current directory"
@@ -29,13 +31,17 @@ tc_cmd() {
 	cd $TBDIR/scripts && $tc_script $*
 }
 
-[ $# -lt 3 ] && display_usage
-
 cmd="$1"
-port="$2"
-builds="$3"
+if [ "$cmd" = "list" ]; then
+	[ $# -lt 2 ] && display_usage	
+	builds="$2"
+else	
+	[ $# -lt 3 ] && display_usage
+	port="$2"
+	builds="$3"
+fi
 
-[ "$cmd" != "del" -a "$cmd" != "set" -a "$cmd" != "show" ] && \
+[ "$cmd" != "del" -a "$cmd" != "set" -a "$cmd" != "show" -a "$cmd" != "list" ] && \
 	display_usage
 
 [ "$port" = "." ] && \
@@ -48,7 +54,7 @@ readonly OPTDIR="$(tc_cmd configOptions | awk -F= '/OPTIONS_DIR/ { print $2 }')"
 for build in $builds; do
 	ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $build)/ports"
 	
-	if [ ! -d "$ptree/$port" ]; then
+	if [ "$cmd" != "list" -a ! -d "$ptree/$port" ]; then
 		echo "$build: $ptree/$port does not exists"
 		continue
 	fi
@@ -58,6 +64,16 @@ for build in $builds; do
 	case $cmd in
 	del)
 		cd "$ptree/$port" && make $make_args rmconfig ;;
+	list)
+		ch_ports="$(ls "$TBDIR/$OPTDIR/$build" | awk '{
+			sub("_", "/", $1);
+			print $1;
+		}')"
+		if [ -n "$ch_ports" ]; then
+			echo "===> Build $build:"
+			echo "$ch_ports"
+		fi
+		;; 
 	set)
 		cd "$ptree/$port" && make $make_args config ;;
 	show)
