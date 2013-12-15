@@ -30,7 +30,9 @@ ask_yesno() {
 }
 
 cache_concat() {
-	[ -z "$1" ] && echo "$2" || echo "$1 $2"
+	local str="$(eval echo $"$1")"
+	[ -z "$str" ] && str="$2" || str="$str $2"
+	setvar $1 "$str"
 }
 
 dir_cache_add() {
@@ -40,7 +42,7 @@ dir_cache_add() {
 	*$dir*)
 		;;
 	*)
-		dir_cache="$(cache_concat "$dir_cache" "$dir")"
+		cache_concat dir_cache "$dir"
 	esac
 }
 
@@ -95,13 +97,11 @@ file_remove() {
 				dir_cache_add "$(dirname "$file")"
 			esac
 		else
-			removed_dirs="$(cache_concat "$removed_dirs" "$file")"
+			cache_concat removed_dirs "$file"
 		fi
 	else
-		if [ "$n_kind" = "file" ]; then
-			dir="$(dirname "$file")"
-			dir_cache_ignore="$(cache_concat "$dir_cache_ignore" "$dir")"
-		fi
+		[ "$n_kind" = "file" ] && \
+			cache_concat dir_cache_ignore "$(dirname "$file")"
 	fi
 }
 
