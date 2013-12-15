@@ -83,7 +83,7 @@ file_remove() {
 	if [ "$n_kind" = "file" ]; then
 		for dir in $removed_dirs; do
 			case $file in $dir/*)
-				return
+				return 0
 			esac
 		done
 	fi
@@ -99,9 +99,11 @@ file_remove() {
 		else
 			cache_concat removed_dirs "$file"
 		fi
+		return 0
 	else
 		[ "$n_kind" = "file" ] && \
 			cache_concat dir_cache_ignore "$(dirname "$file")"
+		return 1
 	fi
 }
 
@@ -234,7 +236,7 @@ for line in $(cat $tempfile); do
 	case $change in
 	!)
 		file_remove "$file"
-		tracked=1 ;;
+		[ $? -eq 1 ] || tracked=1 ;;
 	N)
 		file_add "$file"
 		tracked=$? ;;
