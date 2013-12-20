@@ -108,7 +108,7 @@ fi
 if [ -f "$CONFIG" ]; then
 	last_read="$(cat "$CONFIG")"
 else
-	[ -d "$XDG_CONFIG_HOME" ] || mkdir $(basename "$XDG_CONFIG_HOME")
+	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 fi
 
 [ -n "$last_read" ] || last_read="$(get_entry_dates | head -n 1)"

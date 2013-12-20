@@ -1,7 +1,7 @@
 #!/bin/sh
 
-readonly XDG_HOME_CONFIG="${XDG_HOME_CONFIG:-$HOME/.config}"
-readonly EXCLUDE_CONF="$XDG_HOME_CONFIG/pkg-cutter"
+readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+readonly EXCLUDE_CONF="$XDG_CONFIG_HOME/pkg-cutter"
 readonly LOCALBASE="${LOCALBASE:-/usr/local}"
 
 exclude_opt=0
@@ -61,7 +61,7 @@ update_exclude_list() {
 	rm $tmpfile
 
 	[ -z "$excluded" ] && exit
-	[ -d "$XDG_HOME_CONFIG" ] || mkdir "$XDG_HOME_CONFIG"
+	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 	[ -f "$EXCLUDE_CONF" ] && rm -f "$EXCLUDE_CONF"
 
 	for pkg in $excluded; do
