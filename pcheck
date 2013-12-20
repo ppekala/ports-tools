@@ -55,16 +55,11 @@ if [ $skip_spellcheck -eq 0 ]; then
 fi
 
 find . \( -type f -and ! -path './work/*' \) | while read file; do
-	if [ -z "$(tail -n 1 $file | tr '\n' '%' | grep '%$')" ]; then
+	if [ -z "$(tail -n 1 $file | tr '\n' '~' | grep '~$')" ]; then
 		echo >> $file
-		mod_files="$mod_files ${file##./}"
+		echo "===> Added final newline to ${file##./}"
 	fi
 done
-
-if [ -n "$mod_files" ]; then
-	echo "===> Added final newlines to file(s):"
-	echo " $mod_files"
-fi
 
 comment="$(make -V COMMENT)"
 if [ -n "$(echo $comment | grep -E '^(A|An) ')" ]; then
