@@ -80,6 +80,11 @@ updating_entry() {
 	echo ""
 }
 
+upgrade_exit() {
+	[ $wait_for_key -eq 0 ] || read key
+	exit $1
+}
+
 while getopts "hw" option; do
 	case $option in
 	w)
@@ -111,8 +116,7 @@ fi
 sudo /usr/sbin/portsnap fetch update
 if [ $? -ne 0 ]; then
 	echo "===> Ports tree update failed"
-	[ $wait_for_key -eq 0 ] || read key
-	exit 1
+	upgrade_exit 1
 fi
 
 last_upd="$(get_entry_dates | head -n 1)"
@@ -131,10 +135,20 @@ if [ $last_read -lt $last_upd ]; then
 		IFS=$'\n'
 		
 		for cmd in $(cat $tmpfile); do
+			case $cmd in "portmaster -a"*)
+				continue ;;
+			esac
+			
 			if ask_yesno "Run '$cmd'"; then
 				IFS=$old_IFS
 				sudo $cmd
+				ret=$?
 				IFS=$'\n'
+				
+				if [ $ret -ne 0 ]; then
+					echo "===> Upgrade command '$cmd' failed"
+					upgrade_exit $ret
+				fi
 			fi
 		done
 		
@@ -149,6 +163,4 @@ if [ $last_read -lt $last_upd ]; then
 fi
 
 sudo portmaster -a
-ret=$?
-[ $wait_for_key -eq 0 ] || read key
-exit $ret
+upgrade_exit $?
