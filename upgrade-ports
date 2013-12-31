@@ -162,5 +162,11 @@ if [ $last_read -lt $last_upd ]; then
 	
 fi
 
-sudo portmaster -a
+if [ -n "$UPGRADE_PORTS_IGNORE" ]; then
+	for pattern in $UPGRADE_PORTS_IGNORE; do
+		portmaster_args="$portmaster_args -x $pattern"
+	done
+fi
+
+sudo portmaster -a $portmaster_args
 upgrade_exit $?
