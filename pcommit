@@ -58,19 +58,21 @@ display_usage() {
 
 file_add() {
 	local file="$1"
-
 	case $file in *svn-commit*) return 1 ;; esac
 	
 	if ask_yesno "Add file $file"; then
 		[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
 		svn -q add "$file"
+		if [ $? -ne 0 ]; then
+			echo "===> File addition failed"
+			pcommit_exit 1
+		fi
 
 		if [ -d "$file" ]; then
 			for child in $(ls "$file"); do
 				file_set_props "$file/$child"
 			done
 		fi
-
 		return 0
 	else
 		return 1
@@ -91,6 +93,10 @@ file_remove() {
 	if ask_yesno "Remove $n_kind $file"; then 
 		[ $non_interactive -eq 0 ] || echo "===> Removing $n_kind $file"
 		svn -q rm "$file"
+		if [ $? -ne 0 ]; then
+			echo "===> File removal failed"
+			pcommit_exit 1
+		fi
 		
 		if [ "$n_kind" = "file" ]; then 
 			case $file in *files/*|*scripts/*)
@@ -109,7 +115,6 @@ file_remove() {
 
 file_set_props() {
 	local file="$1"
-	
 	[ -d "$file" -o ! -e "$file" ] && return 1
 	
 	case $(egrep -- '\$FreeBSD\$|\$[BDFSer]+:' "$file" >/dev/null || echo $?) in
@@ -126,6 +131,11 @@ file_set_props() {
 	fi
 	svn -q -- propset svn:mime-type text/plain "$file"
 	svn -q -- propdel cvs2svn:cvs-rev "$file"
+}
+
+pcommit_exit() {
+	[ -z "$tempfile" ] || rm -f $tempfile
+	exit $1
 }
 
 remove_empty_dirs() {
@@ -199,16 +209,14 @@ if [ -n "$old_files" ]; then
 	echo $old_files | tr ' ' '\n'
 	echo ""
 fi
-
 [ $clean_only -eq 0 ] || exit
 
+trap 'pcommit_exit 1' int
 tempfile="$(mktemp -t pcommit)"
 svn --show-updates status > $tempfile
-
 if [ $? -ne 0 ]; then
 	echo "===> 'svn status' failed"
-	rm $tempfile
-	exit 1 
+	pcommit_exit 1 
 fi
 
 old_IFS=$IFS
