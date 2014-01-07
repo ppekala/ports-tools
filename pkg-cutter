@@ -5,15 +5,18 @@ readonly EXCLUDE_CONF="$XDG_CONFIG_HOME/pkg-cutter"
 readonly LOCALBASE="${LOCALBASE:-/usr/local}"
 
 exclude_opt=0
+new_leafs_yes=0
 rm_count=0
 sel_status="off"
 
 display_usage() {
-	echo "Usage: pkg-cutter [-h|-o|-x]"
+	echo "Usage: pkg-cutter [-h|-x]"
+	echo "       pkg-cutter [-o] [-y]"
 	echo ""
 	echo "    -h - show this help"
 	echo "    -o - set selection to on by default"
 	echo "    -x - update exclude list"
+	echo "    -y - assume yes when there are new leaf packages"
 	echo ""
 	exit
 }
@@ -70,14 +73,16 @@ update_exclude_list() {
 	exit
 }
 
-while getopts "hox" option; do
+while getopts "hoxy" option; do
 	case $option in
 	o)
 		[ $exclude_opt -eq 1 ] && display_usage
 		sel_status="on" ;;
 	x)
-		[ "$sel_status" = "on" ] && display_usage
+		[ "$sel_status" = "on" -o $new_leafs_yes -eq 1 ] && display_usage
 		exclude_opt=1 ;;
+	y)
+		new_leafs_yes=1 ;;
 	*)
 		display_usage	
 	esac
@@ -112,8 +117,10 @@ while true; do
 	done
 
 	if [ $rm_count -gt 0 -a $count -gt 0 ]; then
-		dialog --yesno "There are new leaf packages. Continue?" 5 43
-		[ $? -eq 1 ] && break
+		if [ $new_leafs_yes -eq 0 ]; then
+			dialog --yesno "There are new leaf packages. Continue?" 5 43
+			[ $? -eq 1 ] && break
+		fi
 	fi
 	
 	[ $count -eq 0 ] && break
