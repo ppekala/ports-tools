@@ -1,5 +1,7 @@
 #!/bin/sh
 
+readonly PSVN="${PSVN:-svn}"
+
 echo "===> Removing work dirs..."
 
 if [ -n "$(make -V PORTNAME)" ]; then
@@ -34,13 +36,13 @@ if [ -n "$wrk_dirs" ]; then
 	done
 fi
 
-echo "===> Running 'svn revert'..."
+echo "===> Running '$PSVN revert'..."
 
-svn revert --depth infinity .
+$PSVN revert --depth infinity .
 
 echo "===> Removing leftover files..."
 
-svn status | while read line; do
+$PSVN status | while read line; do
 	status="$(echo $line | awk '{ print $1 }')"
 	file="$(echo $line | awk ' { print $2 }')"
 	

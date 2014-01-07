@@ -4,6 +4,7 @@ LANG=C
 
 readonly PAGER="${PAGER:-less}"
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
+readonly PSVN="${PSVN:-svn}"
 
 clean_only=0
 dir_cache=""
@@ -62,7 +63,7 @@ file_add() {
 	
 	if ask_yesno "Add file $file"; then
 		[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
-		svn -q add "$file"
+		$PSVN -q add "$file"
 		if [ $? -ne 0 ]; then
 			echo "===> File addition failed"
 			pcommit_exit 1
@@ -80,7 +81,7 @@ file_add() {
 }
 
 file_remove() {
-	local file="$1" n_kind="$(svn info "$1"|awk '/^Node Kind/ { print $3 }')"
+	local file="$1" n_kind="$($PSVN info "$1"|awk '/^Node Kind/ { print $3 }')"
 
 	if [ "$n_kind" = "file" ]; then
 		for dir in $removed_dirs; do
@@ -92,7 +93,7 @@ file_remove() {
 
 	if ask_yesno "Remove $n_kind $file"; then 
 		[ $non_interactive -eq 0 ] || echo "===> Removing $n_kind $file"
-		svn -q rm "$file"
+		$PSVN -q rm "$file"
 		if [ $? -ne 0 ]; then
 			echo "===> File removal failed"
 			pcommit_exit 1
@@ -119,18 +120,17 @@ file_set_props() {
 	
 	case $(egrep -- '\$FreeBSD\$|\$[BDFSer]+:' "$file" >/dev/null || echo $?) in
 	"")	# matched pattern
-		svn -q -- propset svn:keywords "FreeBSD=%H" "$file"
-		svn -q -- propdel fbsd:nokeywords "$file" ;;
+		$PSVN -q -- propset svn:keywords "FreeBSD=%H" "$file"
+		$PSVN -q -- propdel fbsd:nokeywords "$file" ;;
 	1)	# no match
-		svn -q -- propset fbsd:nokeywords yes "$file"
-		svn -q -- propdel svn:keywords "$file" ;;
+		$PSVN -q -- propset fbsd:nokeywords yes "$file"
+		$PSVN -q -- propdel svn:keywords "$file" ;;
 	esac
 
-	if [ "${_file##/*}" != "bsd.port.mk" ] ; then
-		svn -q -- propset svn:eol-style native "$file"
-	fi
-	svn -q -- propset svn:mime-type text/plain "$file"
-	svn -q -- propdel cvs2svn:cvs-rev "$file"
+	[ "${_file##/*}" != "bsd.port.mk" ] && \
+		$PSVN -q -- propset svn:eol-style native "$file"
+	$PSVN -q -- propset svn:mime-type text/plain "$file"
+	$PSVN -q -- propdel cvs2svn:cvs-rev "$file"
 }
 
 pcommit_exit() {
@@ -145,7 +145,7 @@ remove_empty_dirs() {
 		
 		if [ -z "$(ls $dir 2>&1)" ]; then
 			echo "===> Removing empty directory $dir"
-			svn -q rm $dir
+			$PSVN -q rm $dir
 		fi
 	done
 }
@@ -213,9 +213,9 @@ fi
 
 trap 'pcommit_exit 1' int
 tempfile="$(mktemp -t pcommit)"
-svn --show-updates status > $tempfile
+$PSVN --show-updates status > $tempfile
 if [ $? -ne 0 ]; then
-	echo "===> 'svn status' failed"
+	echo "===> '$PSVN status' failed"
 	pcommit_exit 1 
 fi
 
@@ -250,7 +250,7 @@ for line in $(cat $tempfile); do
 		tracked=$? ;;
 	U)
 		echo "===> Updating $file"
-		svn -q update "$file"
+		$PSVN -q update "$file"
 	esac
 
 	[ $tracked -eq 1 ] || file_set_props "$file"
@@ -262,7 +262,7 @@ IFS=$old_IFS
 remove_empty_dirs
 
 if [ $non_interactive -eq 1 ]; then
-	svn commit
+	$PSVN commit
 	exit $?
 fi
 
@@ -274,14 +274,14 @@ while true; do
 	
 	case $cmd in
 	[Cc])
-		svn commit
+		$PSVN commit
 		exit $? ;;
 	[Qq])
 		exit ;;
 	[Ss])
-		svn status ;;
+		$PSVN status ;;
 	[Vv])
-		svn diff | $PAGER ;;
+		$PSVN diff | $PAGER ;;
 	*)
 		echo "No such command: $cmd"
 	esac
