@@ -81,6 +81,7 @@ updating_entry() {
 }
 
 upgrade_exit() {
+	[ -n "$tmpfile" -a -f "$tmpfile" ] && rm -rf "$tmpfile"
 	[ $wait_for_key -eq 0 ] || read key
 	exit $1
 }
@@ -97,12 +98,12 @@ done
 
 if [ -z "$(whereis -bq sudo)" ]; then
 	echo "===> sudo not found"
-	exit 1
+	upgrade_exit 1
 fi
 
 if [ -z "$(whereis -bq portmaster)" ]; then
 	echo "===> portmaster not found"
-	exit 1
+	upgrade_exit 1
 fi
 
 if [ -f "$CONFIG" ]; then
@@ -154,12 +155,11 @@ if [ $last_read -lt $last_upd ]; then
 		
 		IFS=$old_IFS
 	done
-
-	rm $tmpfile
-
 	ask_yesno "Update ports with 'portmaster -a'"
-	[ $? -eq 0 ] || exit
-	
+	if [ $? -ne 0 ]; then
+		[ -f "$tmpfile" ] && rm -rf $tmpfile
+		exit 0
+	fi
 fi
 
 if [ -n "$UPGRADE_PORTS_IGNORE" ]; then
