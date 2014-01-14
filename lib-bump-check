@@ -71,6 +71,15 @@ job_register() {
 	done
 }
 
+jobs_finish_wait() {
+	while ! lockf -k "$TMP_SEM" sh -c "
+			state=\$(cat '$TMP_SEM')
+			[ \$state -eq $JOBS ] && exit 0 || exit 1
+		"; do
+		sleep 0.1
+	done
+}
+
 newer_library_available() {
 	local lib="$1"
 	
@@ -229,7 +238,7 @@ for pkg in $packages; do
 		echo "$pkg@$ret" | sed 's| |@|g' >> $TMP_STALE
 	) &
 done
-
+jobs_finish_wait
 printf "\n\n"
 
 pkg_bad_deps="$(cat $TMP_BAD)"
