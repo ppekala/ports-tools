@@ -28,7 +28,7 @@ check_package() {
 		[ "$javavm" != "no" ] && \
 			[ -n "$(pkg info -lq $javavm | grep $lib)" ] && \
 			continue
-		echo $lib
+		echo -n "$lib "
 	done
 }
 
