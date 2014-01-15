@@ -211,8 +211,13 @@ if [ -n "$old_files" ]; then
 fi
 [ $clean_only -eq 0 ] || exit
 
-trap 'pcommit_exit 1' int
 tempfile="$(mktemp -t pcommit)"
+if [ -z "$tempfile" ]; then
+	echo "===> Failed to create temporary file"
+	exit 1
+fi
+trap 'pcommit_exit 1' int
+
 $PSVN --show-updates status > $tempfile
 if [ $? -ne 0 ]; then
 	echo "===> '$PSVN status' failed"

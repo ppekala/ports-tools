@@ -11,7 +11,6 @@ tc_cmd() {
 	cd $TBDIR/scripts && $tc_script $*
 }
 
-
 if [ -z "$(whereis -bq plist-sort)" ]; then
 	echo "===> Required script plist-sort not found"
 	exit 1
@@ -44,11 +43,11 @@ else
 fi
 
 tempfile="$(mktemp -t tb-plist-update)"
-if [ -f pkg-plist ]; then
-	plist_out="pkg-plist.new"
-else
-	plist_out="pkg-plist"
+if [ -z "$tempfile" ]; then
+	echo "===> Failed to create temporary file"
+	exit 1
 fi
+[ -f pkg-plist ] && plist_out="pkg-plist.new" || plist_out="pkg-plist"
 
 awk -v prefix="$(make -V PREFIX 2>/dev/null)/" '
 

@@ -21,6 +21,15 @@ display_usage() {
 	exit
 }
 
+mktmp() {
+	local tmp="$(mktemp -t pkg-cutter)"
+	if [ -z "$tmp" ]; then
+		echo "===> Failed to create temporary file"
+		exit 1
+	fi
+	echo $tmp
+}
+
 number_humanize() {
 	echo "$1" | awk '{
 		bytes = $0;
@@ -56,7 +65,7 @@ update_exclude_list() {
 		count=$((count+1))
 	done
 
-	tmpfile="$(mktemp -t pkg-cutter)"
+	tmpfile="$(mktmp)"
 	echo "--checklist \"Select packages to exclude ($count items):\" \
 		21 70 19 $items" > $tmpfile
 	excluded="$(dialog --stdout --file $tmpfile | sed 's|\"||g')"
@@ -125,7 +134,7 @@ while true; do
 	
 	[ $count -eq 0 ] && break
 
-	[ -z "$tmpfile" ] && tmpfile="$(mktemp -t pkg-cutter)"
+	[ -n "$tmpfile" ] || tmpfile="$(mktmp)"
 	echo "--checklist \"Select packages to delete ($count items):\" \
 		21 70 19 $items" > $tmpfile
 

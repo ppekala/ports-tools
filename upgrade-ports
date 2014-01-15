@@ -125,6 +125,10 @@ echo $last_upd > $CONFIG
 
 if [ $last_read -lt $last_upd ]; then
 	tmpfile="$(mktemp -t upgrade-ports)"
+	if [ -z "$tmpfile" ]; then
+		echo "===> Failed to create temporary file"
+		upgrade_exit 1
+	fi
 
 	for entry in $(get_entry_dates | sort -u); do
 		[ $entry -gt $last_read ] || continue
