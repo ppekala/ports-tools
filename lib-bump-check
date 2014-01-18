@@ -139,14 +139,15 @@ rebuild_ports() {
 		echo ""
 		echo "$rebuild_err" | tr ' ' '\n' | awk -F: '
 			/BUILD_ERR/ {
-				print "$2: rebuild error ($3)"
+				print $2 ": rebuild error (" $3 ")"
 			}
 			/CLEAN_ERR/ {
-				print "$2: make clean error ($3)"
+				print $2 ": make clean error (" $3 ")"
 			}
 			/ORIGIN_ERR/ {
-				print "$2: origin not found ($3)"
+				print $2 ": origin not found (" $3 ")"
 			}'
+		echo ""
 	fi
 }
 
