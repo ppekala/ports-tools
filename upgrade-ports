@@ -5,6 +5,7 @@ readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
 readonly PAGER="${PAGER:-less}"
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
+answer_yes=0
 wait_for_key=0
 
 ask_yesno() {
@@ -24,10 +25,11 @@ ask_yesno() {
 }
 
 display_usage() {
-	echo "Usage: upgrade-ports [-h|-w]"
+	echo "Usage: upgrade-ports [-h|-w|-y]"
 	echo ""
 	echo "    -h - show this help"
 	echo "    -w - wait for key press after finish"
+	echo "    -y - answer yes to all questions"
 	echo ""
 	exit
 }
@@ -86,10 +88,13 @@ upgrade_exit() {
 	exit $1
 }
 
-while getopts "hw" option; do
+while getopts "hwy" option; do
 	case $option in
 	w)
 		wait_for_key=1 ;;
+	y)
+		portmaster_args="--no-confirm"
+		answer_yes=1 ;;
 	*)
 		display_usage
 	esac
@@ -104,6 +109,12 @@ fi
 if [ -z "$(whereis -bq portmaster)" ]; then
 	echo "===> portmaster not found"
 	upgrade_exit 1
+fi
+
+if [ -n "$UPGRADE_PORTS_IGNORE" ]; then
+	for pattern in $UPGRADE_PORTS_IGNORE; do
+		portmaster_args="$portmaster_args -x $pattern"
+	done
 fi
 
 if [ -f "$CONFIG" ]; then
@@ -140,8 +151,11 @@ if [ $last_read -lt $last_upd ]; then
 		IFS=$'\n'
 		
 		for cmd in $(cat $tmpfile); do
-			case $cmd in "portmaster -a"*)
+			case $cmd in 
+			"portmaster -a"*)
 				continue ;;
+			"portmaster "*)
+				cmd="$cmd $portmaster_args"
 			esac
 			
 			if ask_yesno "Run '$cmd'"; then
@@ -159,17 +173,13 @@ if [ $last_read -lt $last_upd ]; then
 		
 		IFS=$old_IFS
 	done
-	ask_yesno "Update ports with 'portmaster -a'"
-	if [ $? -ne 0 ]; then
-		[ -f "$tmpfile" ] && rm -rf $tmpfile
-		exit 0
-	fi
-fi
-
-if [ -n "$UPGRADE_PORTS_IGNORE" ]; then
-	for pattern in $UPGRADE_PORTS_IGNORE; do
-		portmaster_args="$portmaster_args -x $pattern"
-	done
+	if [ $answer_yes -eq 0 ]; then
+		ask_yesno "Update ports with 'portmaster -a'"
+		if [ $? -ne 0 ]; then
+			[ -f "$tmpfile" ] && rm -rf $tmpfile
+			exit 0
+		fi
+	fi	
 fi
 
 sudo portmaster -a $portmaster_args
