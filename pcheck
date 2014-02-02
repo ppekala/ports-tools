@@ -17,7 +17,7 @@ reinplace_file() {
 	local file="$1" expr="$2"
 	
 	[ -n "$expr" ] || return
-	sed "$expr" $file > $file.new
+	sed -E "$expr" $file > $file.new
 	mv $file.new $file
 }
 
@@ -78,9 +78,9 @@ if [ -n "$(grep '^Author:' pkg-descr)" ]; then
 	echo "===> Deleting Author: line from pkg-descr"
 fi
 
-if [ -n "$(grep '^WWW:	' pkg-descr)" ]; then
-	sed_expr="$sed_expr s|^WWW:	|WWW: |g;"
-	echo "===> Fixing tab after WWW: in pkg-descr"
+if [ -n "$(grep -E '^WWW:(	| {2,}' pkg-descr)" ]; then
+	sed_expr="$sed_expr s#^WWW:(	| {2,})#WWW: #g;"
+	echo "===> Fixing WWW: line in pkg-descr"
 fi
 reinplace_file pkg-descr "$sed_expr"
 
