@@ -153,7 +153,8 @@ BEGIN {
 	}
 	if (plist[path] == "") {
 		if (substr($3,1,1) == "d") {
-			if (match(path, "^share/(applications|icons|locale|mime)"))
+			if (match(path, "^share/(applications|icons|locale|mime)") ||
+			    match(path, "^etc/"))
 				plist[path] = "@dirrmtry " path;
 			else
 				plist[path] = "@dirrm " path;
@@ -176,7 +177,7 @@ plist-sort $tempfile > $plist_out
 rm $tempfile
 [ "$plist_out" = "pkg-plist" ] && exit
 
-if [ -n "$(cmp pkg-plist $plist_out 2>/dev/null)" ]; then
+if [ ! $(cmp -s pkg-plist $plist_out) ]; then
 	diff -u pkg-plist $plist_out | $PAGER
 	
 	while true; do
