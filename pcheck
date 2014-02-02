@@ -78,7 +78,7 @@ if [ -n "$(grep '^Author:' pkg-descr)" ]; then
 	echo "===> Deleting Author: line from pkg-descr"
 fi
 
-if [ -n "$(grep -E '^WWW:(	| {2,}' pkg-descr)" ]; then
+if [ -n "$(grep -E '^WWW:(	| {2,})' pkg-descr)" ]; then
 	sed_expr="$sed_expr s#^WWW:(	| {2,})#WWW: #g;"
 	echo "===> Fixing WWW: line in pkg-descr"
 fi
