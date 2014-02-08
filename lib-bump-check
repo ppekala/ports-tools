@@ -10,23 +10,23 @@ bump_ignore=0
 check_package() {
 	local javavm pkg="$1"
 
-	local libs="$(pkg info -lq $pkg | while read file; do
+	local libs="$(pkg-static info -lq $pkg | while read file; do
 		[ -L "$file" ] && continue
 		ldd "$file" 2>/dev/null | awk '/not found/ { print $1 }'
 	done | sort -u)"
 	[ -z "$libs" ] && return
 
-	local pkg_files="$(pkg info -lq $pkg)"
+	local pkg_files="$(pkg-static info -lq $pkg)"
 	for lib in $libs; do 
 		case $pkg_files in *$lib*)
 			continue
 		esac
 		if [ -z "$javavm" ]; then
-			javavm="$(pkg info -dq $pkg | egrep 'jdk|jre')"
+			javavm="$(pkg-static info -dq $pkg | egrep 'jdk|jre')"
 			[ -z "$javavm" ] && javavm="no"
 		fi
 		[ "$javavm" != "no" ] && \
-			[ -n "$(pkg info -lq $javavm | grep $lib)" ] && \
+			[ -n "$(pkg-static info -lq $javavm | grep $lib)" ] && \
 			continue
 		echo -n "$lib "
 	done
@@ -117,7 +117,7 @@ rebuild_ports() {
 	local origin rebuild_err
 
 	for port in $*; do
-		origin="$(pkg query '%o' $port)"
+		origin="$(pkg-static query '%o' $port)"
 		if [ -d $PORTSDIR/$origin ]; then
 			cd $PORTSDIR/$origin
 		else
@@ -185,9 +185,9 @@ fi
 [ -n "$JOBS" ] || JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
 
 if [ -n "$PKG_PARENT" ]; then
-	packages="$(pkg info -rq $PKG_PARENT 2>/dev/null)"
+	packages="$(pkg-static info -rq $PKG_PARENT 2>/dev/null)"
 else
-	packages="$(pkg query '%n-%v' 2>/dev/null)"
+	packages="$(pkg-static query '%n-%v' 2>/dev/null)"
 fi
 
 pkg_all="$(echo $packages | wc -w)"
