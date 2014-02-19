@@ -1,0 +1,50 @@
+#!/bin/sh
+
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+
+display_usage() {
+	echo "Usage: pfind [-c category] [-h] [-m maintainer] [-n name] [-s string]"
+	echo ""
+	echo "    -c - port category"
+	echo "    -h - show this help"
+	echo "    -m - port's maintainer"
+	echo "    -n - port's name"
+	echo "    -s - string to find in port's Makefile"
+	echo ""
+	exit
+}
+
+while getopts "c:hm:n:s:" option; do
+	case ${option} in
+	c)
+		if [ ! -d ${PORTSDIR}/${OPTARG} ]; then
+			echo "No such category: ${OPTARG}"
+			exit 1
+		fi
+		category="${OPTARG}" ;;
+	m)
+		maintainer="${OPTARG}" ;;
+	n)
+		name="${OPTARG}" ;;
+	s)
+		string="${OPTARG}" ;;
+	*)
+		display_usage
+	esac
+done
+
+[ -z "${category}" -a -z "${maintainer}" -a -z "${name}" -a -z "${string}" ] && \
+	display_usage
+
+[ -z "${category}" ] || search_args="path=${PORTSDIR}/${category}"
+[ -z "${maintainer}" ] || search_args="${search_args} maint=${maintainer}"
+[ -z "${name}" ] || search_args="${search_args} name=${name}"
+
+cd ${PORTSDIR}
+make quicksearch ${search_args} | awk '/^Path:/ { print $2 }' | while read portdir; do
+	if [ -n "${string}" ]; then
+		[ -e ${portdir}/Makefile ] || continue
+		[ -n "$(grep ${string} ${portdir}/Makefile)" ] || continue
+	fi  
+	echo ${portdir} | sed "s|${PORTSDIR}/||"
+done

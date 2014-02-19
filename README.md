@@ -42,6 +42,11 @@ pdiff
 Does clean diff against main ports tree making sure there are no leftover
 files and make clean is done.
 
+pfind
+-----
+
+Simple port's search wrapper 
+
 pkg-cutter
 ----------
 
