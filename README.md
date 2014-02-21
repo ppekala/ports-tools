@@ -95,6 +95,11 @@ tbuilder
 Wrapper that makes easier to queue multiple builds of one port, ports with
 certain names, ports with Makefile containing phrase, etc.
 
+upgrade-base
+------------
+
+Helper script for upgrading FreeBSD base.
+
 upgrade-ports
 -------------
 
