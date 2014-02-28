@@ -41,6 +41,11 @@ done
 [ -z "${name}" ] || search_args="${search_args} name=${name}"
 
 cd ${PORTSDIR}
+if [ ! -f "$(make -VINDEXFILE)" ]; then
+	echo "===> Fetching missing index file"
+	make fetchindex
+fi
+
 make quicksearch ${search_args} | awk '/^Path:/ { print $2 }' | while read portdir; do
 	if [ -n "${string}" ]; then
 		[ -e ${portdir}/Makefile ] || continue
