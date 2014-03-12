@@ -43,7 +43,7 @@ done
 cd ${PORTSDIR}
 if [ ! -f "$(make -VINDEXFILE)" ]; then
 	echo "===> Fetching missing index file"
-	make fetchindex
+	make fetchindex || exit 1
 fi
 
 make quicksearch ${search_args} | awk '/^Path:/ { print $2 }' | while read portdir; do
