@@ -42,13 +42,13 @@ $PSVN revert --depth infinity .
 
 echo "===> Removing leftover files..."
 
-$PSVN status | while read line; do
+$PSVN status --no-ignore | while read line; do
 	status="$(echo $line | awk '{ print $1 }')"
 	file="$(echo $line | awk ' { print $2 }')"
 	
 	[ -z "$status" -o -z "$file" ] && continue
 	
-	if [ "$status" = "?" ]; then
+	if [ "$status" = "?" -o "$status" = "I" ]; then
 		echo "  $file"
 		
 		if [ -d "$file" ]; then
