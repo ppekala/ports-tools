@@ -164,12 +164,7 @@ done
 if [ -n "$(make -V PORTNAME)" ]; then
 	depth=2
 else 
-	if [ -n "$(make -V PORTSTOP)" ]; then
-		depth=4
-		clean_exp="-and -not -path './.svn/*'"
-	else
-		depth=3
-	fi
+	[ -n "$(make -V PORTSTOP)" ] && depth=4 || depth=3
 fi
 
 wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
@@ -202,8 +197,9 @@ if [ -n "$rej_files" ]; then
 	exit 1
 fi
 
-old_files="$(find . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
-		$clean_exp -delete -print -maxdepth $depth | sed 's|^./||g')"
+old_files="$(find -E . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
+	-regexp '.*(\.svn|work)/.*' -delete -print -maxdepth $depth | \
+	sed 's|^./||g')"
 if [ -n "$old_files" ]; then
 	echo "===> Removed old temporary files"
 	echo $old_files | tr ' ' '\n'

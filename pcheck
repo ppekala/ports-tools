@@ -35,14 +35,14 @@ if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
 	exit 1
 fi
 
-rej_files="$(find . -name "*.rej")"
+rej_files="$(find -E . -name "*.rej" ! -regex '\./(\.svn|work)/.*')"
 if [ -n "$rej_files" ]; then
 	echo "===> Found rejected patch file(s)"
 	echo " $rej_files" | sed 's|./||g'
 	exit 1
 fi
 
-find . \( -name "*.orig" -or -size 0 \) -delete
+find -E . \( -name "*.orig" -or -size 0 \) ! -regex '\./(\.svn|work)/.*' -delete
 
 if [ $skip_spellcheck -eq 0 ]; then
 	if [ -n "$(whereis -bq aspell)" ]; then
@@ -54,7 +54,7 @@ if [ $skip_spellcheck -eq 0 ]; then
 	fi
 fi
 
-find . \( -type f -and ! -path './work/*' \) | while read file; do
+find -E . -type f ! -regex '\./(\.svn|work)/.*' | while read file; do
 	if [ -z "$(tail -n 1 $file | tr '\n' '~' | grep '~$')" ]; then
 		echo >> $file
 		echo "===> Added final newline to ${file##./}"
