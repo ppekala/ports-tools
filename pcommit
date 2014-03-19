@@ -198,7 +198,7 @@ if [ -n "$rej_files" ]; then
 fi
 
 old_files="$(find -E . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
-	! -regexp '.*(\.svn|work)/.*' -delete -print -maxdepth $depth | \
+	! -regex '.*(\.svn|work)/.*' -delete -print -maxdepth $depth | \
 	sed 's|^./||g')"
 if [ -n "$old_files" ]; then
 	echo "===> Removed old temporary files"
