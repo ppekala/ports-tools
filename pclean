@@ -7,11 +7,7 @@ echo "===> Removing work dirs..."
 if [ -n "$(make -V PORTNAME)" ]; then
 	depth=2
 else 
-	if [ -n "$(make -V PORTSTOP)" ]; then
-		depth=4
-	else
-		depth=3
-	fi
+	[ -n "$(make -V PORTSTOP)" ] && depth=4 || depth=3
 fi
 
 wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
@@ -50,12 +46,7 @@ $PSVN status --no-ignore | while read line; do
 	
 	if [ "$status" = "?" -o "$status" = "I" ]; then
 		echo "  $file"
-		
-		if [ -d "$file" ]; then
-			rm -rf "$file"
-		else
-			rm "$file"
-		fi
+		rm -rf "$file"
 	else
 		echo "file=$file status=$status"
 	fi
