@@ -17,6 +17,7 @@ done
 awk -v prefix="$PREFIX/" -v plist_subs="$(make $make_args -V PLIST_SUB)" '
 BEGIN { 
 	n_cmds=1;
+	separator="###";
 
 	n = split(plist_subs, s_array, " ");
 	if (n > 0) {
@@ -85,12 +86,11 @@ function plist_split(string, array) {
 			update_plist_subs(array[i]);
 			if (subs[array[i]] != "null")
 				path = path subs[array[i]];
-			chunks = chunks " " array[i];
+			chunks = chunks separator array[i];
 		} else 
 			path = path array[i];
 	}
-	
-	files[path] = path " " chunks;
+	files[path] = path chunks;
 	path = chunks = "";
 } 
 
@@ -99,28 +99,25 @@ function plist_split(string, array) {
 	
 	if (n == 1) { # @dirrm path
 		plist_split(array[1], p);
-		dirs[p[2]] = p[2] " " p[1];
+		dirs[p[2]] = p[2] separator p[1];
 		next;
 	}
-
 	for (i=1; i <= n; i++) {
 		if (match(array[i], "^@dirrm")) {
 			plist_split(array[i], p);
 			path = p[2];
-			chunks = chunks " " p[1];
+			chunks = chunks separator p[1];
 			continue;
 		}
-		
 		if ((i%2) == 0) {
 			update_plist_subs(array[i]);
 			if (subs[array[i]] != "null")
 				path = path subs[array[i]];
-			chunks = chunks " " array[i];
+			chunks = chunks separator array[i];
 		} else
 			path = path array[i];
 	}
-	
-	dirs[path] = path " " chunks;
+	dirs[path] = path chunks;
 	path = chunks = "";
 }
 
@@ -147,12 +144,12 @@ END {
 			o--;
 			break;
 		}
-		
+
 	for (i in files) print files[i] | ("sort -u -k1,1 >" tmpfile);
 	close("sort -u -k1,1 >" tmpfile);
 	
 	while((getline line < tmpfile) > 0) {
-		n = split(line, p, " "); 
+		n = split(line, p, separator); 
 		path = p[1];
 
 		if (n == 1) {
@@ -174,9 +171,9 @@ END {
 	close("sort -u -k1,1r >" tmpfile);
 	
 	while((getline line < tmpfile) > 0) {
-		n = split(line, p, " ");
+		n = split(line, p, separator);
 		path = p[1];
-	
+
 		if (n == 2) {
 			printf("%s %s\n", p[2], path);
 			continue;
