@@ -1,6 +1,6 @@
 #!/bin/sh
 
-readonly aspell_check="aspell --dont-backup --lang=en check"
+readonly hunspell="hunspell -d en_US"
 
 skip_spellcheck=0
 
@@ -45,12 +45,12 @@ fi
 find -E . \( -name "*.orig" -or -size 0 \) ! -regex '\./(\.svn|work)/.*' -delete
 
 if [ $skip_spellcheck -eq 0 ]; then
-	if [ -n "$(whereis -bq aspell)" ]; then
-		$aspell_check pkg-descr
-		[ -f pkg-message ] && $aspell_check pkg-message
-		[ -f files/pkg-message.in ] && $aspell_check files/pkg-message.in
+	if [ -n "$(whereis -bq hunspell)" ]; then
+		${hunspell} pkg-descr
+		[ -f pkg-message ] && ${hunspell} pkg-message
+		[ -f files/pkg-message.in ] && ${hunspell} files/pkg-message.in
 	else
-		echo "===> Aspell not found, skipping spellcheck"
+		echo "===> Hunspell not found, skipping spellcheck"
 	fi
 fi
 
