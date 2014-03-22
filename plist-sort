@@ -145,8 +145,8 @@ END {
 			break;
 		}
 
-	for (i in files) print files[i] | ("sort -u -k1,1 >" tmpfile);
-	close("sort -u -k1,1 >" tmpfile);
+	for (i in files) print files[i] | ("sort -u >" tmpfile);
+	close("sort -u >" tmpfile);
 	
 	while((getline line < tmpfile) > 0) {
 		n = split(line, p, separator); 
@@ -167,8 +167,8 @@ END {
 	close(tmpfile);
 	system("cat /dev/null>" tmpfile);
 
-	for (i in dirs) print dirs[i] | ("sort -u -k1,1r >" tmpfile);
-	close("sort -u -k1,1r >" tmpfile);
+	for (i in dirs) print dirs[i] | ("sort -u -r >" tmpfile);
+	close("sort -u -r >" tmpfile);
 	
 	while((getline line < tmpfile) > 0) {
 		n = split(line, p, separator);
