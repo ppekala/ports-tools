@@ -21,7 +21,7 @@ while getopts "c:hm:n:s:" option; do
 			echo "No such category: ${OPTARG}"
 			exit 1
 		fi
-		category="${OPTARG}" ;;
+		category="${OPTARG}/" ;;
 	m)
 		maintainer="${OPTARG}" ;;
 	n)
