@@ -82,10 +82,14 @@ updating_entry() {
 	echo ""
 }
 
+# $1 - exit status
+# $2 - last read/executed UPDATING entry
+# $3 - wait for final keypress?
 upgrade_exit() {
-	[ -n "$tmpfile" -a -f "$tmpfile" ] && rm -rf "$tmpfile"
-	[ $wait_for_key -eq 0 ] || read key
-	exit $1
+	[ -n "${2}" ] && echo ${2} > ${CONFIG}
+	[ -n "${tmpfile}" -a -f "$tmpfile" ] && rm -rf "${tmpfile}"
+	[ ${3} -eq 0 ] || read key
+	exit ${1}
 }
 
 while getopts "hwy" option; do
@@ -103,12 +107,12 @@ done
 
 if [ -z "$(whereis -bq sudo)" ]; then
 	echo "===> sudo not found"
-	upgrade_exit 1
+	upgrade_exit 1 "" ${wait_for_key}
 fi
 
 if [ -z "$(whereis -bq portmaster)" ]; then
 	echo "===> portmaster not found"
-	upgrade_exit 1
+	upgrade_exit 1 "" ${wait_for_key}
 fi
 
 if [ -n "$UPGRADE_PORTS_IGNORE" ]; then
@@ -128,17 +132,16 @@ fi
 sudo /usr/sbin/portsnap fetch update
 if [ $? -ne 0 ]; then
 	echo "===> Ports tree update failed"
-	upgrade_exit 1
+	upgrade_exit 1 "" ${wait_for_key}
 fi
 
 last_upd="$(get_entry_dates | head -n 1)"
-echo $last_upd > $CONFIG
 
 if [ $last_read -lt $last_upd ]; then
 	tmpfile="$(mktemp -t upgrade-ports)"
 	if [ -z "$tmpfile" ]; then
 		echo "===> Failed to create temporary file"
-		upgrade_exit 1
+		upgrade_exit 1 "" ${wait_for_key}
 	fi
 
 	for entry in $(get_entry_dates | sort -u); do
@@ -166,21 +169,19 @@ if [ $last_read -lt $last_upd ]; then
 				
 				if [ $ret -ne 0 ]; then
 					echo "===> Upgrade command '$cmd' failed"
-					upgrade_exit $ret
+					upgrade_exit $ret "$entry_prev" $wait_for_key
 				fi
 			fi
 		done
 		
 		IFS=$old_IFS
+		entry_prev="$entry"
 	done
 	if [ $answer_yes -eq 0 ]; then
 		ask_yesno "Update ports with 'portmaster -a'"
-		if [ $? -ne 0 ]; then
-			[ -f "$tmpfile" ] && rm -rf $tmpfile
-			exit 0
-		fi
+		[ $? -ne 0 ] && upgrade_exit 0 "${last_upd}" 0
 	fi	
 fi
 
 sudo portmaster -a $portmaster_args
-upgrade_exit $?
+upgrade_exit $? "${last_upd}" ${wait_for_key}
