@@ -3,6 +3,7 @@
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
 readonly PAGER="${PAGER:-less}"
+readonly PATH="${PATH}:/usr/local/sbin"
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 answer_yes=0
