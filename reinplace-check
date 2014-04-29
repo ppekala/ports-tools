@@ -13,12 +13,27 @@ if [ ! -d work ]; then
 	exit 1
 fi
 
+if [ "${cmd}" = "show" ]; then
+	shift
+	patterns="$@"
+fi
+
 find work -name "*.bak" -print | while read file; do
 	case $cmd in
 	check)
 		[ -z "$(diff "$file" "${file%.bak}")" ] && \
 			echo "File ${file%.bak} not modified" ;;
 	show)
+		if [ -n "${patterns}" ]; then
+			matched=0
+			for p in ${patterns}; do
+				case ${file} in *${p}*)
+					matched=1
+					break
+				esac
+			done
+			[ ${matched} -eq 1 ] || continue
+		fi
 		diff -u "$file" "${file%.bak}"
 	esac
 done 
