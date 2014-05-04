@@ -1,34 +1,34 @@
 #!/bin/sh
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-readonly IGNORE_FILE="$XDG_CONFIG_HOME/lib-bump-check"
+readonly IGNORE_FILE="${XDG_CONFIG_HOME}/lib-bump-check"
 readonly LOCALBASE="${LOCALBASE:-/usr/local}"
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 bump_ignore=0
 
 check_package() {
-	local javavm pkg="$1"
+	local javavm pkg="${1}"
 
-	local libs="$(pkg-static info -lq $pkg | while read file; do
-		[ -L "$file" ] && continue
-		ldd "$file" 2>/dev/null | awk '/not found/ { print $1 }'
+	local libs="$(pkg-static info -lq ${pkg} | while read file; do
+		[ -L "${file}" ] && continue
+		ldd "${file}" 2>/dev/null | awk '/not found/ { print $1 }'
 	done | sort -u)"
-	[ -z "$libs" ] && return
+	[ -z "${libs}" ] && return
 
-	local pkg_files="$(pkg-static info -lq $pkg)"
-	for lib in $libs; do 
-		case $pkg_files in *$lib*)
+	local pkg_files="$(pkg-static info -lq ${pkg})"
+	for lib in ${libs}; do 
+		case ${pkg_files} in *${lib}*)
 			continue
 		esac
-		if [ -z "$javavm" ]; then
-			javavm="$(pkg-static info -dq $pkg | egrep 'jdk|jre')"
-			[ -z "$javavm" ] && javavm="no"
+		if [ -z "${javavm}" ]; then
+			javavm="$(pkg-static info -dq ${pkg} | egrep 'jdk|jre')"
+			[ -z "${javavm}" ] && javavm="no"
 		fi
-		[ "$javavm" != "no" ] && \
-			[ -n "$(pkg-static info -lq $javavm | grep $lib)" ] && \
+		[ "${javavm}" != "no" ] && \
+			[ -n "$(pkg-static info -lq ${javavm} | grep ${lib})" ] && \
 			continue
-		echo -n "$lib "
+		echo -n "${lib} "
 	done
 }
 
@@ -44,25 +44,25 @@ display_usage() {
 }
 
 exit_clean() {
-	[ -f "$TMP_SEM" ] && rm -f "$TMP_SEM"
-	[ -f "$TMP_STALE" ] && rm -f "$TMP_STALE"
-	[ -f "$TMP_BAD" ] && rm -f "$TMP_BAD"
-	exit $1
+	[ -f "${TMP_SEM}" ] && rm -f "${TMP_SEM}"
+	[ -f "${TMP_STALE}" ] && rm -f "${TMP_STALE}"
+	[ -f "${TMP_BAD}" ] && rm -f "${TMP_BAD}"
+	exit ${1}
 }
 
 job_free() {
-	lockf -k "$TMP_SEM" sh -c "
-		state=\$((\$(cat '$TMP_SEM') + 1))
-		echo \$state > '$TMP_SEM'
+	lockf -k "${TMP_SEM}" sh -c "
+		state=\$((\$(cat '${TMP_SEM}') + 1))
+		echo \$state > '${TMP_SEM}'
 	"
 }
 
 job_register() {
-	while ! lockf -k "$TMP_SEM" sh -c "
-			state=\$(cat '$TMP_SEM')
+	while ! lockf -k "${TMP_SEM}" sh -c "
+			state=\$(cat '${TMP_SEM}')
 			if [ \$state -gt 0 ]; then
-				echo \$((state - 1)) > '$TMP_SEM'
-				printf \"%-80s\\rChecking (%s/%s): $pkg\\r\" '' $1 $2 > /dev/tty
+				echo \$((state - 1)) > '${TMP_SEM}'
+				printf \"%-80s\\rChecking (%s/%s): ${pkg}\\r\" '' ${1} ${2} > /dev/tty
 				exit 0
 			fi
 			exit 1
@@ -72,18 +72,18 @@ job_register() {
 }
 
 jobs_finish_wait() {
-	while ! lockf -k "$TMP_SEM" sh -c "
-			state=\$(cat '$TMP_SEM')
-			[ \$state -eq $JOBS ] && exit 0 || exit 1
+	while ! lockf -k "${TMP_SEM}" sh -c "
+			state=\$(cat '${TMP_SEM}')
+			[ \$state -eq ${JOBS} ] && exit 0 || exit 1
 		"; do
 		sleep 0.1
 	done
 }
 
 newer_library_available() {
-	local lib="$1"
+	local lib="${1}"
 	
-	[ $bump_ignore -eq 0 ] || return 1
+	[ ${bump_ignore} -eq 0 ] || return 1
 
 	local ret="$(ldconfig -r | awk -v so_ver="${lib##*.}" '
 		BEGIN { so_bump=0; }
@@ -99,15 +99,15 @@ newer_library_available() {
 		
 		END { print so_bump; }
 	')"
-	return $ret
+	return ${ret}
 }
 
 pkg_is_ignored() {
-	local pkg="$1"
-	[ -n "$pkg_ignore" ] || return 1
+	local pkg="${1}"
+	[ -n "${pkg_ignore}" ] || return 1
 
-	for ignored in $pkg_ignore; do
-		case $pkg in *$ignored*) return 0 ;; esac
+	for ignored in ${pkg_ignore}; do
+		case ${pkg} in *${ignored}*) return 0 ;; esac
 	done
 	
 	return 1
@@ -116,28 +116,29 @@ pkg_is_ignored() {
 rebuild_ports() {
 	local origin rebuild_err
 
-	for port in $*; do
-		origin="$(pkg-static query '%o' $port)"
-		if [ -d $PORTSDIR/$origin ]; then
-			cd $PORTSDIR/$origin
+	for port in ${*}; do
+		origin="$(pkg-static query '%o' ${port})"
+		if [ -d ${PORTSDIR}/${origin} ]; then
+			cd ${PORTSDIR}/${origin}
 		else
-			rebuild_err="$rebuild_err ORIGIN_ERR:$port:$origin"
+			rebuild_err="${rebuild_err} ORIGIN_ERR:${port}:${origin}"
 			continue
 		fi
 		make clean 2>/dev/null
-		if [ $? -eq 1 ]; then 
-			rebuild_err="$rebuild_err CLEAN_ERR:$port:$origin"
+		if [ ${?} -eq 1 ]; then 
+			rebuild_err="${rebuild_err} CLEAN_ERR:${port}:${origin}"
 			continue
 		fi
 		make reinstall clean 2>/dev/null
-		[ $? -eq 1 ] && rebuild_err="$rebuild_err BUILD_ERR:$port:$origin" 
+		[ ${?} -eq 1 ] && \
+			rebuild_err="${rebuild_err} BUILD_ERR:${port}:${origin}" 
 	done
 	
-	if [ -n "$rebuild_err" ]; then
+	if [ -n "${rebuild_err}" ]; then
 		echo ""
 		echo "These ports failed to rebuild:"
 		echo ""
-		echo "$rebuild_err" | tr ' ' '\n' | awk -F: '
+		echo "${rebuild_err}" | tr ' ' '\n' | awk -F: '
 			/BUILD_ERR/ {
 				print $2 ": rebuild error (" $3 ")"
 			}
@@ -152,21 +153,21 @@ rebuild_ports() {
 }
 
 while getopts "bj:hr:" option; do
-	case $option in
+	case ${option} in
 	b)
 		bump_ignore=1 ;;
 	j)
-		[ -n "$OPTARG" ] || display_usage
-		case $OPTARG in
+		[ -n "${OPTARG}" ] || display_usage
+		case ${OPTARG} in
 		[1-9])
-			JOBS="$OPTARG" ;;
+			JOBS="${OPTARG}" ;;
 		*)
 			echo "-j requires numerical argument"
 			exit 1
 		esac ;;
 	r)
-		[ -n "$OPTARG" ] || display_usage
-		PKG_PARENT="$OPTARG" ;;
+		[ -n "${OPTARG}" ] || display_usage
+		PKG_PARENT="${OPTARG}" ;;
 	*)
 		display_usage
 	esac
@@ -182,16 +183,16 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
-[ -n "$JOBS" ] || JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
+[ -n "${JOBS}" ] || JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
 
-if [ -n "$PKG_PARENT" ]; then
-	packages="$(pkg-static info -rq $PKG_PARENT 2>/dev/null)"
+if [ -n "${PKG_PARENT}" ]; then
+	packages="$(pkg-static info -rq ${PKG_PARENT} 2>/dev/null)"
 else
 	packages="$(pkg-static query '%n-%v' 2>/dev/null)"
 fi
 
-pkg_all="$(echo $packages | wc -w)"
-if [ $pkg_all -eq 0 ]; then
+pkg_all="$(echo ${packages} | wc -w)"
+if [ ${pkg_all} -eq 0 ]; then
 	echo "No packages to check found"
 	exit
 fi
@@ -202,56 +203,56 @@ readonly TMP_SEM="$(mktemp -t lbc-sem)"
 readonly TMP_STALE="$(mktemp -t lbc-stale)"
 readonly TMP_BAD="$(mktemp -t lbc-bad)"
 
-if [ -z "$TMP_SEM" -o -z "$TMP_STALE" -o -z "$TMP_BAD" ]; then
+if [ -z "${TMP_SEM}" -o -z "${TMP_STALE}" -o -z "${TMP_BAD}" ]; then
 	echo "Failed to create temporary files"
 	exit_clean 1
 fi
 
 trap 'exit_clean 0' int
 
-if [ -f "$IGNORE_FILE" ]; then
+if [ -f "${IGNORE_FILE}" ]; then
 	n=0
-	pkg_ignore="$(grep -v '^#' "$IGNORE_FILE")"
-	for pkg in $pkg_ignore; do n=$((n+1)); done
-	[ $n -eq 0 ] || echo "Read $IGNORE_FILE, $n entries found"
+	pkg_ignore="$(grep -v '^#' "${IGNORE_FILE}")"
+	for pkg in ${pkg_ignore}; do n=$((n+1)); done
+	[ ${n} -eq 0 ] || echo "Read ${IGNORE_FILE}, ${n} entries found"
 fi
 
-lockf -k "$TMP_SEM" echo $JOBS > "$TMP_SEM"
+lockf -k "${TMP_SEM}" echo ${JOBS} > "${TMP_SEM}"
 
-for pkg in $packages; do
+for pkg in ${packages}; do
 	pkg_curr=$((pkg_curr+1))
-	pkg_is_ignored $pkg && continue
+	pkg_is_ignored ${pkg} && continue
 
-	job_register $pkg_curr $pkg_all
+	job_register ${pkg_curr} ${pkg_all}
 	(
 		trap 'job_free' EXIT
 		
-		ret="$(check_package $pkg)"
-		[ -z "$ret" ] && exit
+		ret="$(check_package ${pkg})"
+		[ -z "${ret}" ] && exit
 
-		for lib in $ret; do
-			newer_library_available $lib
-			if [ $? -lt 1 ]; then
-				echo $pkg >> $TMP_BAD
+		for lib in ${ret}; do
+			newer_library_available ${lib}
+			if [ ${?} -lt 1 ]; then
+				echo ${pkg} >> ${TMP_BAD}
 				exit
 			fi
 		done
-		echo "$pkg@$ret" | sed 's| |@|g' >> $TMP_STALE
+		echo "${pkg}@${ret}" | sed 's| |@|g' >> ${TMP_STALE}
 	) &
 done
 jobs_finish_wait
 printf "\n\n"
 
-pkg_bad_deps="$(cat $TMP_BAD)"
-if [ -n "$pkg_bad_deps" ]; then
+pkg_bad_deps="$(cat ${TMP_BAD})"
+if [ -n "${pkg_bad_deps}" ]; then
 	echo "Following packages were ignored due probable packaging problems:"
 	echo ""
-	echo "$pkg_bad_deps" | fmt -w 78
+	echo "${pkg_bad_deps}" | fmt -w 78
 	echo ""
 fi
 
-pkg_stale="$(cat $TMP_STALE)"
-if [ -z "$pkg_stale" ]; then
+pkg_stale="$(cat ${TMP_STALE})"
+if [ -z "${pkg_stale}" ]; then
 	echo "No packages linked to stale libs found"
 	echo ""
 	exit_clean 0
@@ -260,24 +261,24 @@ fi
 echo "Following packages are linked to stale libs:"
 echo ""
 
-for pkg in $pkg_stale; do
-	pkg_re="$pkg_re ${pkg%%@*}"
+for pkg in ${pkg_stale}; do
+	pkg_re="${pkg_re} ${pkg%%@*}"
 	echo "   ${pkg%%@*} => ${pkg#*@}" | sed 's|@| |g'
 	n_stale=$((n_stale+1))
 done
 
 while true; do
 	echo ""
-	echo "Total: $n_stale package(s)"
+	echo "Total: ${n_stale} package(s)"
 	echo -e "Do you want to reinstall them (y/n)? [y] \c"
 	read answer
-	[ -n "$answer" ] || answer="y"
+	[ -n "${answer}" ] || answer="y"
 
-	case $answer in	
+	case ${answer} in	
 	[Nn])
 		break ;;
 	[Yy]) 
-		rebuild_ports $pkg_re
+		rebuild_ports ${pkg_re}
 		break
 	esac
 done

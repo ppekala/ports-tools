@@ -1,7 +1,7 @@
 #!/bin/sh
 
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
-readonly PATH="$PATH:$PORTSDIR/Tools/scripts"
+readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
 readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
 readonly TBUSER="${TBUSER:-$USER}"
 readonly UID="$(id -u)"
@@ -9,18 +9,18 @@ readonly build="${3:-none}"
 
 # $1 tinderbox buildname, $2 port to build
 build_queue_add() {
-	local bname="$1" port="${2%%:*}" option="${2##*:}"
-	local ptree="$TBDIR/portstrees/$(tc_cmd getPortsTreeForBuild -b $bname)/ports"
+	local bname="${1}" port="${2%%:*}" option="${2##*:}"
+	local ptree="${TBDIR}/portstrees/$(tc_cmd getPortsTreeForBuild -b ${bname})/ports"
 
-	if [ ! -d "$ptree/$port" ]; then
-		echo "$bname: $port does not exists"
+	if [ ! -d "${ptree}/${port}" ]; then
+		echo "${bname}: ${port} does not exists"
 		return	
 	fi
 	
-	[ "$port" = "$option" ] || tbopt set $port $bname
+	[ "${port}" = "$option" ] || tbopt set ${port} ${bname}
 	
-	echo "Adding $port to $bname build queue"
-	tc_cmd addBuildPortsQueueEntry -u $TBUSER -b $bname -d $port
+	echo "Adding ${port} to ${bname} build queue"
+	tc_cmd addBuildPortsQueueEntry -u ${TBUSER} -b ${bname} -d ${port}
 }
 
 display_usage() {
@@ -46,61 +46,61 @@ display_usage() {
 
 tc_cmd() {
 	local tc_script="./tc"
-	[ $UID -eq 0 ] || tc_script="sudo $tc_script"
-	cd $TBDIR/scripts && $tc_script $*
+	[ ${UID} -eq 0 ] || tc_script="sudo ${tc_script}"
+	cd ${TBDIR}/scripts && ${tc_script} ${*}
 }
 
-[ -z "$2" ] && display_usage
+[ -z "${2}" ] && display_usage
 
-case $1 in
+case ${1} in
 bdeps)
-	ports="$(portsearch -b $2 | grep Path: | cut -f 4- -d '/')" ;;
+	ports="$(portsearch -b ${2} | grep Path: | cut -f 4- -d '/')" ;;
 file)
-	if [ ! -f "$2" ]; then
-		echo "File $2 does not exists"
+	if [ ! -f "${2}" ]; then
+		echo "File ${2} does not exists"
 		exit 1
 	fi
-	ports="$(cat "$2")" ;;
+	ports="$(cat "${2}")" ;;
 grep)
-	ports="$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
-		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
+	ports="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${2}" {} \; \
+		-print | grep -v "${2}/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
-	tmp="$(cd $PORTSDIR && find . -name "Makefile*" -exec grep -q "$2" {} \; \
-		-print | grep -v "$2/Makefile" | sed -E 's;(\./|/Makefile);;g')"
+	tmp="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${2}" {} \; \
+		-print | grep -v "${2}/Makefile" | sed -E 's;(\./|/Makefile);;g')"
 
-	for path in $tmp; do
-		cd $PORTSDIR/$path
-		if [ -n "$(make -V LIB_DEPENDS | grep $2)" ]; then
-			ports="$ports $path"
+	for path in ${tmp}; do
+		cd ${PORTSDIR}/${path}
+		if [ -n "$(make -V LIB_DEPENDS | grep ${2})" ]; then
+			ports="${ports} ${path}"
 			continue
 		fi
 		
 		for option in $(make pretty-print-config); do
-			[ -n "$(echo $option | grep ^-)" ] || continue
-			[ -n "$(make -V LIB_DEPENDS WITH_${option#-}=yes | grep $2)" ] || continue
-			ports="$ports $path:${option#-}"
+			[ -n "$(echo ${option} | grep ^-)" ] || continue
+			[ -n "$(make -V LIB_DEPENDS WITH_${option#-}=yes | grep ${2})" ] || continue
+			ports="${ports} ${path}:${option#-}"
 			continue 2
 		done
 		
-		ports="$ports $path:OPT_UNKNOWN"
+		ports="${ports} ${path}:OPT_UNKNOWN"
 	done
 	;;	
 match)
-	ports="$(portsearch -n $2 | grep Path: | cut -f 4- -d '/')" ;;
+	ports="$(portsearch -n ${2} | grep Path: | cut -f 4- -d '/')" ;;
 name)
-	ports="$2"
-	[ "$ports" = "." ] && ports="$(echo $PWD | \
+	ports="${2}"
+	[ "${ports}" = "." ] && ports="$(echo ${PWD} | \
 		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')" ;;
 *)
 	display_usage
 esac
 
-for port in $ports; do
-	case $build in
+for port in ${ports}; do
+	case ${build} in
 	none)
-		if [ "$1" != "name" ]; then
+		if [ "${1}" != "name" ]; then
 			case ${port##*:} in
-			"$port")
+			"${port}")
 				echo "Found match: ${port%%:*}" ;;
 			"OPT_UNKNOWN")
 				echo "Found match: ${port%%:*}, unknown option needed" ;;
@@ -110,8 +110,8 @@ for port in $ports; do
 		fi
 		;;
 	all)
-		for b in $(tc_cmd listBuilds); do build_queue_add $b $port; done ;;
+		for b in $(tc_cmd listBuilds); do build_queue_add ${b} ${port}; done ;;
 	*)
-		build_queue_add $build $port
+		build_queue_add ${build} ${port}
 	esac
 done

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
+readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
 readonly PAGER="${PAGER:-less}"
 readonly PATH="${PATH}:/usr/local/sbin"
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
@@ -11,12 +11,12 @@ wait_for_key=0
 
 ask_yesno() {
 	while true; do
-		echo -n "$1 (y/n)? [y] "
+		echo -n "${1} (y/n)? [y] "
 		
 		read answer
-		[ -n "$answer" ] || answer="y"
+		[ -n "${answer}" ] || answer="y"
 
-		case $answer in
+		case ${answer} in
 		[Nn])
 			return 1 ;;
 		[Yy])
@@ -36,11 +36,11 @@ display_usage() {
 }
 
 get_entry_dates() {
-	egrep "^[0-9]{8}:" $PORTSDIR/UPDATING | sed 's/://'
+	egrep "^[0-9]{8}:" ${PORTSDIR}/UPDATING | sed 's/://'
 }
 
 updating_commands() {
-	awk -v entry="$1" '
+	awk -v entry="${1}" '
 	BEGIN { in_entry=0; }
 	
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
@@ -59,12 +59,12 @@ updating_commands() {
 			if(match($0, "^[ \t#]*portmaster"))
 				print substr($0, index($0, "portmaster"));
 		}
-	}' $PORTSDIR/UPDATING
+	}' ${PORTSDIR}/UPDATING
 }
 
 updating_entry() {
 	echo ""
-	awk -v entry="$1" '
+	awk -v entry="${1}" '
 	BEGIN { in_entry=0; }
 	
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
@@ -79,7 +79,7 @@ updating_entry() {
 	{
 		if (in_entry == 1)
 			print $0;
-	}' $PORTSDIR/UPDATING
+	}' ${PORTSDIR}/UPDATING
 	echo ""
 }
 
@@ -88,13 +88,13 @@ updating_entry() {
 # $3 - wait for final keypress?
 upgrade_exit() {
 	[ -n "${2}" ] && echo ${2} > ${CONFIG}
-	[ -n "${tmpfile}" -a -f "$tmpfile" ] && rm -rf "${tmpfile}"
+	[ -n "${tmpfile}" -a -f "${tmpfile}" ] && rm -rf "${tmpfile}"
 	[ ${3} -eq 0 ] || read key
 	exit ${1}
 }
 
 while getopts "hwy" option; do
-	case $option in
+	case ${option} in
 	w)
 		wait_for_key=1 ;;
 	y)
@@ -116,73 +116,73 @@ if [ -z "$(whereis -bq portmaster)" ]; then
 	upgrade_exit 1 "" ${wait_for_key}
 fi
 
-if [ -n "$UPGRADE_PORTS_IGNORE" ]; then
-	for pattern in $UPGRADE_PORTS_IGNORE; do
-		portmaster_args="$portmaster_args -x $pattern"
+if [ -n "${UPGRADE_PORTS_IGNORE}" ]; then
+	for pattern in ${UPGRADE_PORTS_IGNORE}; do
+		portmaster_args="${portmaster_args} -x ${pattern}"
 	done
 fi
 
-if [ -f "$CONFIG" ]; then
-	last_read="$(cat "$CONFIG")"
+if [ -f "${CONFIG}" ]; then
+	last_read="$(cat "${CONFIG}")"
 else
-	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
+	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
 fi
 
-[ -n "$last_read" ] || last_read="$(get_entry_dates | head -n 1)"
+[ -n "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
 
 sudo /usr/sbin/portsnap fetch update
-if [ $? -ne 0 ]; then
+if [ ${?} -ne 0 ]; then
 	echo "===> Ports tree update failed"
 	upgrade_exit 1 "" ${wait_for_key}
 fi
 
 last_upd="$(get_entry_dates | head -n 1)"
 
-if [ $last_read -lt $last_upd ]; then
+if [ ${last_read} -lt ${last_upd} ]; then
 	tmpfile="$(mktemp -t upgrade-ports)"
-	if [ -z "$tmpfile" ]; then
+	if [ -z "${tmpfile}" ]; then
 		echo "===> Failed to create temporary file"
 		upgrade_exit 1 "" ${wait_for_key}
 	fi
 
 	for entry in $(get_entry_dates | sort -u); do
-		[ $entry -gt $last_read ] || continue
+		[ ${entry} -gt ${last_read} ] || continue
 		
-		updating_entry $entry
-		updating_commands $entry > $tmpfile
+		updating_entry ${entry}
+		updating_commands ${entry} > ${tmpfile}
 
-		old_IFS=$IFS
+		old_IFS=${IFS}
 		IFS=$'\n'
 		
-		for cmd in $(cat $tmpfile); do
-			case $cmd in 
+		for cmd in $(cat ${tmpfile}); do
+			case ${cmd} in 
 			"portmaster -a"*)
 				continue ;;
 			"portmaster "*)
-				cmd="$cmd $portmaster_args"
+				cmd="${cmd} ${portmaster_args}"
 			esac
 			
-			if ask_yesno "Run '$cmd'"; then
-				IFS=$old_IFS
-				sudo $cmd
-				ret=$?
+			if ask_yesno "Run '${cmd}'"; then
+				IFS=${old_IFS}
+				sudo ${cmd}
+				ret=${?}
 				IFS=$'\n'
 				
-				if [ $ret -ne 0 ]; then
-					echo "===> Upgrade command '$cmd' failed"
-					upgrade_exit $ret "$entry_prev" $wait_for_key
+				if [ ${ret} -ne 0 ]; then
+					echo "===> Upgrade command '${cmd}' failed"
+					upgrade_exit ${ret} "${entry_prev}" ${wait_for_key}
 				fi
 			fi
 		done
 		
-		IFS=$old_IFS
-		entry_prev="$entry"
+		IFS=${old_IFS}
+		entry_prev="${entry}"
 	done
-	if [ $answer_yes -eq 0 ]; then
+	if [ ${answer_yes} -eq 0 ]; then
 		ask_yesno "Update ports with 'portmaster -a'"
-		[ $? -ne 0 ] && upgrade_exit 0 "${last_upd}" 0
+		[ ${?} -ne 0 ] && upgrade_exit 0 "${last_upd}" 0
 	fi	
 fi
 
-sudo portmaster -a $portmaster_args
-upgrade_exit $? "${last_upd}" ${wait_for_key}
+sudo portmaster -a ${portmaster_args}
+upgrade_exit ${?} "${last_upd}" ${wait_for_key}

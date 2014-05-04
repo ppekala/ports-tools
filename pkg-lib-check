@@ -12,12 +12,12 @@ test_all=0
 # $2 - print link errors
 check_for_link_errors() {
 	PKG_DEPS=""
-	local package="$1" javavm link_leftover link_noexist
+	local package="${1}" javavm link_leftover link_noexist
 
-	local pkg_libs="$(pkg info -lq $package | while read file; do
-		[ -L "$file" ] && continue
+	local pkg_libs="$(pkg info -lq ${package} | while read file; do
+		[ -L "${file}" ] && continue
 
-		ldd "$file" 2>/dev/null | awk '/=>/ {
+		ldd "${file}" 2>/dev/null | awk '/=>/ {
 			if (!match($3,"^(/lib|/usr/lib)"))
 				if ($3 == "not")
 					print "not_found" $1;
@@ -26,56 +26,56 @@ check_for_link_errors() {
 			}'
 	done | sort -u)"
 
-	local pkg_files="$(pkg info -lq $package 2>/dev/null)"
+	local pkg_files="$(pkg info -lq ${package} 2>/dev/null)"
 
-	for lib in $pkg_libs; do
-		case $lib in *..*|*//*)
-			lib="$(realpath "$lib")"
+	for lib in ${pkg_libs}; do
+		case ${lib} in *..*|*//*)
+			lib="$(realpath "${lib}")"
 		esac
 		# skip libraries from package we are checking
-		case $pkg_files in *${lib##not_found}*)
+		case ${pkg_files} in *${lib##not_found}*)
 			continue
 		esac
 
 		# library not found on system
-		case $lib in not_found*)
-			if [ -z "$javavm" ]; then
-				javavm="$(pkg info -dq $package | egrep "jdk|jre")"
-				[ -z "$javavm" ] && javavm="no"
+		case ${lib} in not_found*)
+			if [ -z "${javavm}" ]; then
+				javavm="$(pkg info -dq ${package} | egrep "jdk|jre")"
+				[ -z "${javavm}" ] && javavm="no"
 			fi
 
-			[ "$javavm" != "no" ] && \
-			[ -n "$(pkg info -lq $javavm | grep ${lib##not_found})" ] && \
+			[ "${javavm}" != "no" ] && \
+			[ -n "$(pkg info -lq ${javavm} | grep ${lib##not_found})" ] && \
 				continue
 		
-			[ $show_direct_deps -eq 0 ] && \
-				link_noexist="$link_noexist ${lib##not_found}"
+			[ ${show_direct_deps} -eq 0 ] && \
+				link_noexist="${link_noexist} ${lib##not_found}"
 			continue
 		esac
 
-		lib_owner="$(pkg which -q $lib 2>/dev/null)"
+		lib_owner="$(pkg which -q ${lib} 2>/dev/null)"
 
 		# skip false positive libGL - this library is shared between packages
-		if [ $? -ne $PKG_OWNER_FOUND -a "${lib%%*/lib/libGL.so.*}" ]; then
-			[ $show_direct_deps -eq 0 ] && \
-				link_leftover="$link_leftover $lib"
+		if [ ${?} -ne ${PKG_OWNER_FOUND} -a "${lib%%*/lib/libGL.so.*}" ]; then
+			[ ${show_direct_deps} -eq 0 ] && \
+				link_leftover="${link_leftover} ${lib}"
 			continue
 		fi
 
-		case $PKG_DEPS in
-		*$lib_owner*)
+		case ${PKG_DEPS} in
+		*${lib_owner}*)
 			;;
 		*)
-			PKG_DEPS="$PKG_DEPS $lib_owner"
+			PKG_DEPS="${PKG_DEPS} ${lib_owner}"
 		esac
 	done
 	
-	[ $2 -eq 0 ] && return 0
-	[ -z "$link_noexist" -a -z "$link_leftover" ] && return 0
+	[ ${2} -eq 0 ] && return 0
+	[ -z "${link_noexist}" -a -z "${link_leftover}" ] && return 0
 	
-	print_header $package
-	print_list "$link_noexist" "linked to non existent: "
-	print_list "$link_leftover" "linked to leftover: "
+	print_header ${package}
+	print_list "${link_noexist}" "linked to non existent: "
+	print_list "${link_leftover}" "linked to leftover: "
 	
 	return 1
 }
@@ -83,28 +83,28 @@ check_for_link_errors() {
 # $1 - package to check
 # $2 - package dependencies
 check_for_missing_deps() {
-	local package="$1" deps="$2" missing_deps
+	local package="${1}" deps="${2}" missing_deps
 
-	[ $show_direct_deps -eq 0 ] && \
-		registered_deps="$(pkg info -dq $package 2>/dev/null)"
-	for dep in $deps; do
-		case $registered_deps in
-		*$dep*)
+	[ ${show_direct_deps} -eq 0 ] && \
+		registered_deps="$(pkg info -dq ${package} 2>/dev/null)"
+	for dep in ${deps}; do
+		case ${registered_deps} in
+		*${dep}*)
 			;;
 		*)
-			missing_deps="$missing_deps $dep"
+			missing_deps="${missing_deps} ${dep}"
 		esac
 	done
 
-	[ -z "$missing_deps" ] && return
+	[ -z "${missing_deps}" ] && return
 
-	all_deps="$(pkg info -dq $missing_deps | sort -u)"
-	for dep in $missing_deps; do
-		case $all_deps in
-		*$dep*)
+	all_deps="$(pkg info -dq ${missing_deps} | sort -u)"
+	for dep in ${missing_deps}; do
+		case ${all_deps} in
+		*${dep}*)
 			;;
 		*)
-			echo $dep
+			echo ${dep}
 		esac
 	done
 }
@@ -112,43 +112,43 @@ check_for_missing_deps() {
 check_registered_deps() {
 	local broken=0 dep
 	
-	for dep in $(pkg info -dq $1); do
-		pkg info -e $dep 2>/dev/null
-		if [ $? -ne 0 ]; then
-			echo "non-existent dependency: $dep"
+	for dep in $(pkg info -dq ${1}); do
+		pkg info -e ${dep} 2>/dev/null
+		if [ ${?} -ne 0 ]; then
+			echo "non-existent dependency: ${dep}"
 			broken=1
 		fi
 	done
 	
-	[ $broken -eq 1 ] &&
+	[ ${broken} -eq 1 ] &&
 		echo "===> Wrong dependencies, checks may return false data"
 }
 
 dependency_is_inherited() {
-	local pkg="$1" dep="$2" inh
+	local pkg="${1}" dep="${2}" inh
 
-	for p_dep in $(pkg info -dq $pkg); do
-		case $PKG_DEPS_OK in *$p_dep*)
+	for p_dep in $(pkg info -dq ${pkg}); do
+		case ${PKG_DEPS_OK} in *${p_dep}*)
 			continue
 		esac
 		
-		check_for_link_errors $p_dep 0
-		ret_deps="$(check_for_missing_deps $p_dep "$PKG_DEPS")"
+		check_for_link_errors ${p_dep} 0
+		ret_deps="$(check_for_missing_deps ${p_dep} "${PKG_DEPS}")"
 
-		[ -z "$ret_deps" ] && PKG_DEPS_OK="$PKG_DEPS_OK $p_dep"
+		[ -z "${ret_deps}" ] && PKG_DEPS_OK="${PKG_DEPS_OK} ${p_dep}"
 		
-		case $ret_deps in
-		*$dep*)
-			if [ -n "$inh" ]; then
-				[ -z "$(pkg info -rq $inh | grep $p_dep)" ] && \
-					inh="$p_dep"
+		case ${ret_deps} in
+		*${dep}*)
+			if [ -n "${inh}" ]; then
+				[ -z "$(pkg info -rq ${inh} | grep ${p_dep})" ] && \
+					inh="${p_dep}"
 			else
-				inh="$p_dep"
+				inh="${p_dep}"
 			fi
 		esac
 	done
 
-	[ -z "$inh" ] || echo "$(pkg info -qo $inh)"
+	[ -z "${inh}" ] || echo "$(pkg info -qo ${inh})"
 }
 
 display_usage() {
@@ -167,35 +167,35 @@ display_usage() {
 # $1 - package name
 # $2 - search string
 find_linked_to() {
-	local package="$1" query="$2"
+	local package="${1}" query="${2}"
 
-	local ret="$(pkg info -lq $package | while read file; do
-		[ -L "$file" ] && continue
+	local ret="$(pkg info -lq ${package} | while read file; do
+		[ -L "${file}" ] && continue
 	
-		[ -n "$(ldd "$file" 2>/dev/null | grep -i ".*$query.*=>")" ] \
-			&& echo $file
+		[ -n "$(ldd "${file}" 2>/dev/null | grep -i ".*${query}.*=>")" ] \
+			&& echo ${file}
 	done)"
-	[ -z "$ret" ] && return
+	[ -z "${ret}" ] && return
 	
-	print_header $package
-	print_list "$ret"
+	print_header ${package}
+	print_list "${ret}"
 }
 
 # $1 - package name
 print_header() {
-	if [ $first_result -eq 1 ]; then
+	if [ ${first_result} -eq 1 ]; then
 		first_result=0
 	else		
 		echo ""
 	fi
-	echo "$1:"
+	echo "${1}:"
 }
 
 # $1 - list
 # $2 - prefix
 print_list() {
-	for item in $1; do 
-		echo "$2$item"
+	for item in ${1}; do 
+		echo "${2}${item}"
 	done | sort -u
 }
 
@@ -205,25 +205,25 @@ if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
 fi
 
 while getopts "adhfls:" option; do
-	case $option in
+	case ${option} in
 	a)
 		test_all=1 ;;
 	d)
-		[ $full_check -eq 1 -o $only_link_err -eq 1 -o \
-			-n "$search_str" ] && display_usage
+		[ ${full_check} -eq 1 -o ${only_link_err} -eq 1 -o \
+			-n "${search_str}" ] && display_usage
 		show_direct_deps=1 ;;
 	f)
-		[ $show_direct_deps -eq 1 -o $show_direct_deps -eq 1 -o \
-			-n "$search_str" ] && display_usage		
+		[ ${show_direct_deps} -eq 1 -o ${show_direct_deps} -eq 1 -o \
+			-n "${search_str}" ] && display_usage		
 		full_check=1 ;;
 	l)
-		[ $show_direct_deps -eq 1 -o $full_check -eq 1 -o \
-			-n "$search_str" ] && display_usage
+		[ ${show_direct_deps} -eq 1 -o ${full_check} -eq 1 -o \
+			-n "${search_str}" ] && display_usage
 		only_link_err=1 ;;
 	s)
-		[ $show_direct_deps -eq 1 -o $full_check -eq 1 -o \
-			$only_link_err -eq 1 -o -z "$OPTARG" ] && display_usage
-		search_str="$OPTARG" ;;
+		[ ${show_direct_deps} -eq 1 -o ${full_check} -eq 1 -o \
+			${only_link_err} -eq 1 -o -z "${OPTARG}" ] && display_usage
+		search_str="${OPTARG}" ;;
 	?)
 		display_usage
 	esac
@@ -231,60 +231,60 @@ done
 
 # pkg keeps changing exit code for pkg which
 PKG_MINOR_VER="$(pkg -v | cut -d. -f 2)"
-if [ $PKG_MINOR_VER -lt 2 ]; then
+if [ ${PKG_MINOR_VER} -lt 2 ]; then
 	PKG_OWNER_FOUND=70
 else	
 	PKG_OWNER_FOUND=0
 fi
 
-if [ $test_all -eq 0 ]; then
-	shift $(($OPTIND-1))
-	packages="$@"
-	[ -z "$packages" ] && display_usage
+if [ ${test_all} -eq 0 ]; then
+	shift $((OPTIND-1))
+	packages="${@}"
+	[ -z "${packages}" ] && display_usage
 else
 	packages="$(pkg query '%n-%v')"
-	if [ -z "$packages" ]; then
+	if [ -z "${packages}" ]; then
 		echo "No packages installed"
 		exit
 	fi
 fi
 
-[ $show_direct_deps -eq 0 ] && prefix="missing "
+[ ${show_direct_deps} -eq 0 ] && prefix="missing "
 
-for pkg in $packages; do 
-	if [ $test_all -eq 0 ]; then
-		pkg info -e $pkg 2>/dev/null
-		if [ $? -ne 0 ]; then
-			echo "$pkg: no such package"
+for pkg in ${packages}; do 
+	if [ ${test_all} -eq 0 ]; then
+		pkg info -e ${pkg} 2>/dev/null
+		if [ ${?} -ne 0 ]; then
+			echo "${pkg}: no such package"
 			continue
 		fi
 	fi
-	if [ -n "$search_str" ]; then
-		find_linked_to $pkg $search_str
+	if [ -n "${search_str}" ]; then
+		find_linked_to ${pkg} ${search_str}
 		continue
 	fi
 
-	[ $full_check -eq 1 ] && check_registered_deps $pkg	
+	[ ${full_check} -eq 1 ] && check_registered_deps ${pkg}	
 
-	check_for_link_errors $pkg 1
-	link_errors=$?
+	check_for_link_errors ${pkg} 1
+	link_errors=${?}
 
-	[ $only_link_err -eq 1 ] && continue
+	[ ${only_link_err} -eq 1 ] && continue
 
-	m_deps="$(check_for_missing_deps $pkg "$PKG_DEPS")"
-	[ $link_errors -eq 0 -a -n "$m_deps" ] && print_header $pkg
+	m_deps="$(check_for_missing_deps ${pkg} "${PKG_DEPS}")"
+	[ ${link_errors} -eq 0 -a -n "${m_deps}" ] && print_header ${pkg}
 
-	for md in $m_deps; do
-		if [ $full_check -eq 1 ]; then
-			inh="$(dependency_is_inherited $pkg $md)"
+	for md in ${m_deps}; do
+		if [ ${full_check} -eq 1 ]; then
+			inh="$(dependency_is_inherited ${pkg} ${md})"
 		else
 			inh=""
 		fi
 
-		if [ -z "$inh" ]; then
-			echo $prefix"dependency: $(pkg info -qo $md)"
+		if [ -z "${inh}" ]; then
+			echo ${prefix}"dependency: $(pkg info -qo ${md})"
 		else
-			echo "missing dependency: $(pkg info -qo $md) (inherited from $inh)"
+			echo "missing dependency: $(pkg info -qo ${md}) (inherited from ${inh})"
 		fi
 	done | sort
 done

@@ -1,38 +1,38 @@
 #!/bin/sh
 
 readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
-readonly base_dir="$PWD"
+readonly base_dir="${PWD}"
 readonly category="$(make -V CATEGORIES | awk '{print $1}')"
-readonly port="$(basename $PWD)"
+readonly port="$(basename ${PWD})"
 
 portdir_clean() {
-	local dir="$1"
+	local dir="${1}"
 	
-	if [ -d "$dir/work" ]; then
-		cd "$dir"
+	if [ -d "${dir}/work" ]; then
+		cd "${dir}"
 		if [ -n "$(make clean 2>/dev/null | grep 'not writable')" ]; then
-			echo "===> Failed to make clean in $dir"
+			echo "===> Failed to make clean in ${dir}"
 			exit 1
 		fi
 	fi
-	find "$dir" -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
+	find "${dir}" -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
 }
 
-if [ -z "$port" -o -z "$category" ]; then
+if [ -z "${port}" -o -z "${category}" ]; then
 	echo "===> This is not port directory"
 	exit 1
 fi
 
-new_ver_dir="$category/$port"
-old_ver_dir="$PORTSDIR/$new_ver_dir"
+new_ver_dir="${category}/${port}"
+old_ver_dir="${PORTSDIR}/${new_ver_dir}"
 
-portdir_clean "$PWD"
+portdir_clean "${PWD}"
 
-if [ -d "$old_ver_dir" ]; then
-	portdir_clean "$old_ver_dir"
+if [ -d "${old_ver_dir}" ]; then
+	portdir_clean "${old_ver_dir}"
 else
 	echo "===> Orginal port directory does not exist"
 	exit 1
 fi
 
-cd "$base_dir/../../" && diff -urN $* "$old_ver_dir" "$new_ver_dir"
+cd "${base_dir}/../../" && diff -urN ${*} "${old_ver_dir}" "${new_ver_dir}"

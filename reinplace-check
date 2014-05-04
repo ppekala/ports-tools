@@ -3,7 +3,7 @@
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly cmd="${1:-check}"
 
-if [ -z "$PKGNAME" ]; then
+if [ -z "${PKGNAME}" ]; then
 	echo "===> This is not port directory"
 	exit 1
 fi
@@ -15,25 +15,25 @@ fi
 
 if [ "${cmd}" = "show" ]; then
 	shift
-	patterns="$@"
+	patterns="${@}"
 fi
 
 find work -name "*.bak" -print | while read file; do
-	case $cmd in
+	case ${cmd} in
 	check)
-		[ -z "$(diff "$file" "${file%.bak}")" ] && \
+		[ -z "$(diff "${file}" "${file%.bak}")" ] && \
 			echo "File ${file%.bak} not modified" ;;
 	show)
 		if [ -n "${patterns}" ]; then
 			matched=0
 			for p in ${patterns}; do
-				case ${file} in *${p}*)
+				case ${file%.bak} in *${p}*)
 					matched=1
 					break
 				esac
 			done
 			[ ${matched} -eq 1 ] || continue
 		fi
-		diff -u "$file" "${file%.bak}"
+		diff -u "${file}" "${file%.bak}"
 	esac
 done 

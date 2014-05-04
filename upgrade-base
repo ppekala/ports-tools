@@ -4,16 +4,16 @@ readonly MAKE=${MAKE:-make}
 readonly PSVN=${PSVN:-svn}
 readonly SRCDIR=${SRCDIR:-/usr/src}
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-readonly CONF_FILE="$XDG_CONFIG_HOME/upgrade-base"
+readonly CONF_FILE="${XDG_CONFIG_HOME}/upgrade-base"
 
 ask_yesno() {
 	while true; do
-		echo -n "$1 (y/n)? [y] "
+		echo -n "${1} (y/n)? [y] "
 		
 		read answer
-		[ -n "$answer" ] || answer="y"
+		[ -n "${answer}" ] || answer="y"
 
-		case $answer in
+		case ${answer} in
 		[Nn])
 			return 1 ;;
 		[Yy])
@@ -35,12 +35,12 @@ display_usage() {
 # $1 make target
 # $2 state status afterwards
 exec_cmd() {
-	$1
-	if [ $? -ne 0 ]; then
-		echo "===> '$1' failed"
+	${1}
+	if [ ${?} -ne 0 ]; then
+		echo "===> '${1}' failed"
 		exit 1
 	fi
-	save_state "$2"
+	save_state "${2}"
 }
 
 main_loop() {
@@ -49,7 +49,7 @@ main_loop() {
 	case ${state} in
 	"")
 		${PSVN} update
-		if [ $? -ne 0 ]; then
+		if [ ${?} -ne 0 ]; then
 			echo "===> Updating of source tree failed"
 			exit 1
 		fi
@@ -87,7 +87,7 @@ main_loop() {
 # $1 state
 save_state() {
 	[ -d ${XDG_CONFIG_HOME} ] || mkdir ${XDG_CONFIG_HOME}
-	echo "$1" > ${CONF_FILE}
+	echo "${1}" > ${CONF_FILE}
 }
 
 while getopts "chs" option; do

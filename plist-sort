@@ -4,17 +4,17 @@ readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly PREFIX="$(make -V PREFIX 2>/dev/null)"
 readonly plist_file="${1:-pkg-plist}"
 
-if [ -z "$PKGNAME" -o -z "$PREFIX" ]; then
+if [ -z "${PKGNAME}" -o -z "${PREFIX}" ]; then
 	echo "===> This is not port directory"
 	exit 1
 fi
 
 make_args="OPTIONSFILE=/dev/null OPTIONS_FILE=/dev/null"
 for opt in $(make -V ALL_OPTIONS); do
-	make_args="$make_args WITH_$opt=true"
+	make_args="${make_args} WITH_${opt}=true"
 done
 
-awk -v prefix="$PREFIX/" -v plist_subs="$(make $make_args -V PLIST_SUB)" '
+awk -v prefix="${PREFIX}/" -v plist_subs="$(make ${make_args} -V PLIST_SUB)" '
 BEGIN { 
 	n_cmds=1;
 	separator="###";
@@ -200,4 +200,4 @@ END {
 	}
 	
 #	for (i in subs) printf("%s\t  = %s\n", i, subs[i]);
-}' $plist_file
+}' ${plist_file}

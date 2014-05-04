@@ -13,15 +13,15 @@ non_interactive=0
 removed_dirs=""
 
 ask_yesno() {
-	[ $non_interactive -eq 0 ] || return 0
+	[ ${non_interactive} -eq 0 ] || return 0
 
 	while true; do
-		echo -n "$1 (y/n)? [y] "
+		echo -n "${1} (y/n)? [y] "
 		
 		read answer
-		[ -n "$answer" ] || answer="y"
+		[ -n "${answer}" ] || answer="y"
 
-		case $answer in
+		case ${answer} in
 		[Nn])
 			return 1 ;;
 		[Yy])
@@ -32,18 +32,18 @@ ask_yesno() {
 
 cache_concat() {
 	local str="$(eval echo $"$1")"
-	[ -z "$str" ] && str="$2" || str="$str $2"
-	setvar $1 "$str"
+	[ -z "${str}" ] && str="${2}" || str="${str} ${2}"
+	setvar ${1} "${str}"
 }
 
 dir_cache_add() {
-	local dir="$1"
+	local dir="${1}"
 
-	case $dir_cache in
-	*$dir*)
+	case ${dir_cache} in
+	*${dir}*)
 		;;
 	*)
-		cache_concat dir_cache "$dir"
+		cache_concat dir_cache "${dir}"
 	esac
 }
 
@@ -58,20 +58,20 @@ display_usage() {
 }
 
 file_add() {
-	local file="$1"
-	case $file in *svn-commit*) return 1 ;; esac
+	local file="${1}"
+	case ${file} in *svn-commit*) return 1 ;; esac
 	
-	if ask_yesno "Add file $file"; then
-		[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
-		$PSVN -q add "$file"
-		if [ $? -ne 0 ]; then
+	if ask_yesno "Add file ${file}"; then
+		[ ${non_interactive} -eq 0 ] || echo "===> Adding file ${file}"
+		${PSVN} -q add "${file}"
+		if [ ${?} -ne 0 ]; then
 			echo "===> File addition failed"
 			pcommit_exit 1
 		fi
 
-		if [ -d "$file" ]; then
-			for child in $(ls "$file"); do
-				file_set_props "$file/$child"
+		if [ -d "${file}" ]; then
+			for child in $(ls "${file}"); do
+				file_set_props "${file}/${child}"
 			done
 		fi
 		return 0
@@ -81,77 +81,78 @@ file_add() {
 }
 
 file_remove() {
-	local file="$1" n_kind="$($PSVN info "$1"|awk '/^Node Kind/ { print $3 }')"
+	local file="${1}" 
+	local n_kind="$(${PSVN} info "${1}"|awk '/^Node Kind/ { print $3 }')"
 
-	if [ "$n_kind" = "file" ]; then
-		for dir in $removed_dirs; do
+	if [ "${n_kind}" = "file" ]; then
+		for dir in ${removed_dirs}; do
 			case $file in $dir/*)
 				return 0
 			esac
 		done
 	fi
 
-	if ask_yesno "Remove $n_kind $file"; then 
-		[ $non_interactive -eq 0 ] || echo "===> Removing $n_kind $file"
-		$PSVN -q rm "$file"
-		if [ $? -ne 0 ]; then
+	if ask_yesno "Remove ${n_kind} ${file}"; then 
+		[ ${non_interactive} -eq 0 ] || echo "===> Removing ${n_kind} ${file}"
+		${PSVN} -q rm "${file}"
+		if [ ${?} -ne 0 ]; then
 			echo "===> File removal failed"
 			pcommit_exit 1
 		fi
 		
-		if [ "$n_kind" = "file" ]; then 
-			case $file in *files/*|*scripts/*)
-				dir_cache_add "$(dirname "$file")"
+		if [ "${n_kind}" = "file" ]; then 
+			case ${file} in *files/*|*scripts/*)
+				dir_cache_add "$(dirname "${file}")"
 			esac
 		else
-			cache_concat removed_dirs "$file"
+			cache_concat removed_dirs "${file}"
 		fi
 		return 0
 	else
-		[ "$n_kind" = "file" ] && \
-			cache_concat dir_cache_ignore "$(dirname "$file")"
+		[ "${n_kind}" = "file" ] && \
+			cache_concat dir_cache_ignore "$(dirname "${file}")"
 		return 1
 	fi
 }
 
 file_set_props() {
-	local file="$1"
-	[ -d "$file" -o ! -e "$file" ] && return 1
+	local file="${1}"
+	[ -d "${file}" -o ! -e "${file}" ] && return 1
 	
-	case $(egrep -- '\$FreeBSD\$|\$[BDFSer]+:' "$file" >/dev/null || echo $?) in
+	case $(egrep -- '\$FreeBSD\$|\$[BDFSer]+:' "${file}" >/dev/null || echo ${?}) in
 	"")	# matched pattern
-		$PSVN -q -- propset svn:keywords "FreeBSD=%H" "$file"
-		$PSVN -q -- propdel fbsd:nokeywords "$file" ;;
+		${PSVN} -q -- propset svn:keywords "FreeBSD=%H" "${file}"
+		${PSVN} -q -- propdel fbsd:nokeywords "${file}" ;;
 	1)	# no match
-		$PSVN -q -- propset fbsd:nokeywords yes "$file"
-		$PSVN -q -- propdel svn:keywords "$file" ;;
+		${PSVN} -q -- propset fbsd:nokeywords yes "${file}"
+		${PSVN} -q -- propdel svn:keywords "${file}" ;;
 	esac
 
 	[ "${_file##/*}" != "bsd.port.mk" ] && \
-		$PSVN -q -- propset svn:eol-style native "$file"
-	$PSVN -q -- propset svn:mime-type text/plain "$file"
-	$PSVN -q -- propdel cvs2svn:cvs-rev "$file"
+		${PSVN} -q -- propset svn:eol-style native "${file}"
+	${PSVN} -q -- propset svn:mime-type text/plain "${file}"
+	${PSVN} -q -- propdel cvs2svn:cvs-rev "${file}"
 }
 
 pcommit_exit() {
-	[ -z "$tempfile" ] || rm -f $tempfile
-	exit $1
+	[ -z "${tempfile}" ] || rm -f ${tempfile}
+	exit ${1}
 }
 
 remove_empty_dirs() {
-	for dir in $dir_cache; do
-		[ -d $dir ] || continue
-		case $dir_cache_ignore in *$dir*) continue ;; esac
+	for dir in ${dir_cache}; do
+		[ -d ${dir} ] || continue
+		case ${dir_cache_ignore} in *${dir}*) continue ;; esac
 		
-		if [ -z "$(ls $dir 2>&1)" ]; then
-			echo "===> Removing empty directory $dir"
-			$PSVN -q rm $dir
+		if [ -z "$(ls ${dir} 2>&1)" ]; then
+			echo "===> Removing empty directory ${dir}"
+			${PSVN} -q rm ${dir}
 		fi
 	done
 }
 
 while getopts "chn" option; do
-	case $option in
+	case ${option} in
 	c)
 		clean_only=1 ;;
 	n)
@@ -168,9 +169,9 @@ else
 fi
 
 wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
-if [ -n "$wrk_dirs" ]; then
-	for wdir in $wrk_dirs; do
-		if [ $depth -ne 2 ]; then
+if [ -n "${wrk_dirs}" ]; then
+	for wdir in ${wrk_dirs}; do
+		if [ ${depth} -ne 2 ]; then
 			echo "===> Running 'make clean' in ${wdir%%/work}"
 			make_args="-C ${wdir%%/work}"
 		else
@@ -178,9 +179,9 @@ if [ -n "$wrk_dirs" ]; then
 			make_args=""
 		fi
 
-		ret="$(make $make_args clean 2>/dev/null)"
-		if [ -n "$(echo $ret | grep 'not writable')" ]; then
-			if [ $depth -ne 2 ]; then
+		ret="$(make ${make_args} clean 2>/dev/null)"
+		if [ -n "$(echo ${ret} | grep 'not writable')" ]; then
+			if [ ${depth} -ne 2 ]; then
 				echo "===> Failed to 'make clean' in ${wdir%%/work}"
 			else
 				echo "===> Failed to 'make clean'"
@@ -190,41 +191,41 @@ if [ -n "$wrk_dirs" ]; then
 	done
 fi
 
-rej_files="$(find . -name "*.rej" -maxdepth $depth | sed 's|^./||g')"
-if [ -n "$rej_files" ]; then
+rej_files="$(find . -name "*.rej" -maxdepth ${depth} | sed 's|^./||g')"
+if [ -n "${rej_files}" ]; then
 	echo "===> Found rejected patch files"
-	echo $rej_files | tr ' ' '\n'
+	echo ${rej_files} | tr ' ' '\n'
 	exit 1
 fi
 
 old_files="$(find -E . \( -name "*.orig" -or -name "svn-commit.*" -or -size 0 \) \
-	! -regex '.*(\.svn|work)/.*' -delete -print -maxdepth $depth | \
+	! -regex '.*(\.svn|work)/.*' -delete -print -maxdepth ${depth} | \
 	sed 's|^./||g')"
-if [ -n "$old_files" ]; then
+if [ -n "${old_files}" ]; then
 	echo "===> Removed old temporary files"
-	echo $old_files | tr ' ' '\n'
+	echo ${old_files} | tr ' ' '\n'
 	echo ""
 fi
-[ $clean_only -eq 0 ] || exit
+[ ${clean_only} -eq 0 ] || exit
 
 tempfile="$(mktemp -t pcommit)"
-if [ -z "$tempfile" ]; then
+if [ -z "${tempfile}" ]; then
 	echo "===> Failed to create temporary file"
 	exit 1
 fi
 trap 'pcommit_exit 1' int
 
-$PSVN --show-updates status > $tempfile
-if [ $? -ne 0 ]; then
-	echo "===> '$PSVN status' failed"
+${PSVN} --show-updates status > ${tempfile}
+if [ ${?} -ne 0 ]; then
+	echo "===> '${PSVN} status' failed"
 	pcommit_exit 1 
 fi
 
-old_IFS=$IFS
+old_IFS=${IFS}
 IFS=$'\n'
 
-for line in $(cat $tempfile); do
-	change="$(echo "$line" | awk '{
+for line in $(cat ${tempfile}); do
+	change="$(echo "${line}" | awk '{
 		if (match($0, "^Status"))
 			next;
 			
@@ -238,52 +239,52 @@ for line in $(cat $tempfile); do
 		
 		print mod;
 	}')"
-	[ "$change" = " " -o -z "$change" ] && continue
-	file="$(echo "$line" | awk '{ print $NF }')"
+	[ "${change}" = " " -o -z "${change}" ] && continue
+	file="$(echo "${line}" | awk '{ print $NF }')"
 	tracked=0
 
-	case $change in
+	case ${change} in
 	!)
-		file_remove "$file"
-		[ $? -eq 1 ] || tracked=1 ;;
+		file_remove "${file}"
+		[ ${?} -eq 1 ] || tracked=1 ;;
 	N)
-		file_add "$file"
-		tracked=$? ;;
+		file_add "${file}"
+		tracked=${?} ;;
 	U)
-		echo "===> Updating $file"
-		$PSVN -q update "$file"
+		echo "===> Updating ${file}"
+		${PSVN} -q update "${file}"
 	esac
 
-	[ $tracked -eq 1 ] || file_set_props "$file"
+	[ ${tracked} -eq 1 ] || file_set_props "${file}"
 done
 
-rm $tempfile
-IFS=$old_IFS
+rm ${tempfile}
+IFS=${old_IFS}
 
 remove_empty_dirs
 
-if [ $non_interactive -eq 1 ]; then
-	$PSVN commit
-	exit $?
+if [ ${non_interactive} -eq 1 ]; then
+	${PSVN} commit
+	exit ${?}
 fi
 
 while true; do
 	echo ""
 	echo "[c]ommit [v]iew diff [s]vn status [q]uit"
 	echo -n "> "
+
 	read cmd
-	
-	case $cmd in
+	case ${cmd} in
 	[Cc])
-		$PSVN commit
-		exit $? ;;
+		${PSVN} commit
+		exit ${?} ;;
 	[Qq])
 		exit ;;
 	[Ss])
-		$PSVN status ;;
+		${PSVN} status ;;
 	[Vv])
-		$PSVN diff | $PAGER ;;
+		${PSVN} diff | ${PAGER} ;;
 	*)
-		echo "No such command: $cmd"
+		echo "No such command: ${cmd}"
 	esac
 done

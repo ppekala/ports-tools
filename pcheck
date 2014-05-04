@@ -14,15 +14,15 @@ display_usage() {
 }
 
 reinplace_file() {
-	local file="$1" expr="$2"
+	local file="${1}" expr="${2}"
 	
-	[ -n "$expr" ] || return
-	sed -E "$expr" $file > $file.new
-	mv $file.new $file
+	[ -n "${expr}" ] || return
+	sed -E "${expr}" ${file} > ${file}.new
+	mv ${file}.new ${file}
 }
 
 while getopts "hs" option; do
-	case $option in
+	case ${option} in
 	s)
 		skip_spellcheck=1 ;;
 	*)
@@ -36,15 +36,14 @@ if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
 fi
 
 rej_files="$(find -E . -name "*.rej" ! -regex '\./(\.svn|work)/.*')"
-if [ -n "$rej_files" ]; then
+if [ -n "${rej_files}" ]; then
 	echo "===> Found rejected patch file(s)"
-	echo " $rej_files" | sed 's|./||g'
+	echo " ${rej_files}" | sed 's|./||g'
 	exit 1
 fi
 
 find -E . \( -name "*.orig" -or -size 0 \) ! -regex '\./(\.svn|work)/.*' -delete
-
-if [ $skip_spellcheck -eq 0 ]; then
+if [ ${skip_spellcheck} -eq 0 ]; then
 	if [ -n "$(whereis -bq hunspell)" ]; then
 		${hunspell} pkg-descr
 		[ -f pkg-message ] && ${hunspell} pkg-message
@@ -55,22 +54,22 @@ if [ $skip_spellcheck -eq 0 ]; then
 fi
 
 find -E . -type f ! -regex '\./(\.svn|work)/.*' | while read file; do
-	if [ -z "$(tail -n 1 $file | tr '\n' '~' | grep '~$')" ]; then
-		echo >> $file
+	if [ -z "$(tail -n 1 ${file} | tr '\n' '~' | grep '~$')" ]; then
+		echo >> ${file}
 		echo "===> Added final newline to ${file##./}"
 	fi
 done
 
 comment="$(make -V COMMENT)"
-if [ -n "$(echo $comment | grep -E '^(A|An) ')" ]; then
-	new_comment="$(echo $comment | awk '{ 
+if [ -n "$(echo ${comment} | grep -E '^(A|An) ')" ]; then
+	new_comment="$(echo ${comment} | awk '{ 
 		gsub("^(A|An) ", "", $0); 
 		print toupper( substr($0, 1, 1) ) substr($0, 2);
 	}')"
-	sed_expr="s|^COMMENT=.*|COMMENT=	$new_comment|"
+	sed_expr="s|^COMMENT=.*|COMMENT=	${new_comment}|"
 	echo "===> Removed leading article from COMMENT"
 fi
-reinplace_file Makefile "$sed_expr"
+reinplace_file Makefile "${sed_expr}"
 
 sed_expr=""
 if [ -n "$(grep '^Author:' pkg-descr)" ]; then
@@ -79,10 +78,10 @@ if [ -n "$(grep '^Author:' pkg-descr)" ]; then
 fi
 
 if [ -n "$(grep -E '^WWW:(	| {2,})' pkg-descr)" ]; then
-	sed_expr="$sed_expr s#^WWW:(	| {2,})#WWW: #g;"
+	sed_expr="${sed_expr} s#^WWW:(	| {2,})#WWW: #g;"
 	echo "===> Fixing WWW: line in pkg-descr"
 fi
-reinplace_file pkg-descr "$sed_expr"
+reinplace_file pkg-descr "${sed_expr}"
 
 if [ -n "$(whereis -bq portlint)" ]; then
 	echo "===> Portlint output:"

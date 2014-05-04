@@ -7,8 +7,8 @@ readonly UID="$(id -u)"
 
 tc_cmd() {
 	local tc_script="./tc"
-	[ $UID -eq 0 ] || tc_script="sudo $tc_script"
-	cd $TBDIR/scripts && $tc_script $*
+	[ ${UID} -eq 0 ] || tc_script="sudo ${tc_script}"
+	cd ${TBDIR}/scripts && ${tc_script} ${*}
 }
 
 if [ -z "$(whereis -bq plist-sort)" ]; then
@@ -16,34 +16,34 @@ if [ -z "$(whereis -bq plist-sort)" ]; then
 	exit 1
 fi
 
-if [ -z "$PKGNAME" ]; then
+if [ -z "${PKGNAME}" ]; then
 	echo "===> This is not port directory"
 	exit 1
 fi
 
-builds="$1"
-if [ -z "$builds" ]; then
+builds="${1}"
+if [ -z "${builds}" ]; then
 	for build in $(tc_cmd listBuilds); do
-		if [ -f "$TBDIR/logs/$build/$PKGNAME.log" ]; then
-			logfile="$TBDIR/logs/$build/$PKGNAME.log"
+		if [ -f "${TBDIR}/logs/${build}/${PKGNAME}.log" ]; then
+			logfile="${TBDIR}/logs/${build}/${PKGNAME}.log"
 			break
 		fi
 	done
 	
-	if [ -z "$logfile" ]; then
-		echo "===> Could not find any build logs for $PKGNAME"
+	if [ -z "${logfile}" ]; then
+		echo "===> Could not find any build logs for ${PKGNAME}"
 		exit 1
 	fi
 else
-	logfile="$TBDIR/logs/$builds/$PKGNAME.log"
+	logfile="${TBDIR}/logs/${builds}/${PKGNAME}.log"
 	if [ ! -f "$logfile" ]; then
-		echo "===> Logfile $logfile does not exist"
+		echo "===> Logfile ${logfile} does not exist"
 		exit 1
 	fi
 fi
 
 tempfile="$(mktemp -t tb-plist-update)"
-if [ -z "$tempfile" ]; then
+if [ -z "${tempfile}" ]; then
 	echo "===> Failed to create temporary file"
 	exit 1
 fi
@@ -171,27 +171,26 @@ END {
 		}
 	}
 
-}' $logfile > $tempfile
+}' ${logfile} > ${tempfile}
 
-plist-sort $tempfile > $plist_out
-rm $tempfile
-[ "$plist_out" = "pkg-plist" ] && exit
+plist-sort ${tempfile} > ${plist_out}
+rm ${tempfile}
+[ "${plist_out}" = "pkg-plist" ] && exit
 
-if [ ! $(cmp -s pkg-plist $plist_out) ]; then
-	diff -u pkg-plist $plist_out | $PAGER
+if [ ! $(cmp -s pkg-plist ${plist_out}) ]; then
+	diff -u pkg-plist ${plist_out} | ${PAGER}
 	
 	while true; do
 		echo -n "Use newly generated plist (y/n)? "
 		read cmd
-		
-		case $cmd in
+		case ${cmd} in
 		[Yy])
-			mv $plist_out pkg-plist
+			mv ${plist_out} pkg-plist
 			break ;;
 		[Nn])
 			break
 		esac
 	done
 else
-	rm $plist_out
+	rm ${plist_out}
 fi

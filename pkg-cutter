@@ -1,7 +1,7 @@
 #!/bin/sh
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-readonly EXCLUDE_CONF="$XDG_CONFIG_HOME/pkg-cutter"
+readonly EXCLUDE_CONF="${XDG_CONFIG_HOME}/pkg-cutter"
 readonly LOCALBASE="${LOCALBASE:-/usr/local}"
 
 exclude_opt=0
@@ -23,15 +23,15 @@ display_usage() {
 
 mktmp() {
 	local tmp="$(mktemp -t pkg-cutter)"
-	if [ -z "$tmp" ]; then
+	if [ -z "${tmp}" ]; then
 		echo "===> Failed to create temporary file"
 		exit 1
 	fi
-	echo $tmp
+	echo ${tmp}
 }
 
 number_humanize() {
-	echo "$1" | awk '{
+	echo "${1}" | awk '{
 		bytes = $0;
 		gb=2^30; mb=2^20; kb=2^10;	
 		
@@ -60,35 +60,35 @@ update_exclude_list() {
 	
 	for pkg in $(pkg query '%n@%v'); do
 		status="off"
-		case $pkg_exclude in *${pkg%@*}*) status="on" ;; esac
-		items="$items ${pkg%@*} ${pkg#*@} $status"
+		case ${pkg_exclude} in *${pkg%@*}*) status="on" ;; esac
+		items="${items} ${pkg%@*} ${pkg#*@} ${status}"
 		count=$((count+1))
 	done
 
 	tmpfile="$(mktmp)"
-	echo "--checklist \"Select packages to exclude ($count items):\" \
-		21 70 19 $items" > $tmpfile
-	excluded="$(dialog --stdout --file $tmpfile | sed 's|\"||g')"
+	echo "--checklist \"Select packages to exclude (${count} items):\" \
+		21 70 19 ${items}" > ${tmpfile}
+	excluded="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
 	dialog --clear
-	rm $tmpfile
+	rm ${tmpfile}
 
-	[ -z "$excluded" ] && exit
-	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
-	[ -f "$EXCLUDE_CONF" ] && rm -f "$EXCLUDE_CONF"
+	[ -z "${excluded}" ] && exit
+	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
+	[ -f "${EXCLUDE_CONF}" ] && rm -f "${EXCLUDE_CONF}"
 
-	for pkg in $excluded; do
-		echo "$pkg" >> "$EXCLUDE_CONF"
+	for pkg in ${excluded}; do
+		echo "${pkg}" >> "${EXCLUDE_CONF}"
 	done
 	exit
 }
 
 while getopts "hoxy" option; do
-	case $option in
+	case ${option} in
 	o)
-		[ $exclude_opt -eq 1 ] && display_usage
+		[ ${exclude_opt} -eq 1 ] && display_usage
 		sel_status="on" ;;
 	x)
-		[ "$sel_status" = "on" -o $new_leafs_yes -eq 1 ] && display_usage
+		[ "${sel_status}" = "on" -o ${new_leafs_yes} -eq 1 ] && display_usage
 		exclude_opt=1 ;;
 	y)
 		new_leafs_yes=1 ;;
@@ -107,55 +107,55 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
-[ -f "$EXCLUDE_CONF" ] && pkg_exclude="$(grep -v '^#' "$EXCLUDE_CONF")"
-[ $exclude_opt -eq 1 ] && update_exclude_list
+[ -f "${EXCLUDE_CONF}" ] && pkg_exclude="$(grep -v '^#' "${EXCLUDE_CONF}")"
+[ ${exclude_opt} -eq 1 ] && update_exclude_list
 
 while true; do 
 	pkg_leafs="$(pkg query -e '%#r = 0' %n-%v@%sb)"
 	count=0
 	items=""
 
-	for pkg in $pkg_leafs; do
-		case $pkg_seen in *${pkg%@*}*) continue;; esac
-		case $pkg_exclude in *${pkg%-*}*) continue;; esac
+	for pkg in ${pkg_leafs}; do
+		case ${pkg_seen} in *${pkg%@*}*) continue;; esac
+		case ${pkg_exclude} in *${pkg%-*}*) continue;; esac
 
 		size="$(number_humanize ${pkg#*@})"
-		pkg_seen="$pkg_seen ${pkg%@*}"
-		items="$items ${pkg%@*} \"$(printf '%8s' "$size")\" $sel_status"
+		pkg_seen="${pkg_seen} ${pkg%@*}"
+		items="${items} ${pkg%@*} \"$(printf '%8s' "${size}")\" ${sel_status}"
 		count=$((count+1))
 	done
 
-	if [ $rm_count -gt 0 -a $count -gt 0 ]; then
-		if [ $new_leafs_yes -eq 0 ]; then
+	if [ ${rm_count} -gt 0 -a ${count} -gt 0 ]; then
+		if [ ${new_leafs_yes} -eq 0 ]; then
 			dialog --yesno "There are new leaf packages. Continue?" 5 43
-			[ $? -eq 1 ] && break
+			[ ${?} -eq 1 ] && break
 		fi
 	fi
 	
-	[ $count -eq 0 ] && break
+	[ ${count} -eq 0 ] && break
 
-	[ -n "$tmpfile" ] || tmpfile="$(mktmp)"
-	echo "--checklist \"Select packages to delete ($count items):\" \
-		21 70 19 $items" > $tmpfile
+	[ -n "${tmpfile}" ] || tmpfile="$(mktmp)"
+	echo "--checklist \"Select packages to delete (${count} items):\" \
+		21 70 19 ${items}" > ${tmpfile}
 
-	ret="$(dialog --stdout --file $tmpfile | sed 's|\"||g')"
-	[ -z "$ret" ] && break
+	ret="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
+	[ -z "${ret}" ] && break
 	
-	for bytes in $(pkg query '%sb' $ret); do 
+	for bytes in $(pkg query '%sb' ${ret}); do 
 		rm_freed=$((rm_freed+bytes));
 		rm_count=$((rm_count+1));
 	done
 
 	dialog --clear
-	pkg-static delete -y $ret
+	pkg-static delete -y ${ret}
 done
 
-if [ -n "$tmpfile" ]; then
-	rm $tmpfile
+if [ -n "${tmpfile}" ]; then
+	rm ${tmpfile}
 	dialog --clear
 fi
 
-[ -z "$pkg_seen" ] && echo "No leaf packages to remove"
+[ -z "${pkg_seen}" ] && echo "No leaf packages to remove"
 
-[ $rm_count -gt 0 ] && \
-	echo "Packages removed: $rm_count  Disk space freed: $(number_humanize $rm_freed)"
+[ ${rm_count} -gt 0 ] && \
+	echo "Packages removed: ${rm_count}  Disk space freed: $(number_humanize ${rm_freed})"
