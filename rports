@@ -1,0 +1,76 @@
+#!/bin/sh
+
+readonly PSVN="${PSVN:-svn}"
+readonly RPORTSDIR="${RPORTSDIR:-$HOME/redports}"
+
+if [ -z "${1}" ]; then
+	echo "Usage: rports [portdir]"
+	exit 1
+else
+	readonly PORTPATH="$(realpath ${1})"
+fi
+
+if [ ! -d "${PORTPATH}" ]; then
+	echo "===> Port directory (${PORTPATH}) does not exist"
+	exit 1
+fi
+
+if [ ! -d "${RPORTSDIR}" ]; then
+	echo "===> Redports checkout directory (${RPORTSDIR}) does not exist"
+       	echo "===> Try setting RPORTSDIR variable"
+	exit 1
+fi
+
+if [ -z "$(whereis -bq pcommit)" ]; then
+	echo "===> pcommit script not found in your PATH"
+	exit 1
+fi
+
+cd "${PORTPATH}"
+[ -d "work" ] && make clean
+
+category="$(make -V CATEGORIES | awk '{ print $1 }')"
+if [ -z "${category}" ]; then
+	echo "===> Can't get port's category"
+	exit 1
+fi
+port="$(basename ${PWD})"
+
+cd "${RPORTSDIR}"
+[ -d "${category}" ] && commit_path="${category}" || mkdir "${category}"
+[ -d "${category}/${port}" ] && commit_path="${category}/${port}"
+
+cd "${PORTPATH}/.."
+targetdir="${RPORTSDIR}/${category}"
+find "${port}" ! -regex ".*/\.svn.*" | while read file; do
+	if [ -f "${file}" ]; then
+		retval=$(cmp -s "${file}" "${targetdir}/${file}"; echo ${?})
+		if [ ${retval} -ne 0 ]; then
+			[ ${retval} -eq 1 ] && schar="M" || schar="N"
+			echo "[${schar}] ${file}"
+			cp "${file}" "${targetdir}/${file}"
+		fi
+	else 
+		if [ ! -d "${targetdir}/${file}" ]; then
+			echo "[N] ${file} (dir)"
+			mkdir "${targetdir}/${file}"
+		fi
+	fi
+done
+
+cd "${RPORTSDIR}/${category}/${port}"
+find . ! -regex ".*/\.svn.*" | while read file; do
+	if [ ! -e "${PORTPATH}/${file}" ]; then
+		echo "[D] ${port}/${file#./}"
+		rm -rf "${file}"
+	fi
+done
+
+cd "${RPORTSDIR}/${commit_path}" 
+if [ -z "$(${PSVN} info | grep '^URL:.*redports.org')" ]; then
+	echo "===> Not a redports.org checkout, check svn info"
+	exit 1
+fi
+
+pcommit
+
