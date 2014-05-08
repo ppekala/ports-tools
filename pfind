@@ -49,7 +49,7 @@ fi
 make quicksearch ${search_args} | awk '/^Path:/ { print $2 }' | while read portdir; do
 	if [ -n "${string}" ]; then
 		[ -e ${portdir}/Makefile ] || continue
-		[ -n "$(grep ${string} ${portdir}/Makefile)" ] || continue
+		[ -n "$(grep "${string}" ${portdir}/Makefile)" ] || continue
 	fi  
 	echo ${portdir} | sed "s|${PORTSDIR}/||"
 done
