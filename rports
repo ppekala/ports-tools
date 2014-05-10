@@ -53,14 +53,14 @@ port="$(basename ${PWD})"
 
 cd "${RPORTSDIR}"
 if [ -d "${category}" ]; then 
-	${PSVN} info ${category}
+	${PSVN} info ${category} >/dev/null 2>&1
 	[ ${?} -eq 0 ] && commit_path="${category}"
 else    
 	mkdir "${category}"
 fi
 
 if [ -d "${category}/${port}" ]; then 
-	${PSVN} info ${category}/${port}
+	${PSVN} info ${category}/${port} >/dev/null 2>&1
 	[ ${?} -eq 0 ] && commit_path="${category}/${port}"
 fi
 
