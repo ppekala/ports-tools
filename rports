@@ -37,8 +37,17 @@ fi
 port="$(basename ${PWD})"
 
 cd "${RPORTSDIR}"
-[ -d "${category}" ] && commit_path="${category}" || mkdir "${category}"
-[ -d "${category}/${port}" ] && commit_path="${category}/${port}"
+if [ -d "${category}/${port}" ]; then 
+	${PSVN} info ${category}/${port}
+	[ ${?} -eq 0 ] && commit_path="${category}/${port}"
+fi
+
+if [ -d "${category}" ]; then 
+	${PSVN} info ${category}
+	[ ${?} -eq 0 ] && commit_path="${category}"
+else    
+	mkdir "${category}"
+fi
 
 cd "${PORTPATH}/.."
 targetdir="${RPORTSDIR}/${category}"
