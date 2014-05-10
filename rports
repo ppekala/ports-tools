@@ -1,17 +1,32 @@
 #!/bin/sh
 
 readonly PSVN="${PSVN:-svn}"
-readonly RPORTSDIR="${RPORTSDIR:-$HOME/redports}"
+readonly RPORTSDIR="${RPORTSDIR:-${HOME}/redports}"
 
-if [ -z "${1}" ]; then
-	echo "Usage: rports [portdir]"
-	exit 1
-else
-	readonly PORTPATH="$(realpath ${1})"
-fi
+display_usage() {
+	echo "Usage: rports [-h|-n] [portdir]"
+	echo ""
+	echo "    -h - show this help"
+	echo "    -n - non-interactive mode"
+	echo ""
+	exit
+}
 
-if [ ! -d "${PORTPATH}" ]; then
-	echo "===> Port directory (${PORTPATH}) does not exist"
+while getopts "hn" option; do
+	case ${option} in
+	n)
+		pcommit_args="-n" ;;
+	*)
+		display_usage
+	esac
+done
+
+shift $((OPTIND-1))
+[ -n "${1}" ] || display_usage
+
+readonly PORTPATH="$(realpath -q "${1}")"
+if [ -z "${PORTPATH}" ]; then
+	echo "===> Port directory (${1}) does not exist"
 	exit 1
 fi
 
@@ -81,5 +96,5 @@ if [ -z "$(${PSVN} info | grep '^URL:.*redports.org')" ]; then
 	exit 1
 fi
 
-pcommit
+pcommit ${pcommit_args}
 
