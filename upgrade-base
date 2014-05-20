@@ -3,7 +3,7 @@
 readonly MAKE=${MAKE:-make}
 readonly PSVN=${PSVN:-svn}
 readonly SRCDIR=${SRCDIR:-/usr/src}
-readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 readonly CONF_FILE="${XDG_CONFIG_HOME}/upgrade-base"
 
 ask_yesno() {
@@ -43,16 +43,55 @@ exec_cmd() {
 	save_state "${2}"
 }
 
+last_updating_entry() {
+	if [ -f "${SRCDIR}/UPDATING" ]; then
+		egrep -m 1 '^[0-9]{8}\:' ${SRCDIR}/UPDATING | sed 's|:||'
+	else
+		echo "0"
+	fi
+}
+
 main_loop() {
 	state="$(cat ${CONF_FILE} 2>/dev/null)"
 
 	case ${state} in
 	"")
+		l_entry=$(last_updating_entry)
 		${PSVN} update
 		if [ ${?} -ne 0 ]; then
 			echo "===> Updating of source tree failed"
 			exit 1
 		fi
+
+		n_entry=$(last_updating_entry)
+		if [ ${n_entry} -gt ${l_entry} ]; then
+			echo "New entries since last upgrade in ${SRCDIR}/UPDATING file:"
+			echo ""
+
+			awk -v entry="${l_entry}" '
+			BEGIN { new_entry=0; }
+	
+			/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
+				curr_entry=$0;
+				sub(":", "", curr_entry);
+				if (entry == curr_entry)
+					exit;
+				else
+					new_entry=1;
+			}
+
+			{
+				if (new_entry == 1)
+					print $0;
+			}' ${SRCDIR}/UPDATING
+
+			ask_yesno "Continue with upgrade"
+			if [ ${?} -ne 0 ]; then 
+				save_state "REPO_UPDATED"
+				exit
+			fi
+		fi
+
 		save_state "REPO_UPDATED" ;;
 	"REPO_UPDATED")
 		exec_cmd "${MAKE} buildworld ${make_args}" "WORLD_BUILT" ;;
