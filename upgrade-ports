@@ -90,7 +90,13 @@ updating_entry() {
 upgrade_exit() {
 	[ -n "${2}" ] && echo ${2} > ${CONFIG}
 	[ -n "${tmpfile}" -a -f "${tmpfile}" ] && rm -rf "${tmpfile}"
-	[ ${3} -eq 0 ] || read key
+
+	if [ ${3} -eq 1 ]; then
+		echo ""
+		echo "===> Press Enter key to finish."
+		echo ""
+		read key
+	fi
 	exit ${1}
 }
 

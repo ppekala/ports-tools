@@ -115,6 +115,11 @@ main_loop() {
 			yes | ${MAKE} delete-old-libs
 		fi
 		save_state ""
+
+		echo ""
+		echo "===> You need to restart computer again."
+		echo ""
+
 		exit 0 ;;
 	*)
 		echo "===> Garbage in ${CONF_FILE}, try upgrade-base -s"
