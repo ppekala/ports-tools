@@ -75,6 +75,7 @@ find "${port}" ! -regex ".*/\.svn.*" | while read file; do
 			cp "${file}" "${targetdir}/${file}"
 		fi
 	else 
+		[ -d "${file}" ] || continue
 		if [ ! -d "${targetdir}/${file}" ]; then
 			echo "[N] ${file} (dir)"
 			mkdir "${targetdir}/${file}"
