@@ -35,6 +35,8 @@ if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
 	exit 1
 fi
 
+descr_file="$(make -V DESCR)"
+
 rej_files="$(find -E . -name "*.rej" ! -regex '\./(\.svn|work)/.*')"
 if [ -n "${rej_files}" ]; then
 	echo "===> Found rejected patch file(s)"
@@ -45,7 +47,7 @@ fi
 find -E . \( -name "*.orig" -or -size 0 \) ! -regex '\./(\.svn|work)/.*' -delete
 if [ ${skip_spellcheck} -eq 0 ]; then
 	if [ -n "$(whereis -bq hunspell)" ]; then
-		${hunspell} pkg-descr
+		[ -f "${descr_file}" ] && ${hunspell} "${descr_file}"
 		[ -f pkg-message ] && ${hunspell} pkg-message
 		[ -f files/pkg-message.in ] && ${hunspell} files/pkg-message.in
 	else
@@ -71,17 +73,21 @@ if [ -n "$(echo ${comment} | grep -E '^(A|An) ')" ]; then
 fi
 reinplace_file Makefile "${sed_expr}"
 
-sed_expr=""
-if [ -n "$(grep '^Author:' pkg-descr)" ]; then
-	sed_expr="/^Author:/d;"
-	echo "===> Deleting Author: line from pkg-descr"
-fi
+if [ -f "${descr_file}" ]; then	
+	sed_expr=""
+	if [ -n "$(grep '^Author:' ${descr_file})" ]; then
+		sed_expr="/^Author:/d;"
+		echo "===> Deleting Author: line from description file"
+	fi
 
-if [ -n "$(grep -E '^WWW:(	| {2,})' pkg-descr)" ]; then
-	sed_expr="${sed_expr} s#^WWW:(	| {2,})#WWW: #g;"
-	echo "===> Fixing WWW: line in pkg-descr"
+	if [ -n "$(grep -E '^WWW:(	| {2,})' ${descr_file})" ]; then
+		sed_expr="${sed_expr} s#^WWW:(	| {2,})#WWW: #g;"
+		echo "===> Fixing WWW: line in description file"
+	fi
+	reinplace_file "${descr_file}" "${sed_expr}"
+else
+	echo "===> Port's description file is missing"
 fi
-reinplace_file pkg-descr "${sed_expr}"
 
 if [ -n "$(whereis -bq portlint)" ]; then
 	echo "===> Portlint output:"
