@@ -101,7 +101,7 @@ function plist_split(string, array) {
 	path = chunks = "";
 } 
 
-/^(%%[0-9A-Z_]*%%)*@dirrm/ { # dirs
+/^(%%[0-9A-Z_]*%%)*@dir/ { # dirs
 	n = split($0, array, "%%");
 	
 	if (n == 1) { # @dirrm path
@@ -110,7 +110,7 @@ function plist_split(string, array) {
 		next;
 	}
 	for (i=1; i <= n; i++) {
-		if (match(array[i], "^@dirrm")) {
+		if (match(array[i], "^@dir")) {
 			plist_split(array[i], p);
 			path = p[2];
 			chunks = chunks separator p[1];
@@ -186,7 +186,7 @@ END {
 			continue;
 		}
 		for (i=2; i <= n; i++) {
-			if (match(p[i], "^@dirrm")) {
+			if (match(p[i], "^@dir")) {
 				cmd = cmd p[i];
 				continue;
 			}
