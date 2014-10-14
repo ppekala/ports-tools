@@ -1,6 +1,13 @@
 #!/bin/sh
 
-readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
+PORTSDIR=${PORTSDIR:-/usr/ports}
+[ -d "${PORTSDIR}" ] || \
+	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
+if [ ! -d "${PORTSDIR}" ]; then
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+	exit 1
+fi
+
 readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
 readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
 readonly TBUSER="${TBUSER:-$USER}"

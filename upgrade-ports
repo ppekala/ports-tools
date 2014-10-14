@@ -4,7 +4,14 @@ readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
 readonly PAGER="${PAGER:-less}"
 readonly PATH="${PATH}:/usr/local/sbin"
-readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
+
+PORTSDIR=${PORTSDIR:-/usr/ports}
+[ -d "${PORTSDIR}" ] || \
+	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
+if [ ! -d "${PORTSDIR}" ]; then
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+	exit 1
+fi
 
 answer_yes=0
 wait_for_key=0

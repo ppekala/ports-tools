@@ -3,7 +3,6 @@
 LANG=C
 
 readonly PAGER="${PAGER:-less}"
-readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 readonly PSVN="${PSVN:-svn}"
 
 clean_only=0
