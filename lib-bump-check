@@ -3,7 +3,6 @@
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly IGNORE_FILE="${XDG_CONFIG_HOME}/lib-bump-check"
 readonly LOCALBASE="${LOCALBASE:-/usr/local}"
-readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 bump_ignore=0
 
@@ -113,45 +112,6 @@ pkg_is_ignored() {
 	return 1
 }
 
-rebuild_ports() {
-	local origin rebuild_err
-
-	for port in ${*}; do
-		origin="$(pkg-static query '%o' ${port})"
-		if [ -d ${PORTSDIR}/${origin} ]; then
-			cd ${PORTSDIR}/${origin}
-		else
-			rebuild_err="${rebuild_err} ORIGIN_ERR:${port}:${origin}"
-			continue
-		fi
-		make clean 2>/dev/null
-		if [ ${?} -eq 1 ]; then 
-			rebuild_err="${rebuild_err} CLEAN_ERR:${port}:${origin}"
-			continue
-		fi
-		make reinstall clean 2>/dev/null
-		[ ${?} -eq 1 ] && \
-			rebuild_err="${rebuild_err} BUILD_ERR:${port}:${origin}" 
-	done
-	
-	if [ -n "${rebuild_err}" ]; then
-		echo ""
-		echo "These ports failed to rebuild:"
-		echo ""
-		echo "${rebuild_err}" | tr ' ' '\n' | awk -F: '
-			/BUILD_ERR/ {
-				print $2 ": rebuild error (" $3 ")"
-			}
-			/CLEAN_ERR/ {
-				print $2 ": make clean error (" $3 ")"
-			}
-			/ORIGIN_ERR/ {
-				print $2 ": origin not found (" $3 ")"
-			}'
-		echo ""
-	fi
-}
-
 while getopts "bj:hr:" option; do
 	case ${option} in
 	b)
@@ -175,6 +135,11 @@ done
 
 if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
 	echo "This script requires pkgNG (ports-mgmt/pkg)"
+	exit 1
+fi
+
+if [ ! -x "${LOCALBASE}/sbin/portmaster" ]; then
+	echo "This script requires portmaster"
 	exit 1
 fi
 
@@ -278,7 +243,7 @@ while true; do
 	[Nn])
 		break ;;
 	[Yy]) 
-		rebuild_ports ${pkg_re}
+		${LOCALBASE}/sbin/portmaster -R --no-confirm ${pkg_re}
 		break
 	esac
 done
