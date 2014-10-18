@@ -81,7 +81,61 @@ function plist_split(string, array) {
 	array[2] = substr(string, n+1);
 }
 
+function keyword_line_tokenize(line, keyword, out) {
+	path = chunks = "";
+
+	n = split(line, array, "%%");
+
+	if (n == 1) {
+		plist_split(array[1], p);
+		out[p[2]] = p[2] separator p[1];
+		return;
+	}
+	for (i=1; i <= n; i++) {
+		if (match(array[i], "^@" keyword)) {
+			plist_split(array[i], p);
+			path = p[2];
+			chunks = chunks separator p[1];
+			continue;
+		}
+		if ((i%2) == 0) {
+			update_plist_subs(array[i]);
+			if (subs[array[i]] != "null")
+				path = path subs[array[i]];
+			if (array[i] != "")
+				chunks = chunks separator array[i];
+		} else
+			path = path array[i];
+	}
+	out[path] = path chunks;
+}
+
+function keyword_line_untokenize(line, keyword) {
+	cmd=""
+
+	n = split(line, p, separator);
+	path = p[1];
+
+	if (n == 2) {
+		printf("%s %s\n", p[2], path);
+		return;
+	}
+	for (i=2; i <= n; i++) {
+		if (match(p[i], "^@" keyword)) {
+			cmd = cmd p[i];
+			continue;
+		}
+		if (cmd == "")
+			cmd = "%%" p[i] "%%";
+		else if (subs[p[i]] != "null")
+			path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
+	}
+	printf("%s %s\n", cmd, path);
+}
+
 /^(%%[0-9A-Z_]*%%)*([a-z]|\/)+/ { # files
+	path = chunks = "";
+
 	n = split($0, array, "%%");
 
 	if (n == 1) {
@@ -93,50 +147,25 @@ function plist_split(string, array) {
 			update_plist_subs(array[i]);
 			if (subs[array[i]] != "null")
 				path = path subs[array[i]];
-			chunks = chunks separator array[i];
-		} else 
-			path = path array[i];
-	}
-	files[path] = path chunks;
-	path = chunks = "";
-} 
-
-/^(%%[0-9A-Z_]*%%)*@dir/ { # dirs
-	n = split($0, array, "%%");
-	
-	if (n == 1) { # @dirrm path
-		plist_split(array[1], p);
-		dirs[p[2]] = p[2] separator p[1];
-		next;
-	}
-	for (i=1; i <= n; i++) {
-		if (match(array[i], "^@dir")) {
-			plist_split(array[i], p);
-			path = p[2];
-			chunks = chunks separator p[1];
-			continue;
-		}
-		if ((i%2) == 0) {
-			update_plist_subs(array[i]);
-			if (subs[array[i]] != "null")
-				path = path subs[array[i]];
-			chunks = chunks separator array[i];
+			if (array[i] != "")
+				chunks = chunks separator array[i];
 		} else
 			path = path array[i];
 	}
-	dirs[path] = path chunks;
-	path = chunks = "";
+	files[path] = path chunks;
 }
 
-#/^(%%[0-9A-Z_]*%%)*@exec/ {
-#
-#}
-#
-#/^(%%[0-9A-Z_]*%%)*@unexec/ {
-#	
-#}
+/^(%%[0-9A-Z_]*%%)*@dir/ { # dirs
+	keyword_line_tokenize($0, "dir", dirs);
+}
 
-/^(%%[0-9A-Z_]*%%)*@[^dirrm]+/ { # other commands, @exec, @unexec etc
+/^(%%[0-9A-Z_]*%%)*@sample/ {
+	keyword_line_tokenize($0, "sample", files);
+}
+
+/^(%%[0-9A-Z_]*%%)*@/ { # other commands, @exec, @unexec etc
+	if (match($0, "@(dir|sample)"))
+		next;	
 	cmds[n_cmds++] = $0;
 }
 
@@ -156,6 +185,11 @@ END {
 	close("sort -u >" tmpfile);
 	
 	while((getline line < tmpfile) > 0) {
+		if (match(line, "@sample")) {
+			keyword_line_untokenize(line, "sample");
+			continue;
+		}
+
 		n = split(line, p, separator); 
 		path = p[1];
 
@@ -177,27 +211,9 @@ END {
 	for (i in dirs) print dirs[i] | ("sort -u -r >" tmpfile);
 	close("sort -u -r >" tmpfile);
 	
-	while((getline line < tmpfile) > 0) {
-		n = split(line, p, separator);
-		path = p[1];
+	while((getline line < tmpfile) > 0)
+		keyword_line_untokenize(line, "dir");
 
-		if (n == 2) {
-			printf("%s %s\n", p[2], path);
-			continue;
-		}
-		for (i=2; i <= n; i++) {
-			if (match(p[i], "^@dir")) {
-				cmd = cmd p[i];
-				continue;
-			}
-			if (cmd == "")
-				cmd = "%%" p[i] "%%";
-			else if (subs[p[i]] != "null")
-				path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
-		}
-		printf("%s %s\n", cmd, path);
-		cmd = "";
-	}
 	close(tmpfile);
 	system("rm " tmpfile);
 	
