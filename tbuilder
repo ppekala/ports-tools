@@ -9,29 +9,23 @@ if [ ! -d "${PORTSDIR}" ]; then
 fi
 
 readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
-readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
-readonly TBUSER="${TBUSER:-$USER}"
-readonly UID="$(id -u)"
 readonly build="${3:-none}"
 
-# $1 tinderbox buildname, $2 port to build
-build_queue_add() {
-	local bname="${1}" port="${2%%:*}" option="${2##*:}"
-	local ptree="${TBDIR}/portstrees/$(tc_cmd getPortsTreeForBuild -b ${bname})/ports"
-
-	if [ ! -d "${ptree}/${port}" ]; then
-		echo "${bname}: ${port} does not exists"
-		return	
+poudriere_test_build() {
+	local jname="${1}" port="${2%%:*}" option="${2##*:}"
+	
+# TODO: automatic setting of needed option
+#	[ "${port}" = "$option" ] || tbopt set ${port} ${bname}
+	sudo poudriere testport -j ${jname} -o ${port}
+	if [ ${?} -ne 0 ]; then
+		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:failed"
+	else
+		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:success"
 	fi
-	
-	[ "${port}" = "$option" ] || tbopt set ${port} ${bname}
-	
-	echo "Adding ${port} to ${bname} build queue"
-	tc_cmd addBuildPortsQueueEntry -u ${TBUSER} -b ${bname} -d ${port}
 }
 
 display_usage() {
-	echo "Usage: tbuilder <command> <query> [build_name]"
+	echo "Usage: tbuilder <command> <query> [jail_name]"
 	echo ""
 	echo " command: bdeps - build ports having certain build dependency"
 	echo "          file  - build ports read from file"   
@@ -46,15 +40,9 @@ display_usage() {
 	echo "        (ldeps) - category/port"
 	echo "        (name) - category/port or '.' to build port from current directory"
 	echo ""
-	echo " build_name: tinderbox build name or 'all' for all available builds"
+	echo " jail_name: poudriere jail name or 'all' for all available jails"
 	echo ""
 	exit
-}
-
-tc_cmd() {
-	local tc_script="./tc"
-	[ ${UID} -eq 0 ] || tc_script="sudo ${tc_script}"
-	cd ${TBDIR}/scripts && ${tc_script} ${*}
 }
 
 [ -z "${2}" ] && display_usage
@@ -117,8 +105,23 @@ for port in ${ports}; do
 		fi
 		;;
 	all)
-		for b in $(tc_cmd listBuilds); do build_queue_add ${b} ${port}; done ;;
+		for b in $(poudriere jails -lq | cut -d" " -f1); do 
+			poudriere_test_build ${b} ${port}
+		done ;;
 	*)
-		build_queue_add ${build} ${port}
+		poudriere_test_build ${build} ${port}
 	esac
 done
+
+if [ -n "${BUILD_RESULTS}" ]; then
+	printf "\n===> Following build(s) were performed:\n"
+	printf "%-40s %-15s %s\n" "PORTNAME" "JAIL" "RESULT"
+
+	for result in ${BUILD_RESULTS}; do
+		printf "%-40s %-15s %s\n" "${result%%:*}" \
+			"$(echo ${result} | awk -F: '{ print $2 }')" \
+			"${result##*:}"
+	done
+	echo ""
+fi
+
