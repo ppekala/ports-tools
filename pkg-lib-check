@@ -199,11 +199,6 @@ print_list() {
 	done | sort -u
 }
 
-if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
-	echo "This script requires pkgNG (ports-mgmt/pkg)"
-	exit 1
-fi
-
 while getopts "adhfls:" option; do
 	case ${option} in
 	a)

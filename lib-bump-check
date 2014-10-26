@@ -133,11 +133,6 @@ while getopts "bj:hr:" option; do
 	esac
 done
 
-if [ ! -x "${LOCALBASE}/sbin/pkg" ]; then
-	echo "This script requires pkgNG (ports-mgmt/pkg)"
-	exit 1
-fi
-
 if [ ! -x "${LOCALBASE}/sbin/portmaster" ]; then
 	echo "This script requires portmaster"
 	exit 1

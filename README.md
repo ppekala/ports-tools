@@ -10,7 +10,7 @@ lib-bump-check
 After major library ABI bumps sometimes there are packages that got omitted
 and have it's PORTREVISION not increased. This script scans your installed
 packages and tries to find those that need to be rebuilt and offers to do
-it for you. Requires pkgNG.
+it for you.
 
 mkpatch
 -------
@@ -50,7 +50,7 @@ Simple port's search wrapper
 pkg-cutter
 ----------
 
-Leaf package remover with nice dialog interface, requires pkgNG.
+Leaf package remover with nice dialog interface.
 
 pkg-lib-check
 -------------
@@ -60,8 +60,6 @@ Script for detecting:
 * linking to non-existent library
 * binaries in package linked to specific library
 * minimal library dependencies.
-
-Requires pkgNG.
 
 plist-sort
 ----------
