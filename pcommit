@@ -213,8 +213,8 @@ fi
 [ ${clean_only} -eq 0 ] || exit
 
 if [ ${ignore_empty} -eq 0 ]; then
-	empty_files="$(find . -maxdepth ${depth} -type f -size 0 | \
-			sed 's|^./||')"
+	empty_files="$(find . -maxdepth ${depth} -type f -size 0 \
+			! -regex '.*\.svn/.*' | sed 's|^./||')"
 	for file in ${empty_files}; do
 		${PSVN} info "${file}" >/dev/null 2>&1
 		if [ ${?} -eq 0 ]; then
