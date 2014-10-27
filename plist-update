@@ -1,0 +1,92 @@
+#!/bin/sh
+
+readonly PAGER="${PAGER:-less}"
+readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
+readonly PLIST="$(make -V PLIST 2>/dev/null)"
+readonly PREFIX="$(make -V PREFIX 2>/dev/null)/"
+
+if [ -z "$(whereis -bq plist-sort)" ]; then
+	echo "===> Required script plist-sort not found"
+	exit 1
+fi
+
+if [ -z "${PKGNAME}" ]; then
+	echo "===> This is not port directory"
+	exit 1
+fi
+
+tempfile="$(mktemp -t tb-plist-update)"
+if [ -z "${tempfile}" ]; then
+	echo "===> Failed to create temporary file"
+	exit 1
+fi
+[ -f pkg-plist ] && plist_out="pkg-plist.new" || plist_out="pkg-plist"
+
+make check-plist 2>&1 | awk -v plist_file="${PLIST}" -v prefix="${PREFIX}" '
+BEGIN {
+	if (plist_file != "") {
+		while ((getline line < plist_file) > 0) {
+			n = index(line, "@dir");
+			k = index(line, "@sample");
+
+			if (n > 0 || k > 0) {
+				i = split(substr(line,n>0 ? n : k), p,  " ");
+				plist[ p[2] ] = line;
+			} else 
+				plist[line] = line;
+		}
+		close(plist_file);
+
+	}
+}
+
+/^Error: Missing:/ {
+	path = $3;
+	if (path == "")
+		next;
+	
+	if (plist[path] != "")
+		delete plist[path];
+}
+
+/^Error: Orphaned:/ {
+	path = $3;
+	if (path == "")
+		next;
+
+	if (plist[path] == "")
+		plist[path] = path;
+}
+
+END {
+	for (file in plist) {
+		if (plist[file] != "") {
+			print plist[file];
+			#printf("file <%s> var <%s>\n", file, plist[file]);
+		}
+	}
+
+}' > ${tempfile}
+
+plist-sort ${tempfile} > ${plist_out}
+rm ${tempfile}
+[ "${plist_out}" = "pkg-plist" ] && exit
+
+cmp -s pkg-plist ${plist_out}
+if [ ${?} -eq 1 ]; then
+	diff -u pkg-plist ${plist_out} | ${PAGER}
+	
+	while true; do
+		echo -n "Use newly generated plist (y/n)? "
+		read cmd
+		case ${cmd} in
+		[Yy])
+			mv ${plist_out} pkg-plist
+			break ;;
+		[Nn])
+			break
+		esac
+	done
+else
+	rm ${plist_out}
+fi

@@ -67,6 +67,12 @@ plist-sort
 Smart plist sorter which understands PLIST_SUB substitutions and options
 determined conditional files.
 
+plist-update
+---------------
+
+Script utilizing check-plist port's framework target output for updating
+outdated pkg-plist.
+
 plogsend
 --------
 
@@ -81,12 +87,6 @@ rports
 ------
 
 Script to sync port directory with your redports.org checkout
-
-tb-plist-update
----------------
-
-Reads tinderbox build log and tries to update plist if there any files
-left behind after build.
 
 tbopt
 -----
