@@ -3,7 +3,6 @@
 readonly PAGER="${PAGER:-less}"
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly PLIST="$(make -V PLIST 2>/dev/null)"
-readonly PREFIX="$(make -V PREFIX 2>/dev/null)/"
 
 if [ -z "$(whereis -bq plist-sort)" ]; then
 	echo "===> Required script plist-sort not found"
@@ -22,7 +21,7 @@ if [ -z "${tempfile}" ]; then
 fi
 [ -f pkg-plist ] && plist_out="pkg-plist.new" || plist_out="pkg-plist"
 
-make check-plist 2>&1 | awk -v plist_file="${PLIST}" -v prefix="${PREFIX}" '
+make check-plist 2>&1 | awk -v plist_file="${PLIST}" '
 BEGIN {
 	if (plist_file != "") {
 		while ((getline line < plist_file) > 0) {
@@ -36,7 +35,6 @@ BEGIN {
 				plist[line] = line;
 		}
 		close(plist_file);
-
 	}
 }
 
