@@ -1,5 +1,6 @@
 #!/bin/sh
 
+readonly PATHFIX=$(make -V USES | grep pathfix >/dev/null; echo ${?})
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly cmd="${1:-check}"
 
@@ -21,6 +22,9 @@ fi
 find work -name "*.bak" -print | while read file; do
 	case ${cmd} in
 	check)
+		#TODO Makefile.in may be changed by REINPLACE_CMD too, fix it
+		[ ${PATHFIX} -eq 0 -a \
+			"$(basename ${file})" = "Makefile.in.bak" ] && continue
 		[ -z "$(diff "${file}" "${file%.bak}")" ] && \
 			echo "File ${file%.bak} not modified" ;;
 	show)
