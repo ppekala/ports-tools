@@ -16,7 +16,7 @@ poudriere_test_build() {
 	
 # TODO: automatic setting of needed option
 #	[ "${port}" = "$option" ] || tbopt set ${port} ${bname}
-	sudo poudriere testport -s -j ${jname} -o ${port}
+	sudo poudriere testport -j ${jname} -o ${port}
 	if [ ${?} -ne 0 ]; then
 		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:failed"
 	else
