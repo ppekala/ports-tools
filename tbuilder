@@ -60,10 +60,11 @@ grep)
 	ports="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${2}" {} \; \
 		-print | grep -v "${2}/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
-	tmp="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${2}" {} \; \
-		-print | grep -v "${2}/Makefile" | sed -E 's;(\./|/Makefile);;g')"
+	tmp="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q \
+		"${2}[ \\]*\$" {} \; -print | grep -v "${2}" | sed 's|\./||')"
 
 	for path in ${tmp}; do
+		path="$(dirname ${path})"
 		cd ${PORTSDIR}/${path}
 		if [ -n "$(make -V LIB_DEPENDS | grep ${2})" ]; then
 			ports="${ports} ${path}"
