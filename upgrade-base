@@ -111,8 +111,15 @@ main_loop() {
 		exec_cmd "mergemaster -Fui" "MERGEMASTER_DONE" ;;
 	"MERGEMASTER_DONE")
 		if ask_yesno "Delete old files from system"; then
-			yes | ${MAKE} delete-old
-			yes | ${MAKE} delete-old-libs
+			out="$(yes | ${MAKE} delete-old delete-old-libs)"
+			if [ -n "${out}" ]; then
+				echo "===> Removed files:"
+				for file in ${out}; do
+					case ${file} in *\?)
+						printf "${file%%?}\n" ;;
+					esac
+				done
+			fi
 		fi
 		save_state ""
 
