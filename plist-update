@@ -38,22 +38,28 @@ BEGIN {
 	}
 }
 
+function get_plist_path() {
+	$1 = $2 = "";
+	if ($3 == "@dir")
+		$3 = "";
+
+	sub("^ *", "", $0);
+	return $0;
+}
+
 /^Error: Missing:/ {
-	path = $3;
-	if (path == "")
-		next;
+	path = get_plist_path();
 	
 	if (plist[path] != "")
 		delete plist[path];
 }
 
 /^Error: Orphaned:/ {
-	path = $3;
-	if (path == "")
-		next;
+	dir = ($3 == "@dir") ? "@dir " : "";
+	path = get_plist_path();
 
 	if (plist[path] == "")
-		plist[path] = path;
+		plist[path] = (dir == "") ? path : dir path;
 }
 
 END {
