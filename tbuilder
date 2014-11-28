@@ -9,6 +9,9 @@ if [ ! -d "${PORTSDIR}" ]; then
 fi
 
 readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
+
+readonly command="${1}"
+readonly query="${2}"
 readonly build="${3:-none}"
 
 poudriere_test_build() {
@@ -16,7 +19,7 @@ poudriere_test_build() {
 	
 # TODO: automatic setting of needed option
 #	[ "${port}" = "$option" ] || tbopt set ${port} ${bname}
-	sudo poudriere testport -j ${jname} -o ${port}
+	sudo poudriere testport -j ${jname} -o ${port} ${poudriere_args}
 	if [ ${?} -ne 0 ]; then
 		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:failed"
 	else
@@ -25,7 +28,7 @@ poudriere_test_build() {
 }
 
 display_usage() {
-	echo "Usage: tbuilder <command> <query> [jail_name]"
+	echo "Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]"
 	echo ""
 	echo " command: bdeps - build ports having certain build dependency"
 	echo "          file  - build ports read from file"   
@@ -45,37 +48,44 @@ display_usage() {
 	exit
 }
 
-[ -z "${2}" ] && display_usage
+[ -z "${query}" ] && display_usage
+if [ -n "${4}" ]; then
+	shift 3;
+	poudriere_args="${*}";
+#	echo "poudriere args = ${poudriere_args}"
+#	exit
+fi
 
-case ${1} in
+case ${command} in
 bdeps)
-	ports="$(portsearch -b ${2} | grep Path: | cut -f 4- -d '/')" ;;
+	ports="$(portsearch -b ${query} | grep Path: | cut -f 4- -d '/')" ;;
 file)
-	if [ ! -f "${2}" ]; then
-		echo "File ${2} does not exists"
+	if [ ! -f "${query}" ]; then
+		echo "File ${query} does not exists"
 		exit 1
 	fi
-	ports="$(cat "${2}")" ;;
+	ports="$(cat "${query}")" ;;
 grep)
-	ports="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${2}" {} \; \
-		-print | grep -v "${2}/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
+	ports="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${query}" {} \; \
+		-print | grep -v "${query}/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
-	[ -d "${PORTSDIR}/${2}" ] || display_usage
+	[ -d "${PORTSDIR}/${query}" ] || display_usage
 	tmp="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q \
-		"${2}[ \\]*\$" {} \; -print | sed 's|\./||')"
+		"${query}[ \\]*\$" {} \; -print | sed 's|\./||')"
 
 	for path in ${tmp}; do
 		path="$(dirname ${path})"
-		[ "${2}" != "${path}" ] || continue
+		[ "${query}" != "${path}" ] || continue
 		cd ${PORTSDIR}/${path}
-		if [ -n "$(make -V LIB_DEPENDS | grep ${2})" ]; then
+		if [ -n "$(make -V LIB_DEPENDS | grep ${query})" ]; then
 			ports="${ports} ${path}"
 			continue
 		fi
 		
 		for option in $(make pretty-print-config); do
 			[ -n "$(echo ${option} | grep ^-)" ] || continue
-			[ -n "$(make -V LIB_DEPENDS WITH_${option#-}=yes | grep ${2})" ] || continue
+			[ -n "$(make -V LIB_DEPENDS WITH_${option#-}=yes | \
+				grep ${query})" ] || continue
 			ports="${ports} ${path}:${option#-}"
 			continue 2
 		done
@@ -84,10 +94,10 @@ ldeps)
 	done
 	;;	
 match)
-	ports="$(portsearch -n ${2} | grep Path: | cut -f 4- -d '/')" ;;
+	ports="$(portsearch -n ${query} | grep Path: | cut -f 4- -d '/')" ;;
 name)
-	[ -d "${PORTSDIR}/${2}" -o "${2}" = "." ] || display_usage
-	ports="${2}"
+	[ -d "${PORTSDIR}/${query}" -o "${query}" = "." ] || display_usage
+	ports="${query}"
 	[ "${ports}" = "." ] && ports="$(echo ${PWD} | \
 		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')" ;;
 *)
@@ -97,7 +107,7 @@ esac
 for port in ${ports}; do
 	case ${build} in
 	none)
-		if [ "${1}" != "name" ]; then
+		if [ "${command}" != "name" ]; then
 			case ${port##*:} in
 			"${port}")
 				echo "Found match: ${port%%:*}" ;;
