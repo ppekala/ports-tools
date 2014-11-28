@@ -52,8 +52,6 @@ display_usage() {
 if [ -n "${4}" ]; then
 	shift 3;
 	poudriere_args="${*}";
-#	echo "poudriere args = ${poudriere_args}"
-#	exit
 fi
 
 case ${command} in
