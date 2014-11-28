@@ -118,7 +118,7 @@ main_loop() {
 					case ${file} in *\?)
 						printf "${file%%?}\n" ;;
 					esac
-				done
+				done | sort
 			fi
 		fi
 		save_state ""
