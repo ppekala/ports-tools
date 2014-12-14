@@ -117,7 +117,7 @@ for port in ${ports}; do
 		fi
 		;;
 	all)
-		for b in $(poudriere jails -lq | cut -d" " -f1); do 
+		for b in $(poudriere jails -lq | cut -d" " -f1 | sort -h); do 
 			poudriere_test_build ${b} ${port}
 		done ;;
 	*)
