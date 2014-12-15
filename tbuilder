@@ -16,10 +16,18 @@ readonly build="${3:-none}"
 
 poudriere_test_build() {
 	local jname="${1}" port="${2%%:*}" option="${2##*:}"
+	local port_cfg=""
 	
-# TODO: automatic setting of needed option
-#	[ "${port}" = "$option" ] || tbopt set ${port} ${bname}
-	sudo poudriere testport -j ${jname} -o ${port} ${poudriere_args}
+	if [ "${port}" != "${option}" ]; then
+		if [ "${option}" != "OPT_UNKNOWN"  ]; then
+			echo "*** port ${port} needs ${option} to be set ***"
+			port_cfg="-c"
+		else
+			echo "*** port ${port} unknown option needed ***"
+		fi
+	fi
+
+	sudo poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
 	if [ ${?} -ne 0 ]; then
 		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:failed"
 	else
