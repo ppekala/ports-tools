@@ -1,45 +1,57 @@
 #!/bin/sh
 
 readonly FREEBSD_LOGIN="${FREEBSD_LOGIN:-$USER}"
-readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
-readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
-readonly UID="$(id -u)"
+readonly PAGER="${PAGER:-less}"
+readonly PKGVERSION="$(make -V PKGVERSION 2>/dev/null)"
+readonly PORTNAME="$(make -V PORTNAME 2>/dev/null)"
+readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 
-tc_cmd() {
-	local tc_script="./tc"
-	[ ${UID} -eq 0 ] || tc_script="sudo ${tc_script}"
-	cd ${TBDIR}/scripts && ${tc_script} ${*}
-}
+cmd="${1}"
+jail="${2}"
+logdir="${POUDRIERE_DIR}/data/logs/bulk/latest-per-pkg/${PORTNAME}/${PKGVERSION}"
 
-if [ -z "${PKGNAME}" ]; then
+if [ -z "${PORTNAME}" ]; then
 	echo "===> This is not port directory"
 	exit 1
 fi
 
-builds="${1}"
-if [ -z "${builds}" ]; then
-	for build in $(tc_cmd listBuilds); do
-		if [ -f "${TBDIR}/logs/${build}/${PKGNAME}.log" ]; then
-			logfile="${TBDIR}/logs/${build}/${PKGNAME}.log"
-			sel_build="${build}"
+if [ "${cmd}" != "send" -a "${cmd}" != "show" ]; then
+	echo "Usage: plog <send|view> [jailname]"
+	echo ""
+	echo "   send - scp(1) build log to freefall"
+	echo "   show - see build log"
+	echo ""
+	exit
+fi
+
+if [ -z "${jail}" ]; then
+	for j in $(poudriere jail -lq | cut -d" " -f 1 | sort -h); do
+		if [ -f "${logdir}/${j}-default.log" ]; then
+			logfile="${logdir}/${j}-default.log"
+			sel_jail="${j}"
 			break
 		fi
 	done
 	
 	if [ -z "${logfile}" ]; then
-		echo "===> Could not find any build logs for ${PKGNAME}"
+		echo "===> Could not find any build logs for ${PORTNAME}"
 		exit 1
 	fi
 else
-	logfile="${TBDIR}/logs/${builds}/${PKGNAME}.log"
-	if [ ! -f "$logfile" ]; then
+	logfile="${logdir}/${jail}-default.log"
+	if [ ! -f "${logfile}" ]; then
 		echo "===> Logfile ${logfile} does not exist"
 		exit 1
 	fi
-	sel_build="${builds}"
+	sel_jail="${jail}"
 fi
 
-echo "===> Build selected: ${sel_build}"
-echo "===> Uploading to http://people.freebsd.org/~${FREEBSD_LOGIN}/buildlogs/${PKGNAME}.log"
-scp "${logfile}" ${FREEBSD_LOGIN}@freefall.freebsd.org:public_html/buildlogs/
-exit ${?}
+if [ "${cmd}" = "send" ]; then
+	logname="${PORTNAME}-${PKGVERSION}-${sel_jail}.log"
+	echo "===> Jail selected: ${sel_jail}"
+	echo "===> Uploading to http://people.freebsd.org/~${FREEBSD_LOGIN}/buildlogs/${logname}"
+	scp "${logfile}" ${FREEBSD_LOGIN}@freefall.freebsd.org:public_html/buildlogs/${logname}
+else
+	${PAGER} ${logfile}
+fi
+

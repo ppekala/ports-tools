@@ -73,10 +73,11 @@ plist-update
 Script utilizing check-plist port's framework target output for updating
 outdated pkg-plist.
 
-plogsend
+plog
 --------
 
-Easy way to send tinderbox build logs to your FreeBSD account by scp.
+Easy way to send poudriere build logs to your FreeBSD account by scp or
+view them on your computer.
 
 reinplace-check
 ---------------
