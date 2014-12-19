@@ -16,7 +16,7 @@ if [ -z "${PORTNAME}" ]; then
 fi
 
 if [ "${cmd}" != "send" -a "${cmd}" != "show" ]; then
-	echo "Usage: plog <send|view> [jailname]"
+	echo "Usage: plog <send|show> [jailname]"
 	echo ""
 	echo "   send - scp(1) build log to freefall"
 	echo "   show - see build log"
