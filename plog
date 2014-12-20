@@ -1,31 +1,57 @@
 #!/bin/sh
 
+PORTSDIR=${PORTSDIR:-/usr/ports}
+[ -d "${PORTSDIR}" ] || \
+	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
+if [ ! -d "${PORTSDIR}" ]; then
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+	exit 1
+fi
+
 readonly FREEBSD_LOGIN="${FREEBSD_LOGIN:-$USER}"
 readonly PAGER="${PAGER:-less}"
-readonly PKGVERSION="$(make -V PKGVERSION 2>/dev/null)"
-readonly PORTNAME="$(make -V PORTNAME 2>/dev/null)"
 readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 
 cmd="${1}"
 jail="${2}"
-logdir="${POUDRIERE_DIR}/data/logs/bulk/latest-per-pkg/${PORTNAME}/${PKGVERSION}"
+port="${3}"
 
-if [ -z "${PORTNAME}" ]; then
-	echo "===> This is not port directory"
-	exit 1
-fi
+display_usage() {
+	<< EOF cat
+Usage: plog <send|show> [jailname] [category/port]
 
-if [ "${cmd}" != "send" -a "${cmd}" != "show" ]; then
-	echo "Usage: plog <send|show> [jailname]"
-	echo ""
-	echo "   send - scp(1) build log to freefall"
-	echo "   show - see build log"
-	echo ""
+   send - scp(1) build log to freefall
+   show - see build log
+
+EOF
 	exit
+}
+
+poudriere_jails() {
+	poudriere jail -lq | cut -d " " -f1
+}
+
+[ "${cmd}" != "send" -a "${cmd}" != "show" ] && display_usage
+
+if [ -n "${jail}" -a -z "$(poudriere_jails | grep ${jail})" ]; then
+	printf "${jail}: no such poudriere jail\n\n"
+	display_usage
 fi
+
+if [ -n "${port}" -a ! -d "${PORTSDIR}/${port}" ]; then
+	printf "${PORTSDIR}/${port}: no such port found\n\n"
+	display_usage
+fi
+
+[ -z "${port}" ] || cd "${PORTSDIR}/${port}"
+
+readonly PKGBASE="$(make -V PKGBASE 2>/dev/null)"
+readonly PKGVERSION="$(make -V PKGVERSION 2>/dev/null)"
+
+logdir="${POUDRIERE_DIR}/data/logs/bulk/latest-per-pkg/${PKGBASE}/${PKGVERSION}"
 
 if [ -z "${jail}" ]; then
-	for j in $(poudriere jail -lq | cut -d" " -f 1 | sort -h); do
+	for j in $(poudriere_jails | sort -h); do
 		if [ -f "${logdir}/${j}-default.log" ]; then
 			logfile="${logdir}/${j}-default.log"
 			sel_jail="${j}"
@@ -34,7 +60,7 @@ if [ -z "${jail}" ]; then
 	done
 	
 	if [ -z "${logfile}" ]; then
-		echo "===> Could not find any build logs for ${PORTNAME}"
+		echo "===> Could not find any build logs for ${PKGBASE}-${PKGVERSION}"
 		exit 1
 	fi
 else
@@ -47,7 +73,7 @@ else
 fi
 
 if [ "${cmd}" = "send" ]; then
-	logname="${PORTNAME}-${PKGVERSION}-${sel_jail}.log"
+	logname="${PKGBASE}-${PKGVERSION}-${sel_jail}.log"
 	echo "===> Jail selected: ${sel_jail}"
 	echo "===> Uploading to http://people.freebsd.org/~${FREEBSD_LOGIN}/buildlogs/${logname}"
 	scp "${logfile}" ${FREEBSD_LOGIN}@freefall.freebsd.org:public_html/buildlogs/${logname}
