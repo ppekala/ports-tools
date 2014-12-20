@@ -77,7 +77,7 @@ grep)
 ldeps)
 	[ -d "${PORTSDIR}/${query}" ] || display_usage
 	tmp="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q \
-		"${query}[ \\]*\$" {} \; -print | sed 's|\./||')"
+		"^[^#].*${query}[ \\]*\$" {} \; -print | sed 's|\./||')"
 
 	for path in ${tmp}; do
 		path="$(dirname ${path})"
