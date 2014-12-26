@@ -141,10 +141,21 @@ save_state() {
 	echo "${1}" > ${CONF_FILE}
 }
 
+# needed for rebuilding kernel modules ports
+PORTSDIR=${PORTSDIR:-/usr/ports}
+[ -d "${PORTSDIR}" ] || \
+	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
+if [ ! -d "${PORTSDIR}" ]; then
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+	exit 1
+fi
+
+make_args="PORTSDIR=${PORTSDIR}"
+
 while getopts "chs" option; do
 	case ${option} in
 	c)
-		make_args="NO_CLEAN=yes" ;;
+		make_args="${make_args} NO_CLEAN=yes" ;;
 	s)
 		echo > ${CONF_FILE} ;;
 	*)
