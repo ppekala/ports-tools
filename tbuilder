@@ -90,6 +90,8 @@ ldeps)
 		
 		for option in $(make pretty-print-config); do
 			[ -n "$(echo ${option} | grep ^-)" ] || continue
+			[ -z "$(make -V RUN_DEPENDS WITH_${option#-}=yes | \
+				grep ${query})" ] || continue 2
 			[ -n "$(make -V LIB_DEPENDS WITH_${option#-}=yes | \
 				grep ${query})" ] || continue
 			ports="${ports} ${path}:${option#-}"
