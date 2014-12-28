@@ -36,23 +36,25 @@ poudriere_test_build() {
 }
 
 display_usage() {
-	echo "Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]"
-	echo ""
-	echo " command: bdeps - build ports having certain build dependency"
-	echo "          file  - build ports read from file"   
-	echo "          grep  - build ports containing phrase in Makefile"
-	echo "          ldeps - build ports linking with certain library"
-	echo "          match - build ports with name matching certain phrase"
-	echo "          name  - build specific port"
-	echo ""
-	echo " query: (bdeps|match) - portname"
-	echo "        (file) - name of file to read category/port entries from"
-	echo "        (grep) - grep pattern"
-	echo "        (ldeps) - category/port"
-	echo "        (name) - category/port or '.' to build port from current directory"
-	echo ""
-	echo " jail_name: poudriere jail name or 'all' for all available jails"
-	echo ""
+	<< EOF cat
+Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]
+
+ command: bdeps - build ports having certain build dependency
+          file  - build ports read from file
+          grep  - build ports containing phrase in Makefile
+          ldeps - build ports linking with certain library
+          match - build ports with name matching certain phrase
+          name  - build specific port
+
+ query: (bdeps|match) - portname
+        (file) - name of file to read category/port entries from
+        (grep) - grep pattern
+        (ldeps) - category/port
+        (name) - category/port or '.' to build port from current directory
+
+ jail_name: poudriere jail name or 'all' for all available jails
+
+EOF
 	exit
 }
 

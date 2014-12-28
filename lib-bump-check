@@ -32,13 +32,15 @@ check_package() {
 }
 
 display_usage() {
-	echo "Usage: lib-bump-check [-b] [-h] [-j jobs] [-r pkgname]"
-	echo ""
-	echo "    -b - disable check for library newer version"
-	echo "    -j - set number of parallel checks to jobs"
-	echo "    -h - show this help"
-	echo "    -r - check only packages that depend on pkgname"
-	echo ""
+	<< EOF cat
+Usage: lib-bump-check [-b] [-h] [-j jobs] [-r pkgname]
+
+    -b - disable check for library newer version
+    -j - set number of parallel checks to jobs
+    -h - show this help
+    -r - check only packages that depend on pkgname
+
+EOF
 	exit
 }
 
@@ -205,22 +207,18 @@ printf "\n\n"
 
 pkg_bad_deps="$(cat ${TMP_BAD})"
 if [ -n "${pkg_bad_deps}" ]; then
-	echo "Following packages were ignored due probable packaging problems:"
-	echo ""
+	printf "Following packages were ignored due probable packaging problems:\n\n"
 	echo "${pkg_bad_deps}" | fmt -w 78
 	echo ""
 fi
 
 pkg_stale="$(cat ${TMP_STALE})"
 if [ -z "${pkg_stale}" ]; then
-	echo "No packages linked to stale libs found"
-	echo ""
+	printf "No packages linked to stale libs found\n\n"
 	exit_clean 0
 fi
 
-echo "Following packages are linked to stale libs:"
-echo ""
-
+printf "Following packages are linked to stale libs:\n\n"
 for pkg in ${pkg_stale}; do
 	pkg_re="${pkg_re} ${pkg%%@*}"
 	echo "   ${pkg%%@*} => ${pkg#*@}" | sed 's|@| |g'
@@ -228,8 +226,7 @@ for pkg in ${pkg_stale}; do
 done
 
 while true; do
-	echo ""
-	echo "Total: ${n_stale} package(s)"
+	printf "\nTotal: ${n_stale} package(s)"
 	echo -e "Do you want to reinstall them (y/n)? [y] \c"
 	read answer
 	[ -n "${answer}" ] || answer="y"

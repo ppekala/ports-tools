@@ -33,12 +33,14 @@ ask_yesno() {
 }
 
 display_usage() {
-	echo "Usage: upgrade-ports [-h|-w|-y]"
-	echo ""
-	echo "    -h - show this help"
-	echo "    -w - wait for key press after finish"
-	echo "    -y - answer yes to all questions"
-	echo ""
+	<< EOF cat
+Usage: upgrade-ports [-h|-w|-y]
+
+    -h - show this help
+    -w - wait for key press after finish
+    -y - answer yes to all questions
+
+EOF
 	exit
 }
 
@@ -99,9 +101,7 @@ upgrade_exit() {
 	[ -n "${tmpfile}" -a -f "${tmpfile}" ] && rm -rf "${tmpfile}"
 
 	if [ ${3} -eq 1 ]; then
-		echo ""
-		echo "===> Press Enter key to finish."
-		echo ""
+		printf "\n===> Press Enter key to finish.\n\n"
 		read key
 	fi
 	exit ${1}

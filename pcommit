@@ -48,13 +48,15 @@ dir_cache_add() {
 }
 
 display_usage() {
-	echo "Usage: pcommit [-c|-e|-h|-n]"
-	echo ""
-	echo "    -c - clean temp files only"
-	echo "    -e - ignore empty files"
-	echo "    -h - show this help"
-	echo "    -n - non-interactive mode"
-	echo ""
+	<< EOF cat
+Usage: pcommit [-c|-e|-h|-n]
+
+    -c - clean temp files only
+    -e - ignore empty files
+    -h - show this help
+    -n - non-interactive mode
+
+EOF
 	exit
 }
 
@@ -208,7 +210,6 @@ old_files="$(find -E . \( -name "*.orig" -or -name "svn-commit.*" \) \
 if [ -n "${old_files}" ]; then
 	echo "===> Removed old temporary files"
 	echo ${old_files} | tr ' ' '\n'
-	echo ""
 fi
 [ ${clean_only} -eq 0 ] || exit
 
@@ -287,8 +288,7 @@ if [ ${non_interactive} -eq 1 ]; then
 fi
 
 while true; do
-	echo ""
-	echo "[c]ommit [v]iew diff [s]vn status [q]uit"
+	printf "\n[c]ommit [v]iew diff [s]vn status [q]uit"
 	echo -n "> "
 
 	read cmd

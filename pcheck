@@ -5,11 +5,13 @@ readonly hunspell="hunspell -d en_US"
 skip_spellcheck=0
 
 display_usage() {
-	echo "Usage: pcheck [-h|-s]"
-	echo ""
-	echo "    -h - show this help"
-	echo "    -s - skip spellcheck"
-	echo ""
+	<< EOF cat
+Usage: pcheck [-h|-s]
+
+    -h - show this help
+    -s - skip spellcheck
+
+EOF
 	exit
 }
 

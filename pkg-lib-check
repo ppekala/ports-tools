@@ -154,15 +154,17 @@ dependency_is_inherited() {
 }
 
 display_usage() {
-	echo "Usage: pkg-lib-check [-d|-h|-f|-l|-s grep_pattern] <-a|pkg_name>"
-	echo ""
-	echo "    -a - test all installed packages"
-	echo "    -d - show direct dependencies"
-	echo "    -h - show this help"
-	echo "    -f - do full checks with inheritance detection (slow)"
-	echo "    -l - check only for link problems"
-	echo "    -s - show files linked to 'grep_pattern'"
-	echo ""
+	<< EOF cat
+Usage: pkg-lib-check [-d|-h|-f|-l|-s grep_pattern] <-a|pkg_name>
+
+    -a - test all installed packages
+    -d - show direct dependencies
+    -h - show this help
+    -f - do full checks with inheritance detection (slow)
+    -l - check only for link problems
+    -s - show files linked to 'grep_pattern'
+
+EOF
 	exit
 }
 

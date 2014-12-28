@@ -9,14 +9,16 @@ if [ ! -d "${PORTSDIR}" ]; then
 fi
 
 display_usage() {
-	echo "Usage: pfind [-c category] [-h] [-m maintainer] [-n name] [-s string]"
-	echo ""
-	echo "    -c - port category"
-	echo "    -h - show this help"
-	echo "    -m - port's maintainer"
-	echo "    -n - port's name"
-	echo "    -s - string to find in port's Makefile"
-	echo ""
+	<< EOF cat
+Usage: pfind [-c category] [-h] [-m maintainer] [-n name] [-s string]
+
+    -c - port category
+    -h - show this help
+    -m - port's maintainer
+    -n - port's name
+    -s - string to find in port's Makefile
+
+EOF
 	exit
 }
 

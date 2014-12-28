@@ -4,18 +4,20 @@ readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
 readonly UID="$(id -u)"
 
 display_usage() {
-	echo "Usage: tbopt <del|set|show> <portname> <buildname>"
-	echo "       tbopt list <buildname>"
-	echo ""
-	echo " command: del  - remove set options"
-	echo "          list - list ports with changed options"
-	echo "          set  - set options"
-	echo "          show - show current options state"
-	echo ""
-	echo " portname: category/port or '.' to build port from current directory"
-	echo ""
-	echo " buildname: tinderbox build name or 'all' for all available builds"
-	echo ""
+	<< EOF cat
+Usage: tbopt <del|set|show> <portname> <buildname>
+       tbopt list <buildname>
+
+ command: del  - remove set options
+          list - list ports with changed options
+          set  - set options
+          show - show current options state
+
+ portname: category/port or '.' to build port from current directory
+
+ buildname: tinderbox build name or 'all' for all available builds
+
+EOF
 	exit
 }
 

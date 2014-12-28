@@ -10,14 +10,16 @@ rm_count=0
 sel_status="off"
 
 display_usage() {
-	echo "Usage: pkg-cutter [-h|-x]"
-	echo "       pkg-cutter [-o] [-y]"
-	echo ""
-	echo "    -h - show this help"
-	echo "    -o - set selection to on by default"
-	echo "    -x - update exclude list"
-	echo "    -y - assume yes when there are new leaf packages"
-	echo ""
+	<< EOF cat
+Usage: pkg-cutter [-h|-x]
+       pkg-cutter [-o] [-y]
+
+    -h - show this help
+    -o - set selection to on by default
+    -x - update exclude list
+    -y - assume yes when there are new leaf packages
+
+EOF
 	exit
 }
 

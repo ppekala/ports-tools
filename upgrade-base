@@ -23,12 +23,14 @@ ask_yesno() {
 }
 
 display_usage() {
-	echo "Usage: upgrade-base [-c|-h|-s]"
-	echo ""
-	echo "    -c - do not clean tree before build (NO_CLEAN=yes)"
-	echo "    -h - show this help"
-	echo "    -s - reset status and begin from start"
-	echo ""
+	<< EOF cat
+Usage: upgrade-base [-c|-h|-s]
+
+    -c - do not clean tree before build (NO_CLEAN=yes)
+    -h - show this help
+    -s - reset status and begin from start
+
+EOF
 	exit
 }
 
@@ -65,9 +67,7 @@ main_loop() {
 
 		n_entry=$(last_updating_entry)
 		if [ ${n_entry} -gt ${l_entry} ]; then
-			echo "New entries since last upgrade in ${SRCDIR}/UPDATING file:"
-			echo ""
-
+			printf "New entries since last upgrade in ${SRCDIR}/UPDATING file:\n\n"
 			awk -v entry="${l_entry}" '
 			BEGIN { new_entry=0; }
 	
@@ -99,9 +99,7 @@ main_loop() {
 		exec_cmd "${MAKE} buildkernel ${make_args}" "KERNEL_BUILT" ;;
 	"KERNEL_BUILT")
 		exec_cmd "${MAKE} installkernel ${make_args}" "KERNEL_INSTALLED"
-		echo ""
-		echo "===> You need to restart computer now."
-		echo ""
+		printf "\n===> You need to restart computer now.\n\n"
 		exit 0 ;;
 	"KERNEL_INSTALLED")
 		exec_cmd "mergemaster -p" "MERGEMASTER_INIT"  ;;
@@ -122,11 +120,7 @@ main_loop() {
 			fi
 		fi
 		save_state ""
-
-		echo ""
-		echo "===> You need to restart computer again."
-		echo ""
-
+		printf "\n===> You need to restart computer again.\n\n"
 		exit 0 ;;
 	*)
 		echo "===> Garbage in ${CONF_FILE}, try upgrade-base -s"

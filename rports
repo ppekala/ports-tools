@@ -4,11 +4,13 @@ readonly PSVN="${PSVN:-svn}"
 readonly RPORTSDIR="${RPORTSDIR:-${HOME}/redports}"
 
 display_usage() {
-	echo "Usage: rports [-h|-n] [portdir]"
-	echo ""
-	echo "    -h - show this help"
-	echo "    -n - non-interactive mode"
-	echo ""
+	<< EOF cat
+Usage: rports [-h|-n] [portdir]
+
+    -h - show this help
+    -n - non-interactive mode
+
+EOF
 	exit
 }
 
