@@ -56,7 +56,7 @@ check_for_link_errors() {
 		lib_owner="$(pkg which -q ${lib} 2>/dev/null)"
 
 		# skip false positive libGL - this library is shared between packages
-		if [ ${?} -ne ${PKG_OWNER_FOUND} -a "${lib%%*/lib/libGL.so.*}" ]; then
+		if [ ${?} -ne 0 -a "${lib%%*/lib/libGL.so.*}" ]; then
 			[ ${show_direct_deps} -eq 0 ] && \
 				link_leftover="${link_leftover} ${lib}"
 			continue
@@ -242,14 +242,6 @@ while getopts "adhfls:" option; do
 		display_usage
 	esac
 done
-
-# pkg keeps changing exit code for pkg which
-PKG_MINOR_VER="$(pkg -v | cut -d. -f 2)"
-if [ ${PKG_MINOR_VER} -lt 2 ]; then
-	PKG_OWNER_FOUND=70
-else	
-	PKG_OWNER_FOUND=0
-fi
 
 if [ ${test_all} -eq 0 ]; then
 	shift $((OPTIND-1))
