@@ -40,7 +40,7 @@ check_for_link_errors() {
 		# library not found on system
 		case ${lib} in not_found*)
 			if [ -z "${javavm}" ]; then
-				javavm="$(pkg info -dq ${package} | egrep "jdk|jre")"
+				javavm="$(pkg_full_deps ${package} ${package} | egrep "jdk|jre")"
 				[ -z "${javavm}" ] && javavm="no"
 			fi
 
@@ -86,7 +86,7 @@ check_for_missing_deps() {
 	local package="${1}" deps="${2}" missing_deps
 
 	[ ${show_direct_deps} -eq 0 ] && \
-		registered_deps="$(pkg info -dq ${package} 2>/dev/null)"
+		registered_deps="$(pkg_full_deps ${package} ${package})"
 	for dep in ${deps}; do
 		case ${registered_deps} in
 		*${dep}*)
@@ -98,7 +98,9 @@ check_for_missing_deps() {
 
 	[ -z "${missing_deps}" ] && return
 
-	all_deps="$(pkg info -dq ${missing_deps} | sort -u)"
+	all_deps="$(for pkg in ${missing_deps}; do
+		pkg_full_deps ${pkg} ${pkg}
+	done | sort -u)"
 	for dep in ${missing_deps}; do
 		case ${all_deps} in
 		*${dep}*)
@@ -112,7 +114,7 @@ check_for_missing_deps() {
 check_registered_deps() {
 	local broken=0 dep
 	
-	for dep in $(pkg info -dq ${1}); do
+	for dep in $(pkg_full_deps ${1} ${1}); do
 		pkg info -e ${dep} 2>/dev/null
 		if [ ${?} -ne 0 ]; then
 			echo "non-existent dependency: ${dep}"
@@ -127,7 +129,7 @@ check_registered_deps() {
 dependency_is_inherited() {
 	local pkg="${1}" dep="${2}" inh
 
-	for p_dep in $(pkg info -dq ${pkg}); do
+	for p_dep in $(pkg_full_deps ${pkg} ${pkg}); do
 		case ${PKG_DEPS_OK} in *${p_dep}*)
 			continue
 		esac
@@ -179,6 +181,23 @@ find_linked_to() {
 	
 	print_header ${package}
 	print_list "${ret}"
+}
+
+pkg_full_deps() {
+	local pkgname="${2}" rootpkg="${1}"
+
+	case ${deps} in *${pkgname}*) return; esac
+	[ "${rootpkg}" != "${pkgname}" ] && deps="${deps} ${pkgname}"
+
+	for dep in $(pkg info -dq ${pkgname}); do
+		case ${deps} in *${dep}*) continue; esac
+		pkg_full_deps ${rootpkg} ${dep}
+	done
+
+	if [ "${rootpkg}" = "${pkgname}" ]; then
+		echo "${deps}" | sed 's/^ //' | tr ' ' '\n'
+		deps=""
+	fi
 }
 
 # $1 - package name
