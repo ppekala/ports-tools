@@ -14,27 +14,6 @@ readonly command="${1}"
 readonly query="${2}"
 readonly build="${3:-none}"
 
-poudriere_test_build() {
-	local jname="${1}" port="${2%%:*}" option="${2##*:}"
-	local port_cfg=""
-	
-	if [ "${port}" != "${option}" ]; then
-		if [ "${option}" != "OPT_UNKNOWN"  ]; then
-			echo "*** port ${port} needs ${option} to be set ***"
-			port_cfg="-c"
-		else
-			echo "*** port ${port} unknown option needed ***"
-		fi
-	fi
-
-	sudo poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
-	if [ ${?} -ne 0 ]; then
-		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:failed"
-	else
-		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:success"
-	fi
-}
-
 display_usage() {
 	<< EOF cat
 Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]
@@ -58,7 +37,40 @@ EOF
 	exit
 }
 
+poudriere_jails() {
+	poudriere jail -lq | cut -d" " -f1
+}
+
+poudriere_test_build() {
+	local jname="${1}" port="${2%%:*}" option="${2##*:}"
+	local port_cfg=""
+
+	if [ "${port}" != "${option}" ]; then
+		if [ "${option}" != "OPT_UNKNOWN"  ]; then
+			echo "*** port ${port} needs ${option} to be set ***"
+			port_cfg="-c"
+		else
+			echo "*** port ${port} unknown option needed ***"
+		fi
+	fi
+
+	sudo poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
+	if [ ${?} -ne 0 ]; then
+		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:failed"
+	else
+		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:success"
+	fi
+}
+
 [ -z "${query}" ] && display_usage
+
+if [ "${build}" != "none" -a "${build}" != "all" \
+	-a -z "$(poudriere_jails | grep ${build})" ]
+then
+	printf "${build}: no such poudriere jail\n\n"
+	display_usage
+fi
+
 if [ -n "${4}" ]; then
 	shift 3;
 	poudriere_args="${*}";
@@ -77,7 +89,10 @@ grep)
 	ports="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${query}" {} \; \
 		-print | grep -v "${query}/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
-	[ -d "${PORTSDIR}/${query}" ] || display_usage
+	if [ ! -d "${PORTSDIR}/${query}" ]; then
+		printf "${PORTSDIR}/${query}: port directory does not exists\n\n"
+		display_usage
+	fi
 	tmp="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q \
 		"^[^#].*${query}[ \\]*\$" {} \; -print | sed 's|\./||')"
 
@@ -106,7 +121,10 @@ ldeps)
 match)
 	ports="$(portsearch -n ${query} | grep Path: | cut -f 4- -d '/')" ;;
 name)
-	[ -d "${PORTSDIR}/${query}" -o "${query}" = "." ] || display_usage
+	if [ "${query}" != "." -a ! -d "${PORTSDIR}/${query}" ]; then
+		printf "${PORTSDIR}/${query}: port directory does not exists\n\n"
+		display_usage
+	fi
 	ports="${query}"
 	[ "${ports}" = "." ] && ports="$(echo ${PWD} | \
 		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')" ;;
@@ -129,7 +147,7 @@ for port in ${ports}; do
 		fi
 		;;
 	all)
-		for b in $(poudriere jails -lq | cut -d" " -f1 | sort -h); do 
+		for b in $(poudriere_jails | sort -h); do 
 			poudriere_test_build ${b} ${port}
 		done ;;
 	*)
