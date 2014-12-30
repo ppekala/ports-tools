@@ -31,19 +31,20 @@ poudriere_jails() {
 
 [ "${cmd}" != "send" -a "${cmd}" != "show" ] && display_usage
 
-[ -n "${jail}" ] || display_usage
-if [ -z "$(poudriere_jails | grep ${jail})" ]; then
-	printf "${jail}: no such poudriere jail\n\n"
-	display_usage
+if [ -n "${jail}" ]; then
+	if [ -z "$(poudriere_jails | grep ${jail})" ]; then
+		printf "${jail}: no such poudriere jail\n\n"
+		display_usage
+	fi
 fi
 
-[ -n "${port}" ] || display_usage
-if [ ! -d "${POUDRIERE_PORTS}/${port}" ]; then
+[ -n "${port}" ] || port="."
+if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
 	printf "${POUDRIERE_PORTS}/${port}: no such port found\n\n"
 	display_usage
 fi
 
-[ -z "${port}" ] || cd "${POUDRIERE_PORTS}/${port}"
+[ "${port}" = "." ] || cd "${POUDRIERE_PORTS}/${port}"
 
 readonly PKGBASE="$(make -V PKGBASE 2>/dev/null)"
 readonly PKGVERSION="$(make -V PKGVERSION 2>/dev/null)"
@@ -58,28 +59,25 @@ logdir="${POUDRIERE_DIR}/data/logs/bulk/latest-per-pkg/${PKGBASE}/${PKGVERSION}"
 if [ -z "${jail}" ]; then
 	for j in $(poudriere_jails | sort -h); do
 		if [ -f "${logdir}/${j}-default.log" ]; then
-			logfile="${logdir}/${j}-default.log"
-			sel_jail="${j}"
+			jail="${j}"
 			break
 		fi
 	done
 	
-	if [ -z "${logfile}" ]; then
+	if [ -z "${jail}" ]; then
 		echo "===> Could not find any build logs for ${PKGBASE}-${PKGVERSION}"
 		exit 1
 	fi
-else
-	logfile="${logdir}/${jail}-default.log"
-	if [ ! -f "${logfile}" ]; then
-		echo "===> Logfile ${logfile} does not exist"
-		exit 1
-	fi
-	sel_jail="${jail}"
+fi
+
+logfile="${logdir}/${jail}-default.log"
+if [ ! -f "${logfile}" ]; then
+	echo "===> Logfile ${logfile} does not exist"
+	exit 1
 fi
 
 if [ "${cmd}" = "send" ]; then
 	logname="${PKGBASE}-${PKGVERSION}-${sel_jail}.log"
-	echo "===> Jail selected: ${sel_jail}"
 	echo "===> Uploading to http://people.freebsd.org/~${FREEBSD_LOGIN}/buildlogs/${logname}"
 	scp "${logfile}" ${FREEBSD_LOGIN}@freefall.freebsd.org:public_html/buildlogs/${logname}
 else
