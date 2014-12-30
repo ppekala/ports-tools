@@ -1,16 +1,14 @@
 #!/bin/sh
 
-PORTSDIR=${PORTSDIR:-/usr/ports}
-[ -d "${PORTSDIR}" ] || \
-	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
-	exit 1
-fi
-
 readonly FREEBSD_LOGIN="${FREEBSD_LOGIN:-$USER}"
 readonly PAGER="${PAGER:-less}"
 readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
+readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
+
+if [ ! -d "${POUDRIERE_PORTS}" ]; then
+	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable"
+	exit 1
+fi
 
 cmd="${1}"
 jail="${2}"
@@ -33,17 +31,19 @@ poudriere_jails() {
 
 [ "${cmd}" != "send" -a "${cmd}" != "show" ] && display_usage
 
-if [ -n "${jail}" -a -z "$(poudriere_jails | grep ${jail})" ]; then
+[ -n "${jail}" ] || display_usage
+if [ -z "$(poudriere_jails | grep ${jail})" ]; then
 	printf "${jail}: no such poudriere jail\n\n"
 	display_usage
 fi
 
-if [ -n "${port}" -a ! -d "${PORTSDIR}/${port}" ]; then
-	printf "${PORTSDIR}/${port}: no such port found\n\n"
+[ -n "${port}" ] || display_usage
+if [ ! -d "${POUDRIERE_PORTS}/${port}" ]; then
+	printf "${POUDRIERE_PORTS}/${port}: no such port found\n\n"
 	display_usage
 fi
 
-[ -z "${port}" ] || cd "${PORTSDIR}/${port}"
+[ -z "${port}" ] || cd "${POUDRIERE_PORTS}/${port}"
 
 readonly PKGBASE="$(make -V PKGBASE 2>/dev/null)"
 readonly PKGVERSION="$(make -V PKGVERSION 2>/dev/null)"
