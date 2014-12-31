@@ -11,12 +11,12 @@ if [ ! -d "${POUDRIERE_PORTS}" ]; then
 fi
 
 cmd="${1}"
-jail="${2}"
-port="${3}"
+port="${2}"
+jail="${3}"
 
 display_usage() {
 	<< EOF cat
-Usage: plog <send|show> [jailname] [category/port]
+Usage: plog <send|show> [category/port] [jailname]
 
    send - scp(1) build log to freefall
    show - see build log
@@ -31,17 +31,17 @@ poudriere_jails() {
 
 [ "${cmd}" != "send" -a "${cmd}" != "show" ] && display_usage
 
+[ -n "${port}" ] || port="."
+if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
+	printf "${POUDRIERE_PORTS}/${port}: no such port found\n\n"
+	display_usage
+fi
+
 if [ -n "${jail}" ]; then
 	if [ -z "$(poudriere_jails | grep ${jail})" ]; then
 		printf "${jail}: no such poudriere jail\n\n"
 		display_usage
 	fi
-fi
-
-[ -n "${port}" ] || port="."
-if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
-	printf "${POUDRIERE_PORTS}/${port}: no such port found\n\n"
-	display_usage
 fi
 
 [ "${port}" = "." ] || cd "${POUDRIERE_PORTS}/${port}"
@@ -77,7 +77,7 @@ if [ ! -f "${logfile}" ]; then
 fi
 
 if [ "${cmd}" = "send" ]; then
-	logname="${PKGBASE}-${PKGVERSION}-${sel_jail}.log"
+	logname="${PKGBASE}-${PKGVERSION}-${jail}.log"
 	echo "===> Uploading to http://people.freebsd.org/~${FREEBSD_LOGIN}/buildlogs/${logname}"
 	scp "${logfile}" ${FREEBSD_LOGIN}@freefall.freebsd.org:public_html/buildlogs/${logname}
 else
