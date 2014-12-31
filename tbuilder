@@ -1,14 +1,14 @@
 #!/bin/sh
 
-PORTSDIR=${PORTSDIR:-/usr/ports}
-[ -d "${PORTSDIR}" ] || \
-	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
+readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
+readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
+
+if [ ! -d "${POUDRIERE_PORTS}" ]; then
+	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable"
 	exit 1
 fi
-
-readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
 
 readonly command="${1}"
 readonly query="${2}"
@@ -86,20 +86,21 @@ file)
 	fi
 	ports="$(cat "${query}")" ;;
 grep)
-	ports="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q "${query}" {} \; \
-		-print | grep -v "${query}/Makefile" | sed -E 's;(\./|/Makefile);;g')" ;;
+	ports="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec \
+		grep -q "${query}" {} \; -print | grep -v "${query}/Makefile" \
+		| sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
-	if [ ! -d "${PORTSDIR}/${query}" ]; then
-		printf "${PORTSDIR}/${query}: port directory does not exists\n\n"
+	if [ ! -d "${POUDRIERE_PORTS}/${query}" ]; then
+		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n"
 		display_usage
 	fi
-	tmp="$(cd ${PORTSDIR} && find . -name "Makefile*" -exec grep -q \
+	tmp="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec grep -q \
 		"^[^#].*${query}[ \\]*\$" {} \; -print | sed 's|\./||')"
 
 	for path in ${tmp}; do
 		path="$(dirname ${path})"
 		[ "${query}" != "${path}" ] || continue
-		cd ${PORTSDIR}/${path}
+		cd ${POUDRIERE_PORTS}/${path}
 		if [ -n "$(make -V LIB_DEPENDS | grep ${query})" ]; then
 			ports="${ports} ${path}"
 			continue
@@ -121,8 +122,8 @@ ldeps)
 match)
 	ports="$(portsearch -n ${query} | grep Path: | cut -f 4- -d '/')" ;;
 name)
-	if [ "${query}" != "." -a ! -d "${PORTSDIR}/${query}" ]; then
-		printf "${PORTSDIR}/${query}: port directory does not exists\n\n"
+	if [ "${query}" != "." -a ! -d "${POUDRIERE_PORTS}/${query}" ]; then
+		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n"
 		display_usage
 	fi
 	ports="${query}"
