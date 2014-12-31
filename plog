@@ -55,10 +55,11 @@ if [ -z "${PKGBASE}" ]; then
 fi
 
 logdir="${POUDRIERE_DIR}/data/logs/bulk/latest-per-pkg/${PKGBASE}/${PKGVERSION}"
+ports_tree="$(basename "${POUDRIERE_PORTS}")"
 
 if [ -z "${jail}" ]; then
 	for j in $(poudriere_jails | sort -h); do
-		if [ -f "${logdir}/${j}-default.log" ]; then
+		if [ -f "${logdir}/${j}-${ports_tree}.log" ]; then
 			jail="${j}"
 			break
 		fi
@@ -70,7 +71,7 @@ if [ -z "${jail}" ]; then
 	fi
 fi
 
-logfile="${logdir}/${jail}-default.log"
+logfile="${logdir}/${jail}-${ports_tree}.log"
 if [ ! -f "${logfile}" ]; then
 	echo "===> Logfile ${logfile} does not exist"
 	exit 1
