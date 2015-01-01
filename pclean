@@ -43,6 +43,7 @@ ${PSVN} status --no-ignore | while read line; do
 	[ -z "${status}" -o -z "${file}" ] && continue
 	
 	if [ "${status}" = "?" -o "${status}" = "I" ]; then
+		[ "${file}" != "distfiles" ] || continue
 		echo "  ${file}"
 		rm -rf "${file}"
 	else
