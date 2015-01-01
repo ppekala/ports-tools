@@ -101,19 +101,24 @@ ldeps)
 		path="$(dirname ${path})"
 		[ "${query}" != "${path}" ] || continue
 		cd ${POUDRIERE_PORTS}/${path}
-		if [ -n "$(make -V LIB_DEPENDS | grep ${query})" ]; then
+		if [ -n "$(make -V BUILD_DEPENDS -V LIB_DEPENDS | grep ${query})" ]; then
 			ports="${ports} ${path}"
 			continue
 		fi
-		
+		[ -z "$(make -V RUN_DEPENDS | grep ${query})" ] || continue
+
 		for option in $(make pretty-print-config); do
 			[ -n "$(echo ${option} | grep ^-)" ] || continue
+
+			if [ -n "$(make -V BUILD_DEPENDS -V LIB_DEPENDS \
+				WITH_${option#-}=yes | grep ${query})" ]
+			then
+				ports="${ports} ${path}:${option#-}"
+				continue 2
+			fi
+
 			[ -z "$(make -V RUN_DEPENDS WITH_${option#-}=yes | \
 				grep ${query})" ] || continue 2
-			[ -n "$(make -V LIB_DEPENDS WITH_${option#-}=yes | \
-				grep ${query})" ] || continue
-			ports="${ports} ${path}:${option#-}"
-			continue 2
 		done
 		
 		ports="${ports} ${path}:OPT_UNKNOWN"
