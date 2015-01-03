@@ -48,7 +48,7 @@ dir_cache_add() {
 }
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: pcommit [-c|-e|-h|-n]
 
     -c - clean temp files only
@@ -57,7 +57,7 @@ Usage: pcommit [-c|-e|-h|-n]
     -n - non-interactive mode
 
 EOF
-	exit
+	exit 1
 }
 
 file_add() {
@@ -69,7 +69,7 @@ file_add() {
 		[ ${non_interactive} -eq 0 ] || echo "===> Adding file ${file}"
 		${PSVN} -q add "${file}"
 		if [ ${?} -ne 0 ]; then
-			echo "===> File addition failed"
+			echo "===> File addition failed" >&2
 			pcommit_exit 1
 		fi
 
@@ -100,7 +100,7 @@ file_remove() {
 		[ ${non_interactive} -eq 0 ] || echo "===> Removing ${n_kind} ${file}"
 		${PSVN} -q --force rm "${file}"
 		if [ ${?} -ne 0 ]; then
-			echo "===> File removal failed"
+			echo "===> File removal failed" >&2
 			pcommit_exit 1
 		fi
 		
@@ -188,9 +188,9 @@ if [ -n "${wrk_dirs}" ]; then
 		ret="$(make ${make_args} clean 2>/dev/null)"
 		if [ -n "$(echo ${ret} | grep 'not writable')" ]; then
 			if [ ${depth} -ne 2 ]; then
-				echo "===> Failed to 'make clean' in ${wdir%%/work}"
+				echo "===> Failed to 'make clean' in ${wdir%%/work}" >&2
 			else
-				echo "===> Failed to 'make clean'"
+				echo "===> Failed to 'make clean'" >&2
 			fi
 			exit 1
 		fi
@@ -199,7 +199,7 @@ fi
 
 rej_files="$(find . -name "*.rej" -maxdepth ${depth} | sed 's|^./||g')"
 if [ -n "${rej_files}" ]; then
-	echo "===> Found rejected patch files"
+	echo "===> Found rejected patch files" >&2
 	echo ${rej_files} | tr ' ' '\n'
 	exit 1
 fi
@@ -229,14 +229,14 @@ fi
 
 tempfile="$(mktemp -t pcommit)"
 if [ -z "${tempfile}" ]; then
-	echo "===> Failed to create temporary file"
+	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi
 trap 'pcommit_exit 1' int
 
 ${PSVN} --show-updates status > ${tempfile}
 if [ ${?} -ne 0 ]; then
-	echo "===> '${PSVN} status' failed"
+	echo "===> '${PSVN} status' failed" >&2
 	pcommit_exit 1 
 fi
 

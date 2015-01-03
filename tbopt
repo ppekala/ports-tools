@@ -4,7 +4,7 @@ readonly TBDIR="${TBDIR:-/usr/local/tinderbox}"
 readonly UID="$(id -u)"
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: tbopt <del|set|show> <portname> <buildname>
        tbopt list <buildname>
 
@@ -18,7 +18,7 @@ Usage: tbopt <del|set|show> <portname> <buildname>
  buildname: tinderbox build name or 'all' for all available builds
 
 EOF
-	exit
+	exit 1
 }
 
 tc_cmd() {

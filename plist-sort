@@ -5,14 +5,14 @@ readonly PREFIX="$(make -V PREFIX 2>/dev/null)"
 plist_file="${1}"
 
 if [ -z "${PKGNAME}" -o -z "${PREFIX}" ]; then
-	echo "===> This is not port directory"
+	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
 [ -n "${plist_file}" ] || plist_file=$(make -V PLIST)
 
 if [ ! -f "${plist_file}" ]; then
-	echo "===> Plist file was not found: ${plist_file}"
+	echo "===> Plist file was not found: ${plist_file}" >&2
 	exit 1
 fi
 

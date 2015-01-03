@@ -23,7 +23,7 @@ ask_yesno() {
 }
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: upgrade-base [-c|-h|-s]
 
     -c - do not clean tree before build (NO_CLEAN=yes)
@@ -31,7 +31,7 @@ Usage: upgrade-base [-c|-h|-s]
     -s - reset status and begin from start
 
 EOF
-	exit
+	exit 1
 }
 
 # $1 make target
@@ -39,7 +39,7 @@ EOF
 exec_cmd() {
 	${1}
 	if [ ${?} -ne 0 ]; then
-		echo "===> '${1}' failed"
+		echo "===> '${1}' failed" >&2
 		exit 1
 	fi
 	save_state "${2}"
@@ -61,7 +61,7 @@ main_loop() {
 		l_entry=$(last_updating_entry)
 		${PSVN} update
 		if [ ${?} -ne 0 ]; then
-			echo "===> Updating of source tree failed"
+			echo "===> Updating of source tree failed" >&2
 			exit 1
 		fi
 
@@ -123,7 +123,7 @@ main_loop() {
 		printf "\n===> You need to restart computer again.\n\n"
 		exit 0 ;;
 	*)
-		echo "===> Garbage in ${CONF_FILE}, try upgrade-base -s"
+		echo "===> Garbage in ${CONF_FILE}, try upgrade-base -s" >&2
 		exit 1
 	esac
 	main_loop	
@@ -140,7 +140,7 @@ PORTSDIR=${PORTSDIR:-/usr/ports}
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
 	exit 1
 fi
 

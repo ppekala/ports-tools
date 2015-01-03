@@ -154,7 +154,7 @@ dependency_is_inherited() {
 }
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: pkg-lib-check [-d|-h|-f|-l|-s grep_pattern] <-a|pkg_name>
 
     -a - test all installed packages
@@ -165,7 +165,7 @@ Usage: pkg-lib-check [-d|-h|-f|-l|-s grep_pattern] <-a|pkg_name>
     -s - show files linked to 'grep_pattern'
 
 EOF
-	exit
+	exit 1
 }
 
 # $1 - package name
@@ -252,8 +252,8 @@ if [ ${test_all} -eq 0 ]; then
 else
 	packages="$(pkg query '%n-%v')"
 	if [ -z "${packages}" ]; then
-		echo "No packages installed"
-		exit
+		echo "No packages installed" >&2
+		exit 1
 	fi
 fi
 
@@ -263,7 +263,7 @@ for pkg in ${packages}; do
 	if [ ${test_all} -eq 0 ]; then
 		pkg info -e ${pkg} 2>/dev/null
 		if [ ${?} -ne 0 ]; then
-			echo "${pkg}: no such package"
+			echo "${pkg}: no such package" >&2
 			continue
 		fi
 	fi

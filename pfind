@@ -4,12 +4,12 @@ PORTSDIR=${PORTSDIR:-/usr/ports}
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
 	exit 1
 fi
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: pfind [-c category] [-h] [-m maintainer] [-n name] [-s string]
 
     -c - port category
@@ -19,14 +19,14 @@ Usage: pfind [-c category] [-h] [-m maintainer] [-n name] [-s string]
     -s - string to find in port's Makefile
 
 EOF
-	exit
+	exit 1
 }
 
 while getopts "c:hm:n:s:" option; do
 	case ${option} in
 	c)
 		if [ ! -d ${PORTSDIR}/${OPTARG} ]; then
-			echo "No such category: ${OPTARG}"
+			echo "No such category: ${OPTARG}" >&2
 			exit 1
 		fi
 		category="${OPTARG}/" ;;

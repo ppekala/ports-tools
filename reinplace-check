@@ -6,12 +6,12 @@ readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly cmd="${1:-check}"
 
 if [ -z "${PKGNAME}" ]; then
-	echo "===> This is not port directory"
+	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
 if [ ! -d work ]; then
-	echo "===> No work directory"
+	echo "===> No work directory" >&2
 	exit 1
 fi
 

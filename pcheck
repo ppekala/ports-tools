@@ -5,14 +5,14 @@ readonly hunspell="hunspell -d en_US"
 skip_spellcheck=0
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: pcheck [-h|-s]
 
     -h - show this help
     -s - skip spellcheck
 
 EOF
-	exit
+	exit 1
 }
 
 reinplace_file() {
@@ -33,7 +33,7 @@ while getopts "hs" option; do
 done
 
 if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
-	echo "===> This is not port directory"
+	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
@@ -41,8 +41,8 @@ descr_file="$(make -V DESCR)"
 
 rej_files="$(find -E . -name "*.rej" ! -regex '\./(\.svn|work)/.*')"
 if [ -n "${rej_files}" ]; then
-	echo "===> Found rejected patch file(s)"
-	echo " ${rej_files}" | sed 's|./||g'
+	echo "===> Found rejected patch file(s)" >&2
+	echo " ${rej_files}" | sed 's|./||g' >&2
 	exit 1
 fi
 

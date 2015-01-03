@@ -9,7 +9,7 @@ PORTSDIR=${PORTSDIR:-/usr/ports}
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable"
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
 	exit 1
 fi
 
@@ -33,7 +33,7 @@ ask_yesno() {
 }
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: upgrade-ports [-h|-w|-y]
 
     -h - show this help
@@ -41,7 +41,7 @@ Usage: upgrade-ports [-h|-w|-y]
     -y - answer yes to all questions
 
 EOF
-	exit
+	exit 1
 }
 
 get_entry_dates() {
@@ -121,12 +121,12 @@ done
 
 
 if [ -z "$(whereis -bq sudo)" ]; then
-	echo "===> sudo not found"
+	echo "===> sudo not found" >&2
 	upgrade_exit 1 "" ${wait_for_key}
 fi
 
 if [ -z "$(whereis -bq portmaster)" ]; then
-	echo "===> portmaster not found"
+	echo "===> portmaster not found" >&2
 	upgrade_exit 1 "" ${wait_for_key}
 fi
 
@@ -146,7 +146,7 @@ fi
 
 sudo /usr/sbin/portsnap fetch update
 if [ ${?} -ne 0 ]; then
-	echo "===> Ports tree update failed"
+	echo "===> Ports tree update failed" >&2
 	upgrade_exit 1 "" ${wait_for_key}
 fi
 
@@ -155,7 +155,7 @@ last_upd="$(get_entry_dates | head -n 1)"
 if [ ${last_read} -lt ${last_upd} ]; then
 	tmpfile="$(mktemp -t upgrade-ports)"
 	if [ -z "${tmpfile}" ]; then
-		echo "===> Failed to create temporary file"
+		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1 "" ${wait_for_key}
 	fi
 
@@ -183,7 +183,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 				IFS=$'\n'
 				
 				if [ ${ret} -ne 0 ]; then
-					echo "===> Upgrade command '${cmd}' failed"
+					echo "===> Upgrade command '${cmd}' failed" >&2
 					upgrade_exit ${ret} "${entry_prev}" ${wait_for_key}
 				fi
 			fi

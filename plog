@@ -6,7 +6,7 @@ readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
 
 if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable"
+	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
 	exit 1
 fi
 
@@ -15,14 +15,14 @@ port="${2}"
 jail="${3}"
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: plog <send|show> [category/port] [jailname]
 
    send - scp(1) build log to freefall
    show - see build log
 
 EOF
-	exit
+	exit 1
 }
 
 poudriere_jails() {
@@ -33,13 +33,13 @@ poudriere_jails() {
 
 [ -n "${port}" ] || port="."
 if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
-	printf "${POUDRIERE_PORTS}/${port}: no such port found\n\n"
+	printf "${POUDRIERE_PORTS}/${port}: no such port found\n\n" >&2
 	display_usage
 fi
 
 if [ -n "${jail}" ]; then
 	if [ -z "$(poudriere_jails | grep ${jail})" ]; then
-		printf "${jail}: no such poudriere jail\n\n"
+		printf "${jail}: no such poudriere jail\n\n" >&2
 		display_usage
 	fi
 fi
@@ -50,7 +50,7 @@ readonly PKGBASE="$(make -V PKGBASE 2>/dev/null)"
 readonly PKGVERSION="$(make -V PKGVERSION 2>/dev/null)"
 
 if [ -z "${PKGBASE}" ]; then
-	echo "===> This is not port directory"
+	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
@@ -66,14 +66,14 @@ if [ -z "${jail}" ]; then
 	done
 	
 	if [ -z "${jail}" ]; then
-		echo "===> Could not find any build logs for ${PKGBASE}-${PKGVERSION}"
+		echo "===> Could not find any build logs for ${PKGBASE}-${PKGVERSION}" >&2
 		exit 1
 	fi
 fi
 
 logfile="${logdir}/${jail}-${ports_tree}.log"
 if [ ! -f "${logfile}" ]; then
-	echo "===> Logfile ${logfile} does not exist"
+	echo "===> Logfile ${logfile} does not exist" >&2
 	exit 1
 fi
 

@@ -6,7 +6,7 @@ readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
 
 if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable"
+	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
 	exit 1
 fi
 
@@ -15,7 +15,7 @@ readonly query="${2}"
 readonly build="${3:-none}"
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]
 
  command: bdeps - build ports having certain build dependency
@@ -34,7 +34,7 @@ Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]
  jail_name: poudriere jail name or 'all' for all available jails
 
 EOF
-	exit
+	exit 1
 }
 
 poudriere_jails() {
@@ -67,7 +67,7 @@ poudriere_test_build() {
 if [ "${build}" != "none" -a "${build}" != "all" \
 	-a -z "$(poudriere_jails | grep ${build})" ]
 then
-	printf "${build}: no such poudriere jail\n\n"
+	printf "${build}: no such poudriere jail\n\n" >&2
 	display_usage
 fi
 
@@ -81,7 +81,7 @@ bdeps)
 	ports="$(portsearch -b ${query} | grep Path: | cut -f 4- -d '/')" ;;
 file)
 	if [ ! -f "${query}" ]; then
-		echo "File ${query} does not exists"
+		echo "File ${query} does not exists" >&2
 		exit 1
 	fi
 	ports="$(cat "${query}")" ;;
@@ -91,7 +91,7 @@ grep)
 		| sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
 	if [ ! -d "${POUDRIERE_PORTS}/${query}" ]; then
-		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n"
+		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n" >&2
 		display_usage
 	fi
 	tmp="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec grep -q \
@@ -128,7 +128,7 @@ match)
 	ports="$(portsearch -n ${query} | grep Path: | cut -f 4- -d '/')" ;;
 name)
 	if [ "${query}" != "." -a ! -d "${POUDRIERE_PORTS}/${query}" ]; then
-		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n"
+		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n" >&2
 		display_usage
 	fi
 	ports="${query}"

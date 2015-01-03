@@ -32,7 +32,7 @@ check_package() {
 }
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: lib-bump-check [-b] [-h] [-j jobs] [-r pkgname]
 
     -b - disable check for library newer version
@@ -41,7 +41,7 @@ Usage: lib-bump-check [-b] [-h] [-j jobs] [-r pkgname]
     -r - check only packages that depend on pkgname
 
 EOF
-	exit
+	exit 1
 }
 
 exit_clean() {
@@ -124,7 +124,7 @@ while getopts "bj:hr:" option; do
 		[1-9])
 			JOBS="${OPTARG}" ;;
 		*)
-			echo "-j requires numerical argument"
+			echo "-j requires numerical argument" >&2
 			exit 1
 		esac ;;
 	r)
@@ -136,12 +136,12 @@ while getopts "bj:hr:" option; do
 done
 
 if [ ! -x "${LOCALBASE}/sbin/portmaster" ]; then
-	echo "This script requires portmaster"
+	echo "This script requires portmaster" >&2
 	exit 1
 fi
 
 if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to rebuild packages"
+	echo "You need root privileges to rebuild packages" >&2
 	exit 1
 fi
 
@@ -166,7 +166,7 @@ readonly TMP_STALE="$(mktemp -t lbc-stale)"
 readonly TMP_BAD="$(mktemp -t lbc-bad)"
 
 if [ -z "${TMP_SEM}" -o -z "${TMP_STALE}" -o -z "${TMP_BAD}" ]; then
-	echo "Failed to create temporary files"
+	echo "Failed to create temporary files" >&2
 	exit_clean 1
 fi
 

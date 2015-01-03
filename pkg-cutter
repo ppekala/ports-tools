@@ -10,7 +10,7 @@ rm_count=0
 sel_status="off"
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: pkg-cutter [-h|-x]
        pkg-cutter [-o] [-y]
 
@@ -20,13 +20,13 @@ Usage: pkg-cutter [-h|-x]
     -y - assume yes when there are new leaf packages
 
 EOF
-	exit
+	exit 1
 }
 
 mktmp() {
 	local tmp="$(mktemp -t pkg-cutter)"
 	if [ -z "${tmp}" ]; then
-		echo "===> Failed to create temporary file"
+		echo "===> Failed to create temporary file" >&2
 		exit 1
 	fi
 	echo ${tmp}
@@ -100,7 +100,7 @@ while getopts "hoxy" option; do
 done
 
 if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to remove packages"
+	echo "You need root privileges to remove packages" >&2
 	exit 1
 fi
 

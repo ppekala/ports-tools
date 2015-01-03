@@ -4,14 +4,14 @@ readonly PSVN="${PSVN:-svn}"
 readonly RPORTSDIR="${RPORTSDIR:-${HOME}/redports}"
 
 display_usage() {
-	<< EOF cat
+	<< EOF >&2 cat
 Usage: rports [-h|-n] [portdir]
 
     -h - show this help
     -n - non-interactive mode
 
 EOF
-	exit
+	exit 1
 }
 
 while getopts "hn" option; do
@@ -28,18 +28,18 @@ shift $((OPTIND-1))
 
 readonly PORTPATH="$(realpath -q "${1}")"
 if [ -z "${PORTPATH}" ]; then
-	echo "===> Port directory (${1}) does not exist"
+	echo "===> Port directory (${1}) does not exist" >&2
 	exit 1
 fi
 
 if [ ! -d "${RPORTSDIR}" ]; then
-	echo "===> Redports checkout directory (${RPORTSDIR}) does not exist"
-       	echo "===> Try setting RPORTSDIR variable"
+	echo "===> Redports checkout directory (${RPORTSDIR}) does not exist" >&2
+	echo "===> Try setting RPORTSDIR variable" >&2
 	exit 1
 fi
 
 if [ -z "$(whereis -bq pcommit)" ]; then
-	echo "===> pcommit script not found in your PATH"
+	echo "===> pcommit script not found in your PATH" >&2
 	exit 1
 fi
 
@@ -48,7 +48,7 @@ cd "${PORTPATH}"
 
 category="$(make -V CATEGORIES | awk '{ print $1 }')"
 if [ -z "${category}" ]; then
-	echo "===> Can't get port's category"
+	echo "===> Can't get port's category" >&2
 	exit 1
 fi
 port="$(basename ${PWD})"
@@ -95,7 +95,7 @@ done
 
 cd "${RPORTSDIR}/${commit_path}" 
 if [ -z "$(${PSVN} info | grep '^URL:.*redports.org')" ]; then
-	echo "===> Not a redports.org checkout, check svn info"
+	echo "===> Not a redports.org checkout, check svn info" >&2
 	exit 1
 fi
 
