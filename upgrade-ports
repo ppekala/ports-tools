@@ -50,8 +50,12 @@ get_entry_dates() {
 
 updating_commands() {
 	awk -v entry="${1}" '
-	BEGIN { in_entry=0; }
-	
+	BEGIN {
+		in_entry=0;
+		in_cmd=0;
+		cmd="";
+	}
+
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
 		sub(":", "", $0);
 		if (entry == $0)
@@ -62,11 +66,35 @@ updating_commands() {
 	}
 
 	{
-		if (in_entry == 1) {
-			if(match($0, "^[ \t#]*pkg "))
-				print substr($0, index($0, "pkg "));
-			if(match($0, "^[ \t#]*portmaster"))
-				print substr($0, index($0, "portmaster"));
+		if (in_entry != 1)
+			next;
+
+		if (in_cmd == 0) {
+			if (match($0, /^[ \t#]*pkg /))
+				cmd = substr($0, index($0, "pkg "));
+			if (match($0, /^[ \t#]*portmaster/))
+				cmd = substr($0, index($0, "portmaster"));
+			if (cmd == "")
+				next;
+
+			if (match(cmd, /\\$/)) {
+				sub(/\\$/, "", cmd);
+				in_cmd=1;
+			} else {
+				print cmd;
+				cmd="";
+			}
+		} else {
+			sub(/^[ \t]*/, "", $0);
+
+			if (match($0, /\\$/)) {
+				sub(/\\$/, "", $0);
+				cmd=cmd $0;
+			} else {
+				print cmd $0;
+				cmd="";
+				in_cmd=0;
+			}
 		}
 	}' ${PORTSDIR}/UPDATING
 }
