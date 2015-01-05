@@ -4,6 +4,28 @@ readonly PAGER="${PAGER:-less}"
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly PLIST="$(make -V PLIST 2>/dev/null)"
 
+display_usage() {
+	<< EOF >&2 cat
+Usage: plist-update [-h] [-s <subname>]
+
+    -h show this help
+    -s insert new entries with %%subname%% prefix
+
+EOF
+	exit 1
+}
+
+awk_args="-v plist_file=${PLIST}"
+
+while getopts "hs:" option; do
+	case ${option} in
+	s)
+		awk_args="${awk_args} -v subname=${OPTARG}" ;;
+	*)
+		display_usage
+	esac
+done
+
 if [ -z "$(whereis -bq plist-sort)" ]; then
 	echo "===> Required script plist-sort not found" >&2
 	exit 1
@@ -21,7 +43,7 @@ if [ -z "${tempfile}" ]; then
 fi
 [ -f pkg-plist ] && plist_out="pkg-plist.new" || plist_out="pkg-plist"
 
-make check-plist 2>&1 | awk -v plist_file="${PLIST}" '
+make check-plist 2>&1 | awk ${awk_args} '
 BEGIN {
 	if (plist_file != "") {
 		while ((getline line < plist_file) > 0) {
@@ -36,6 +58,8 @@ BEGIN {
 		}
 		close(plist_file);
 	}
+	if (subname != "")
+		subname = "%%" subname "%%";
 }
 
 function get_plist_path() {
@@ -58,8 +82,11 @@ function get_plist_path() {
 	dir = ($3 == "@dir") ? "@dir " : "";
 	path = get_plist_path();
 
-	if (plist[path] == "")
-		plist[path] = (dir == "") ? path : dir path;
+	if (plist[path] == "") {
+		entry = (subname == "") ? "" : subname;
+		entry = (dir == "") ? entry path : entry dir path;
+		plist[path] = entry;
+	}
 }
 
 END {
