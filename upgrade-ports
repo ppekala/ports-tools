@@ -32,6 +32,48 @@ ask_yesno() {
 	done
 }
 
+command_is_relevant() {
+	local change_origin=0 old_IFS=${IFS} upgrade_prg=""
+
+	IFS=" "
+	for arg in ${*}; do
+		[ -n "${upgrade_prg}" ] || upgrade_prg="${arg}"
+		case ${arg} in
+		"-a")
+			if [ "${upgrade_prg}" = "portmaster" ]; then
+				printf "Skipping upgrade of all packages for now (${*})\n\n"
+				IFS=${old_IFS}
+				return 1
+			fi
+			;;
+		"-o")
+			change_origin=1
+			continue
+		esac
+
+		if [ ${change_origin} -ne 0 ]; then
+			if [ "${upgrade_prg}" = "portmaster" -a \
+				${change_origin} -eq 1 ]
+			then
+				change_origin=2
+				continue
+			fi
+
+			local ret=$(pkg info -e ${arg%:*}; echo ${?})
+			if [ ${ret} -eq 1 ]; then
+				printf "${arg} is not installed, skipping '${*}' command\n\n"
+				IFS=${old_IFS}
+				return 1
+			else
+				change_origin=0
+			fi
+		fi
+	done
+
+	IFS=${old_IFS}
+	return 0
+}
+
 display_usage() {
 	<< EOF >&2 cat
 Usage: upgrade-ports [-h|-w|-y]
@@ -197,13 +239,11 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		IFS=$'\n'
 		
 		for cmd in $(cat ${tmpfile}); do
-			case ${cmd} in 
-			"portmaster -a"*)
-				continue ;;
-			"portmaster "*)
+			command_is_relevant ${cmd} || continue
+			case ${cmd} in "portmaster "*)
 				cmd="${cmd} ${portmaster_args}"
 			esac
-			
+
 			if ask_yesno "Run '${cmd}'"; then
 				IFS=${old_IFS}
 				sudo ${cmd}
