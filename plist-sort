@@ -17,27 +17,40 @@ if [ ! -f "${plist_file}" ]; then
 fi
 
 make_args="OPTIONSFILE=/dev/null OPTIONS_FILE=/dev/null"
-for opt in $(make -V ALL_OPTIONS); do
-	make_args="${make_args} WITH_${opt}=true"
+
+for opt in $(make -VCOMPLETE_OPTIONS_LIST); do
+	make_args="${make_args} WITHOUT_${opt}=true"
 done
 
-awk -v prefix="${PREFIX}/" -v plist_subs="$(make ${make_args} -V PLIST_SUB)" '
+for sub in $(make ${make_args} -VPLIST_SUB); do
+	case ${sub} in *@comment*)
+		options_subs="${options_subs} ${sub%%=*}"
+	esac
+done
+
+make_args="$(echo ${make_args} | sed 's/WITHOUT/WITH/g')"
+
+awk -v prefix="${PREFIX}/" -v plist_subs="$(make ${make_args} -V PLIST_SUB)" \
+	-v options_subs="${options_subs}" '
 BEGIN { 
 	n_cmds=1;
 	separator="###";
 
-	n = split(plist_subs, s_array, " ");
-	if (n > 0) {
-		for(pair=1; pair<=n; pair++) {
-			if (split(s_array[pair], p_array, "=") != 2)
-				continue;
-		
-			gsub("\"", "", p_array[2]);
-			if (p_array[2] == "" || p_array[2] == "@comment")
-				subs[p_array[1]] = "null"
-			else
-				subs[p_array[1]] = p_array[2];
-		}
+	n = split(options_subs, s_array, " ");
+	for (i=1; i<=n; i++)
+		opt_subs[s_array[i]] = s_array[i];
+
+	n = split(plist_subs, array, " ");
+	for (pair=1; pair<=n; pair++) {
+		if (split(array[pair], p_array, "=") != 2)
+			continue;
+
+		if (opt_subs[p_array[1]] != "")
+			continue;
+
+		gsub("\"", "", p_array[2]);
+		if (p_array[2] != "" && p_array[2] != "@comment")
+			subs[p_array[1]] = p_array[2];
 	}
 }
 
@@ -55,24 +68,6 @@ function str_replace(string, pattern, new_pattern) {
 		return string;
 
 	return new_str;
-}
-
-function update_plist_subs (string) {
-	if (string == "") {
-		subs[string] = "null";
-		return;
-	}
-	if (match(string, "^PYTHON_"))
-		make_args = " USE_PYTHON=yes";
-	if (subs[string] == "") {
-		"make -V " string make_args | getline s;
-		if (s != "")
-			subs[string] = str_replace(s, prefix, "");
-		else
-			subs[string] = "null";
-		close("make -V " string make_args);
-	}
-	make_args = "";
 }
 
 function plist_split(string, array) {
@@ -98,12 +93,13 @@ function keyword_line_tokenize(line, keyword, out) {
 			chunks = chunks separator p[1];
 			continue;
 		}
-		if ((i%2) == 0) {
-			update_plist_subs(array[i]);
-			if (subs[array[i]] != "null")
-				path = path subs[array[i]];
-			if (array[i] != "")
-				chunks = chunks separator array[i];
+		if (opt_subs[array[i]] != "") {
+			chunks = chunks separator array[i];
+			continue;
+		}
+		if (subs[array[i]] != "") {
+			path = path subs[array[i]];
+			chunks = chunks separator array[i];
 		} else
 			path = path array[i];
 	}
@@ -127,7 +123,7 @@ function keyword_line_untokenize(line, keyword) {
 		}
 		if (cmd == "")
 			cmd = "%%" p[i] "%%";
-		else if (subs[p[i]] != "null")
+		else if (subs[p[i]] != "")
 			path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
 	}
 	printf("%s %s\n", cmd, path);
@@ -143,12 +139,13 @@ function keyword_line_untokenize(line, keyword) {
 		next;
 	}
 	for (i=1; i <= n; i++) {
-		if ((i%2) == 0) {
-			update_plist_subs(array[i]);
-			if (subs[array[i]] != "null")
-				path = path subs[array[i]];
-			if (array[i] != "")
-				chunks = chunks separator array[i];
+		if (opt_subs[array[i]] != "") {
+			chunks = chunks separator array[i];
+			continue;
+		}
+		if (subs[array[i]] != "") {
+			path = path subs[array[i]];
+			chunks = chunks separator array[i];
 		} else
 			path = path array[i];
 	}
@@ -198,10 +195,15 @@ END {
 			continue;
 		}
 		for (i=2; i<=n; i++) {
-			if (subs[p[i]] != "null")
-				path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
-			else if (i == 2)
+			if (opt_subs[p[i]] != "") {
 				path = "%%" p[i] "%%" path;
+				continue;
+			}
+			if (subs[p[i]] != "") {
+				path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
+				continue;
+			}
+			path = p[i] path;
 		}
 		print path;
 	}
@@ -221,6 +223,4 @@ END {
 		printf("\n@comment Lines below should be sorted manually\n");
 		for (i in cmds) print cmds[i];
 	}
-	
-#	for (i in subs) printf("%s\t  = %s\n", i, subs[i]);
 }' ${plist_file}
