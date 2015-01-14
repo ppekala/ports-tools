@@ -43,8 +43,40 @@ if [ -z "${tempfile}" ]; then
 fi
 [ -f pkg-plist ] && plist_out="pkg-plist.new" || plist_out="pkg-plist"
 
-make check-plist 2>&1 | awk ${awk_args} '
+make_args="OPTIONSFILE=/dev/null OPTIONS_FILE=/dev/null"
+
+for opt in $(make -VCOMPLETE_OPTIONS_LIST); do
+	make_args="${make_args} WITHOUT_${opt}=true"
+done
+
+for sub in $(make ${make_args} -VPLIST_SUB); do
+	case ${sub} in *@comment*)
+		options_subs="${options_subs} ${sub%%=*}"
+	esac
+done
+
+make_args="$(echo ${make_args} | sed 's/WITHOUT/WITH/g')"
+
+make check-plist 2>&1 | awk ${awk_args} -v options_subs="${options_subs}" \
+	-v plist_subs="$(make ${make_args} -V PLIST_SUB)" '
 BEGIN {
+	n = split(options_subs, s_array, " ");
+	for (i=1; i<=n; i++)
+		opt_subs[s_array[i]] = s_array[i];
+
+	n = split(plist_subs, array, " ");
+	for (pair=1; pair<=n; pair++) {
+		if (split(array[pair], p_array, "=") != 2)
+			continue;
+
+		if (opt_subs[p_array[1]] != "")
+			continue;
+
+		gsub("\"", "", p_array[2]);
+		if (p_array[2] != "" && p_array[2] != "@comment")
+			subs[p_array[1]] = p_array[2];
+	}
+
 	if (plist_file != "") {
 		while ((getline line < plist_file) > 0) {
 			n = index(line, "@dir");
@@ -52,9 +84,9 @@ BEGIN {
 
 			if (n > 0 || k > 0) {
 				i = split(substr(line,n>0 ? n : k), p,  " ");
-				plist[ p[2] ] = line;
+				plist[ no_subs_path(p[2]) ] = line;
 			} else 
-				plist[line] = line;
+				plist[ no_subs_path(line) ] = line;
 		}
 		close(plist_file);
 	}
@@ -71,9 +103,31 @@ function get_plist_path() {
 	return $0;
 }
 
+function no_subs_path(path) {
+	new_path = "";
+
+	n = split(path, array, "%%");
+	if (n == 1)
+		return path;
+
+	for (i=1; i<=n; i++) {
+		if (opt_subs[array[i]] != "")
+			continue;
+
+		if (subs[array[i]] != "") {
+			new_path = new_path subs[array[i]];
+			continue;
+		}
+		new_path = new_path array[i];
+	}
+
+	return new_path;
+}
+
 /^Error: Missing:/ {
 	path = get_plist_path();
-	
+	path = no_subs_path(path);
+
 	if (plist[path] != "")
 		delete plist[path];
 }
@@ -81,12 +135,10 @@ function get_plist_path() {
 /^Error: Orphaned:/ {
 	dir = ($3 == "@dir") ? "@dir " : "";
 	path = get_plist_path();
+	ns_path = no_subs_path(path);
 
-	if (plist[path] == "") {
-		entry = (subname == "") ? "" : subname;
-		entry = (dir == "") ? entry path : entry dir path;
-		plist[path] = entry;
-	}
+	if (plist[ns_path] == "")
+		plist[ns_path] = subname dir path;
 }
 
 END {
