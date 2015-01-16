@@ -54,7 +54,7 @@ poudriere_test_build() {
 		fi
 	fi
 
-	sudo poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
+	${SUDO} poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
 	if [ ${?} -ne 0 ]; then
 		BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:failed"
 	else
@@ -74,6 +74,16 @@ fi
 if [ -n "${4}" ]; then
 	shift 3;
 	poudriere_args="${*}";
+fi
+
+if [ $(id -u) -ne 0 ]; then
+	if [ -z "$(whereis -bq sudo)" ]; then
+		echo "===> sudo not found" >&2
+		exit 1
+	fi
+	SUDO="sudo"
+else
+	SUDO=""
 fi
 
 case ${command} in

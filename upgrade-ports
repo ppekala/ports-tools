@@ -189,10 +189,14 @@ while getopts "hwy" option; do
 	esac
 done
 
-
-if [ -z "$(whereis -bq sudo)" ]; then
-	echo "===> sudo not found" >&2
-	upgrade_exit 1 "" ${wait_for_key}
+if [ $(id -u) -ne 0 ]; then
+	if [ -z "$(whereis -bq sudo)" ]; then
+		echo "===> sudo not found" >&2
+		upgrade_exit 1 "" ${wait_for_key}
+	fi
+	SUDO="sudo"
+else
+	SUDO=""
 fi
 
 if [ -z "$(whereis -bq portmaster)" ]; then
@@ -214,7 +218,7 @@ fi
 
 [ -n "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
 
-sudo /usr/sbin/portsnap fetch update
+${SUDO} /usr/sbin/portsnap fetch update
 if [ ${?} -ne 0 ]; then
 	echo "===> Ports tree update failed" >&2
 	upgrade_exit 1 "" ${wait_for_key}
@@ -246,7 +250,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 
 			if ask_yesno "Run '${cmd}'"; then
 				IFS=${old_IFS}
-				sudo ${cmd}
+				${SUDO} ${cmd}
 				ret=${?}
 				IFS=$'\n'
 				
@@ -266,5 +270,5 @@ if [ ${last_read} -lt ${last_upd} ]; then
 	fi	
 fi
 
-sudo portmaster -a ${portmaster_args}
+${SUDO} portmaster -a ${portmaster_args}
 upgrade_exit ${?} "${last_upd}" ${wait_for_key}
