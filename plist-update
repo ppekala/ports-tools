@@ -1,6 +1,7 @@
 #!/bin/sh
 
 readonly PAGER="${PAGER:-less}"
+readonly PAGER_DIFF="${PAGER_DIFF:-$PAGER}"
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly PLIST="$(make -V PLIST 2>/dev/null)"
 
@@ -157,7 +158,7 @@ rm ${tempfile}
 
 cmp -s pkg-plist ${plist_out}
 if [ ${?} -eq 1 ]; then
-	diff -u pkg-plist ${plist_out} | ${PAGER}
+	diff -u pkg-plist ${plist_out} | ${PAGER_DIFF}
 	
 	while true; do
 		echo -n "Use newly generated plist (y/n)? "

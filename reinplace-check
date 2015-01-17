@@ -1,5 +1,7 @@
 #!/bin/sh
 
+readonly PAGER="${PAGER:-less}"
+readonly PAGER_DIFF="${PAGER_DIFF:-$PAGER}"
 readonly PATHFIX=$(make -V USES | grep pathfix >/dev/null; echo ${?})
 readonly PATHFILE="$(make -V PATHFIX_MAKEFILEIN)"
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
@@ -10,14 +12,15 @@ if [ -z "${PKGNAME}" ]; then
 	exit 1
 fi
 
-if [ ! -d work ]; then
-	echo "===> No work directory" >&2
+if [ ! -f "$(make -VCONFIGURE_COOKIE)" ]; then
+	echo "===> You must run 'make configure' first" >&2
 	exit 1
 fi
 
 if [ "${cmd}" = "show" ]; then
 	shift
 	patterns="${@}"
+	viewer="${PAGER_DIFF}"
 fi
 
 find work -name "*.bak" -print | while read file; do
@@ -41,4 +44,4 @@ find work -name "*.bak" -print | while read file; do
 		fi
 		diff -u "${file}" "${file%.bak}"
 	esac
-done 
+done | ${viewer}
