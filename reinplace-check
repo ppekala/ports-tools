@@ -7,12 +7,25 @@ readonly PATHFILE="$(make -V PATHFIX_MAKEFILEIN)"
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly cmd="${1:-check}"
 
+if [ "${cmd}" != "check" -o "${cmd}" = "show" ]; then
+	<< EOF >&2 cat
+Usage: reinplace-check [check]
+       reinplace-check [show] [patterns]
+
+    check - print files not modified by REINPLACE_CMD (default operation)
+    show  - display diff(1) of modified files with names matching patterns or
+            all files if patterns was not specified
+
+EOF
+	exit 1
+fi
+
 if [ -z "${PKGNAME}" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
-if [ ! -f "$(make -VCONFIGURE_COOKIE)" ]; then
+if [ ! -f "$(make -V CONFIGURE_COOKIE)" ]; then
 	echo "===> You must run 'make configure' first" >&2
 	exit 1
 fi
