@@ -90,6 +90,33 @@ get_entry_dates() {
 	egrep "^[0-9]{8}:" ${PORTSDIR}/UPDATING | sed 's/://'
 }
 
+get_removed_ports() {
+	awk -v date="${1}" '
+	!/^#/ {
+		n = split($0, field, "|");
+		if (n != 4)
+			next;
+
+		gsub("-", "", field[3]);
+		if (field[2] != "" || field[3] < date)
+			next;
+
+		print field[1];
+	}' ${PORTSDIR}/MOVED
+}
+
+removal_reason() {
+	awk -v port="${1}" '
+	!/^#/ {
+		n = split($0, field, "|");
+		if (n != 4)
+			next;
+
+		if (field[1] == port)
+			print field[4];
+	}' ${PORTSDIR}/MOVED
+}
+
 updating_commands() {
 	awk -v entry="${1}" '
 	BEGIN {
@@ -195,8 +222,6 @@ if [ $(id -u) -ne 0 ]; then
 		upgrade_exit 1 "" ${wait_for_key}
 	fi
 	SUDO="sudo"
-else
-	SUDO=""
 fi
 
 if [ -z "$(whereis -bq portmaster)" ]; then
@@ -223,6 +248,16 @@ if [ ${?} -ne 0 ]; then
 	echo "===> Ports tree update failed" >&2
 	upgrade_exit 1 "" ${wait_for_key}
 fi
+
+for port in $(get_removed_ports ${last_read}); do
+	pkg info -e ${port} 2>&1 >/dev/null
+	if [ $? -eq 0 ]; then
+		if ask_yesno "Remove obsolete ${port} ($(removal_reason ${port}))"
+		then
+			${SUDO} pkg delete -y ${port}
+		fi
+	fi
+done
 
 last_upd="$(get_entry_dates | head -n 1)"
 
