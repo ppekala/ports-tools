@@ -14,6 +14,8 @@ readonly command="${1}"
 readonly query="${2}"
 readonly build="${3:-none}"
 
+interrupted=0 # build interrupted by ctrl+c
+
 display_usage() {
 	<< EOF >&2 cat
 Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]
@@ -56,6 +58,7 @@ poudriere_test_build() {
 
 	${SUDO} poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
 	[ ${?} -eq 0 ] || outcome="failed"
+	[ ${interrupted} -eq 0 ] || outcome="interrupted"
 	BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:${outcome}"
 }
 
@@ -80,6 +83,8 @@ if [ $(id -u) -ne 0 ]; then
 	fi
 	SUDO="sudo"
 fi
+
+trap 'interrupted=1' int
 
 case ${command} in
 bdeps)
@@ -160,9 +165,11 @@ for port in ${ports}; do
 	all)
 		for b in $(poudriere_jails | sort -h); do 
 			poudriere_test_build ${b} ${port}
+			[ ${interrupted} -eq 0 ] || break
 		done ;;
 	*)
 		poudriere_test_build ${build} ${port}
+		[ ${interrupted} -eq 0 ] || break
 	esac
 done
 
