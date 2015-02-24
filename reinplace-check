@@ -7,7 +7,7 @@ readonly PATHFILE="$(make -V PATHFIX_MAKEFILEIN)"
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly cmd="${1:-check}"
 
-if [ "${cmd}" != "check" -o "${cmd}" = "show" ]; then
+if [ "${cmd}" != "check" -a "${cmd}" != "show" ]; then
 	<< EOF >&2 cat
 Usage: reinplace-check [check]
        reinplace-check [show] [patterns]
@@ -37,11 +37,14 @@ if [ "${cmd}" = "show" ]; then
 fi
 
 find work -name "*.bak" -print | while read file; do
+	#TODO Makefile.in may be changed by REINPLACE_CMD too, fix it
+	[ ${PATHFIX} -eq 0 -a \
+		"$(basename ${file%.bak})" = "${PATHFILE}" ] && continue
+
+	case ${file} in *.libtool.bak) continue ;; esac
+
 	case ${cmd} in
 	check)
-		#TODO Makefile.in may be changed by REINPLACE_CMD too, fix it
-		[ ${PATHFIX} -eq 0 -a \
-			"$(basename ${file%.bak})" = "${PATHFILE}" ] && continue
 		[ -z "$(diff "${file}" "${file%.bak}")" ] && \
 			echo "File ${file%.bak} not modified" ;;
 	show)
