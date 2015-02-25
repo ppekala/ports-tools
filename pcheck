@@ -48,7 +48,8 @@ fi
 
 find -E . \( -name "*.orig" -or -size 0 \) ! -regex '\./(\.svn|work)/.*' -delete
 if [ ${skip_spellcheck} -eq 0 ]; then
-	if [ -n "$(whereis -bq hunspell)" ]; then
+	which hunspell >/dev/null
+	if [ ${?} -eq 0 ]; then
 		[ -f "${descr_file}" ] && ${hunspell} "${descr_file}"
 		[ -f pkg-message ] && ${hunspell} pkg-message
 		[ -f files/pkg-message.in ] && ${hunspell} files/pkg-message.in
@@ -91,7 +92,8 @@ else
 	echo "===> Port's description file is missing"
 fi
 
-if [ -n "$(whereis -bq portlint)" ]; then
+which portlint >/dev/null
+if [ ${?} -eq 0 ]; then
 	echo "===> Portlint output:"
 	portlint -abt
 else

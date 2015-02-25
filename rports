@@ -38,7 +38,8 @@ if [ ! -d "${RPORTSDIR}" ]; then
 	exit 1
 fi
 
-if [ -z "$(whereis -bq pcommit)" ]; then
+which pcommit >/dev/null
+if [ ${?} -eq 1 ]; then
 	echo "===> pcommit script not found in your PATH" >&2
 	exit 1
 fi

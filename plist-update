@@ -27,7 +27,8 @@ while getopts "hs:" option; do
 	esac
 done
 
-if [ -z "$(whereis -bq plist-sort)" ]; then
+which plist-sort >/dev/null
+if [ ${?} -eq 1 ]; then
 	echo "===> Required script plist-sort not found" >&2
 	exit 1
 fi

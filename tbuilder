@@ -77,7 +77,8 @@ if [ -n "${4}" ]; then
 fi
 
 if [ $(id -u) -ne 0 ]; then
-	if [ -z "$(whereis -bq sudo)" ]; then
+	which sudo >/dev/null
+	if [ ${?} -eq 1 ]; then
 		echo "===> sudo not found" >&2
 		exit 1
 	fi
