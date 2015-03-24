@@ -135,6 +135,11 @@ save_state() {
 	echo "${1}" > ${CONF_FILE}
 }
 
+if [ "$(id -u)" != "0" ]; then
+	echo "You need root privileges to upgrade base system" >&2
+	exit 1
+fi
+
 # needed for rebuilding kernel modules ports
 PORTSDIR=${PORTSDIR:-/usr/ports}
 [ -d "${PORTSDIR}" ] || \
