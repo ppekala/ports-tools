@@ -1,7 +1,5 @@
 #!/bin/sh
 
-readonly LOCALBASE="${LOCALBASE:-/usr/local}"
-
 first_result=1
 full_check=0
 only_link_err=0

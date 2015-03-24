@@ -3,7 +3,6 @@
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
 readonly PAGER="${PAGER:-less}"
-readonly PATH="${PATH}:/usr/local/sbin"
 
 PORTSDIR=${PORTSDIR:-/usr/ports}
 [ -d "${PORTSDIR}" ] || \
@@ -245,7 +244,7 @@ fi
 
 [ -n "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
 
-${SUDO} /usr/sbin/portsnap fetch update
+${SUDO} portsnap fetch update
 if [ ${?} -ne 0 ]; then
 	echo "===> Ports tree update failed" >&2
 	upgrade_exit 1 "" ${wait_for_key}

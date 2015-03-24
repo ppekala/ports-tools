@@ -2,7 +2,6 @@
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly EXCLUDE_CONF="${XDG_CONFIG_HOME}/pkg-cutter"
-readonly LOCALBASE="${LOCALBASE:-/usr/local}"
 
 exclude_opt=0
 new_leafs_yes=0
