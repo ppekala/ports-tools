@@ -50,7 +50,7 @@ dir_cache_add() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: pcommit [-c|-e|-h|-n]
+Usage: ${0##*/} [-c|-e|-h|-n]
 
     -c - clean temp files only
     -e - ignore empty files

@@ -24,7 +24,7 @@ ask_yesno() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: upgrade-base [-c|-h|-s]
+Usage: ${0##*/} [-c|-h|-s]
 
     -c - do not clean tree before build (NO_CLEAN=yes)
     -h - show this help

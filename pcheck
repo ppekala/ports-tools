@@ -6,7 +6,7 @@ skip_spellcheck=0
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: pcheck [-h|-s]
+Usage: ${0##*/} [-h|-s]
 
     -h - show this help
     -s - skip spellcheck

@@ -32,7 +32,7 @@ check_package() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: lib-bump-check [-b] [-h] [-j jobs] [-r pkgname]
+Usage: ${0##*/} [-b] [-h] [-j jobs] [-r pkgname]
 
     -b - disable check for library newer version
     -j - set number of parallel checks to jobs

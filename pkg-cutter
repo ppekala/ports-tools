@@ -10,8 +10,8 @@ sel_status="off"
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: pkg-cutter [-h|-x]
-       pkg-cutter [-o] [-y]
+Usage: ${0##*/} [-h|-x]
+       ${0##*/} [-o] [-y]
 
     -h - show this help
     -o - set selection to on by default

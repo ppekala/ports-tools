@@ -18,7 +18,7 @@ interrupted=0 # build interrupted by ctrl+c
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: tbuilder <command> <query> [jail_name] [poudriere testport args]
+Usage: ${0##*/} <command> <query> [jail_name] [poudriere testport args]
 
  command: bdeps - build ports having certain build dependency
           file  - build ports read from file

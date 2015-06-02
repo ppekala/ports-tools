@@ -75,7 +75,7 @@ command_is_relevant() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: upgrade-ports [-h|-w|-y]
+Usage: ${0##*/} [-h|-w|-y]
 
     -h - show this help
     -w - wait for key press after finish

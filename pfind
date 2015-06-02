@@ -10,7 +10,7 @@ fi
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: pfind [-c category] [-h] [-m maintainer] [-n name] [-s string]
+Usage: ${0##*/} [-c category] [-h] [-m maintainer] [-n name] [-s string]
 
     -c - port category
     -h - show this help

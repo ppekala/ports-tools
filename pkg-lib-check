@@ -153,7 +153,7 @@ dependency_is_inherited() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: pkg-lib-check [-d|-h|-f|-l|-s grep_pattern] <-a|pkg_name>
+Usage: ${0##*/} [-d|-h|-f|-l|-s grep_pattern] <-a|pkg_name>
 
     -a - test all installed packages
     -d - show direct dependencies

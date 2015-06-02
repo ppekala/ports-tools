@@ -5,7 +5,7 @@ readonly RPORTSDIR="${RPORTSDIR:-${HOME}/redports}"
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: rports [-h|-n] [portdir]
+Usage: ${0##*/} [-h|-n] [portdir]
 
     -h - show this help
     -n - non-interactive mode

@@ -16,7 +16,7 @@ jail="${3}"
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: plog <send|show> [category/port] [jailname]
+Usage: ${0##*/} <send|show> [category/port] [jailname]
 
    send - scp(1) build log to freefall
    show - see build log

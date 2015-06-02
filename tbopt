@@ -5,8 +5,8 @@ readonly UID="$(id -u)"
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: tbopt <del|set|show> <portname> <buildname>
-       tbopt list <buildname>
+Usage: ${0##*/} <del|set|show> <portname> <buildname>
+       ${0##*/} list <buildname>
 
  command: del  - remove set options
           list - list ports with changed options
