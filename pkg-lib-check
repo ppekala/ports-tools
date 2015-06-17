@@ -1,10 +1,10 @@
 #!/bin/sh
 
-first_result=1
-full_check=0
-only_link_err=0
-show_direct_deps=0
-test_all=0
+first_result=1		# first result marker
+full_check=0		# do full time consuming tests
+only_link_err=0		# check only for link errors
+show_direct_deps=0	# show only direct dependencies of package(s)
+test_all=0		# test all packages installed
 
 # $1 - package to check
 # $2 - print link errors

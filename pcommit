@@ -6,12 +6,12 @@ readonly PAGER="${PAGER:-less}"
 readonly PAGER_DIFF="${PAGER_DIFF:-$PAGER}"
 readonly PSVN="${PSVN:-svn}"
 
-clean_only=0
-dir_cache=""
-dir_cache_ignore=""
-ignore_empty=0
-non_interactive=0
-removed_dirs=""
+clean_only=0	# only clean temporary files
+dir_cache=""	# directories to remove
+dir_cache_ignore="" # directories not to be removed
+ignore_empty=0	# ignore empty file during clean and commit phase
+non_interactive=0 # don't ask user any questions
+removed_dirs=""	# already removed directories
 
 ask_yesno() {
 	[ ${non_interactive} -eq 0 ] || return 0

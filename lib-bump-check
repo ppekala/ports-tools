@@ -3,6 +3,7 @@
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly IGNORE_FILE="${XDG_CONFIG_HOME}/lib-bump-check"
 
+# don't check for newer library version while deciding package recompilation
 bump_ignore=0
 
 check_package() {

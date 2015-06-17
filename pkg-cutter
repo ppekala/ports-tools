@@ -3,10 +3,10 @@
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly EXCLUDE_CONF="${XDG_CONFIG_HOME}/pkg-cutter"
 
-exclude_opt=0
-new_leafs_yes=0
-rm_count=0
-sel_status="off"
+exclude_opt=0	# exclude packages list generation mode
+new_leafs_yes=0	# automatically seek new leafs after pkg removal
+rm_count=0	# removed packages counter
+sel_status="off" # default packages selection state (on|off)
 
 display_usage() {
 	<< EOF >&2 cat

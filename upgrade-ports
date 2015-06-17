@@ -6,8 +6,8 @@ readonly PAGER="${PAGER:-less}"
 
 PORTSDIR=${PORTSDIR:-/usr/ports}
 
-answer_yes=0
-wait_for_key=0
+answer_yes=0	# answer yes to all of the questions
+wait_for_key=0	# wait for key press after update finish
 
 ask_yesno() {
 	while true; do
