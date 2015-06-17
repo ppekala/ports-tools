@@ -135,6 +135,17 @@ save_state() {
 	echo "${1}" > ${CONF_FILE}
 }
 
+while getopts "chs" option; do
+	case ${option} in
+	c)
+		make_args="${make_args} NO_CLEAN=yes" ;;
+	s)
+		echo > ${CONF_FILE} ;;
+	*)
+		display_usage
+	esac
+done
+
 if [ "$(id -u)" != "0" ]; then
 	echo "You need root privileges to upgrade base system" >&2
 	exit 1
@@ -149,18 +160,7 @@ if [ ! -d "${PORTSDIR}" ]; then
 	exit 1
 fi
 
-make_args="PORTSDIR=${PORTSDIR}"
-
-while getopts "chs" option; do
-	case ${option} in
-	c)
-		make_args="${make_args} NO_CLEAN=yes" ;;
-	s)
-		echo > ${CONF_FILE} ;;
-	*)
-		display_usage
-	esac
-done
+make_args="${make_args} PORTSDIR=${PORTSDIR}"
 
 cd ${SRCDIR}
 main_loop

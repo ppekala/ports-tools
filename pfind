@@ -1,12 +1,6 @@
 #!/bin/sh
 
 PORTSDIR=${PORTSDIR:-/usr/ports}
-[ -d "${PORTSDIR}" ] || \
-	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
-	exit 1
-fi
 
 display_usage() {
 	<< EOF >&2 cat
@@ -25,11 +19,7 @@ EOF
 while getopts "c:hm:n:s:" option; do
 	case ${option} in
 	c)
-		if [ ! -d ${PORTSDIR}/${OPTARG} ]; then
-			echo "No such category: ${OPTARG}" >&2
-			exit 1
-		fi
-		category="${OPTARG}/" ;;
+		category="${OPTARG}" ;;
 	m)
 		maintainer="${OPTARG}" ;;
 	n)
@@ -44,7 +34,19 @@ done
 [ -z "${category}" -a -z "${maintainer}" -a -z "${name}" -a -z "${string}" ] && \
 	display_usage
 
-[ -z "${category}" ] || search_args="path=${PORTSDIR}/${category}"
+[ -d "${PORTSDIR}" ] || \
+	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
+if [ ! -d "${PORTSDIR}" ]; then
+	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
+	exit 1
+fi
+
+if [ -n "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
+	echo "No such category: ${category}" >&2
+	exit 1
+fi
+
+[ -z "${category}" ] || search_args="path=${PORTSDIR}/${category}/"
 [ -z "${maintainer}" ] || search_args="${search_args} maint=${maintainer}"
 [ -z "${name}" ] || search_args="${search_args} name=${name}"
 

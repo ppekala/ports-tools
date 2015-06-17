@@ -5,11 +5,6 @@ readonly PAGER="${PAGER:-less}"
 readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
 
-if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
-	exit 1
-fi
-
 cmd="${1}"
 port="${2}"
 jail="${3}"
@@ -30,6 +25,11 @@ poudriere_jails() {
 }
 
 [ "${cmd}" != "send" -a "${cmd}" != "show" ] && display_usage
+
+if [ ! -d "${POUDRIERE_PORTS}" ]; then
+	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
+	exit 1
+fi
 
 [ -n "${port}" ] || port="."
 if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
