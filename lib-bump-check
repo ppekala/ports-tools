@@ -227,7 +227,7 @@ for pkg in ${pkg_stale}; do
 done
 
 while true; do
-	printf "\nTotal: ${n_stale} package(s)"
+	printf "\nTotal: ${n_stale} package(s)\n\n"
 	echo -e "Do you want to reinstall them (y/n)? [y] \c"
 	read answer
 	[ -n "${answer}" ] || answer="y"
