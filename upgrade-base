@@ -6,6 +6,8 @@ readonly SRCDIR=${SRCDIR:-/usr/src}
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 readonly CONF_FILE="${XDG_CONFIG_HOME}/upgrade-base"
 
+skip_tree_update=0	# don't update system sources before build
+
 ask_yesno() {
 	while true; do
 		echo -n "${1} (y/n)? [y] "
@@ -24,12 +26,12 @@ ask_yesno() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-c|-h|-s]
+Usage: ${0##*/} [-c|-h|-s|-u]
 
     -c - do not clean tree before build (NO_CLEAN=yes)
     -h - show this help
     -s - reset status and begin from start
-
+    -u - don't update system source tree before build
 EOF
 	exit 1
 }
@@ -58,37 +60,39 @@ main_loop() {
 
 	case ${state} in
 	"")
-		l_entry=$(last_updating_entry)
-		${PSVN} update
-		if [ ${?} -ne 0 ]; then
-			echo "===> Updating of source tree failed" >&2
-			exit 1
-		fi
+		if [ ${skip_tree_update} -eq 0 ]; then
+			l_entry=$(last_updating_entry)
+			${PSVN} update
+			if [ ${?} -ne 0 ]; then
+				echo "===> Updating of source tree failed" >&2
+				exit 1
+			fi
 
-		n_entry=$(last_updating_entry)
-		if [ ${n_entry} -gt ${l_entry} ]; then
-			printf "New entries since last upgrade in ${SRCDIR}/UPDATING file:\n\n"
-			awk -v entry="${l_entry}" '
-			BEGIN { new_entry=0; }
+			n_entry=$(last_updating_entry)
+			if [ ${n_entry} -gt ${l_entry} ]; then
+				printf "New entries since last upgrade in ${SRCDIR}/UPDATING file:\n\n"
+				awk -v entry="${l_entry}" '
+				BEGIN { new_entry=0; }
 	
-			/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
-				curr_entry=$0;
-				sub(":", "", curr_entry);
-				if (entry == curr_entry)
-					exit;
-				else
-					new_entry=1;
-			}
+				/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
+					curr_entry=$0;
+					sub(":", "", curr_entry);
+					if (entry == curr_entry)
+						exit;
+					else
+						new_entry=1;
+				}
 
-			{
-				if (new_entry == 1)
-					print $0;
-			}' ${SRCDIR}/UPDATING
+				{
+					if (new_entry == 1)
+						print $0;
+				}' ${SRCDIR}/UPDATING
 
-			ask_yesno "Continue with upgrade"
-			if [ ${?} -ne 0 ]; then 
-				save_state "REPO_UPDATED"
-				exit
+				ask_yesno "Continue with upgrade"
+				if [ ${?} -ne 0 ]; then
+					save_state "REPO_UPDATED"
+					exit
+				fi
 			fi
 		fi
 
@@ -135,12 +139,14 @@ save_state() {
 	echo "${1}" > ${CONF_FILE}
 }
 
-while getopts "chs" option; do
+while getopts "chsu" option; do
 	case ${option} in
 	c)
 		make_args="${make_args} NO_CLEAN=yes" ;;
 	s)
 		echo > ${CONF_FILE} ;;
+	u)
+		skip_tree_update=1 ;;
 	*)
 		display_usage
 	esac
