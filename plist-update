@@ -45,22 +45,16 @@ if [ -z "${tempfile}" ]; then
 fi
 [ -f pkg-plist ] && plist_out="pkg-plist.new" || plist_out="pkg-plist"
 
-make_args="OPTIONSFILE=/dev/null OPTIONS_FILE=/dev/null"
-
-for opt in $(make -VCOMPLETE_OPTIONS_LIST); do
-	make_args="${make_args} WITHOUT_${opt}=true"
-done
-
-for sub in $(make ${make_args} -VPLIST_SUB); do
+options_subs="PORTDOCS PORTEXAMPLES"
+for sub in $(make -V PLIST_SUB); do
 	case ${sub} in *@comment*)
+		case ${sub} in NO_*) sub=${sub##NO_}; esac
 		options_subs="${options_subs} ${sub%%=*}"
 	esac
 done
 
-make_args="$(echo ${make_args} | sed 's/WITHOUT/WITH/g')"
-
 make check-plist 2>&1 | awk ${awk_args} -v options_subs="${options_subs}" \
-	-v plist_subs="$(make ${make_args} -V PLIST_SUB)" '
+	-v plist_subs="$(make -V PLIST_SUB)" '
 BEGIN {
 	n = split(options_subs, s_array, " ");
 	for (i=1; i<=n; i++)

@@ -16,21 +16,15 @@ if [ ! -f "${plist_file}" ]; then
 	exit 1
 fi
 
-make_args="OPTIONSFILE=/dev/null OPTIONS_FILE=/dev/null"
-
-for opt in $(make -VCOMPLETE_OPTIONS_LIST); do
-	make_args="${make_args} WITHOUT_${opt}=true"
-done
-
-for sub in $(make ${make_args} -VPLIST_SUB); do
+options_subs="PORTDOCS PORTEXAMPLES"
+for sub in $(make -V PLIST_SUB); do
 	case ${sub} in *@comment*)
+		case ${sub} in NO_*) sub=${sub##NO_}; esac
 		options_subs="${options_subs} ${sub%%=*}"
 	esac
 done
 
-make_args="$(echo ${make_args} | sed 's/WITHOUT/WITH/g')"
-
-awk -v prefix="${PREFIX}/" -v plist_subs="$(make ${make_args} -V PLIST_SUB)" \
+awk -v prefix="${PREFIX}/" -v plist_subs="$(make -V PLIST_SUB)" \
 	-v options_subs="${options_subs}" '
 BEGIN { 
 	n_cmds=1;
