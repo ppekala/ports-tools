@@ -95,7 +95,7 @@ file)
 		echo "File ${query} does not exists" >&2
 		exit 1
 	fi
-	ports="$(cat "${query}")" ;;
+	ports="$(cat "${query}" | grep -v '^#')" ;;
 grep)
 	ports="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec \
 		grep -q "${query}" {} \; -print | grep -v "${query}/Makefile" \
