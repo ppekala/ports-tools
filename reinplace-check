@@ -38,8 +38,8 @@ fi
 
 find work -name "*.bak" -print | while read file; do
 	#TODO Makefile.in may be changed by REINPLACE_CMD too, fix it
-	[ ${PATHFIX} -eq 0 -a \
-		"$(basename ${file%.bak})" = "${PATHFILE}" ] && continue
+#	[ ${PATHFIX} -eq 0 -a \
+#		"$(basename ${file%.bak})" = "${PATHFILE}" ] && continue
 
 	case ${file} in *.libtool.bak) continue ;; esac
 
