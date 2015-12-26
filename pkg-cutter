@@ -2,6 +2,10 @@
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly EXCLUDE_CONF="${XDG_CONFIG_HOME}/pkg-cutter"
+readonly tcols=$(stty size | cut -d" " -f2)
+readonly tlines=$(stty size | cut -d" " -f1)
+
+[ $tcols -lt 80 ] && dwidth=$((tcols-4)) || dwidth=76
 
 exclude_opt=0	# exclude packages list generation mode
 new_leafs_yes=0	# automatically seek new leafs after pkg removal
@@ -68,7 +72,7 @@ update_exclude_list() {
 
 	tmpfile="$(mktmp)"
 	echo "--checklist \"Select packages to exclude (${count} items):\" \
-		21 70 19 ${items}" > ${tmpfile}
+		$((tlines-3)) ${dwidth} $((tlines-5)) ${items}" > ${tmpfile}
 	excluded="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
 	dialog --clear
 	rm ${tmpfile}
@@ -132,7 +136,7 @@ while true; do
 
 	[ -n "${tmpfile}" ] || tmpfile="$(mktmp)"
 	echo "--checklist \"Select packages to delete (${count} items):\" \
-		21 70 19 ${items}" > ${tmpfile}
+		$((tlines-3)) ${dwidth} $((tlines-5)) ${items}" > ${tmpfile}
 
 	ret="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
 	[ -z "${ret}" ] && break
