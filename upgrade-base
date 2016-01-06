@@ -5,6 +5,10 @@ readonly PSVN=${PSVN:-svn}
 readonly SRCDIR=${SRCDIR:-/usr/src}
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 readonly CONF_FILE="${XDG_CONFIG_HOME}/upgrade-base"
+readonly tcols=$(stty size | cut -d" " -f2)
+readonly tlines=$(stty size | cut -d" " -f1)
+
+[ $tcols -lt 80 ] && dwidth=$((tcols-4)) || dwidth=76
 
 skip_tree_update=0	# don't update system sources before build
 
@@ -22,6 +26,30 @@ ask_yesno() {
 			return 0
 		esac
 	done
+}
+
+delete_old_files() {
+	local tmpfile="$(mktemp -t upgrade-base)"
+	[ -z "${tmpfile}" ] && return
+
+	for type in libs files dirs; do
+		${MAKE} check-old-${type} | grep '^/' > ${tmpfile}
+		tstr="$(echo $type | cut -b1)"
+		for file in $(cat ${tmpfile}); do
+			items="${items} \"${file}\" ${tstr} on"
+		done
+	done
+	if [ -n "${items}" ]; then
+		echo "--stdout --checklist \"Choose old files to delete\" \
+			$((tlines-3)) ${dwidth} $((tlines-5)) \
+			${items}" > ${tmpfile}
+		to_remove="$(dialog --file ${tmpfile})"
+		dialog --clear
+		for file in ${to_remove}; do
+			rm -rf ${file}
+		done
+	fi
+	rm ${tmpfile}
 }
 
 display_usage() {
@@ -113,15 +141,8 @@ main_loop() {
 		exec_cmd "mergemaster -Fui" "MERGEMASTER_DONE" ;;
 	"MERGEMASTER_DONE")
 		if ask_yesno "Delete old files from system"; then
-			out="$(yes | ${MAKE} delete-old delete-old-libs)"
-			if [ -n "${out}" ]; then
-				echo "===> Removed files:"
-				for file in ${out}; do
-					case ${file} in *\?)
-						printf "${file%%?}\n" ;;
-					esac
-				done | sort
-			fi
+			echo "===> Checking for old files..."
+			delete_old_files
 		fi
 		save_state ""
 		printf "\n===> You need to restart computer again.\n\n"
