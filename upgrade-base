@@ -186,8 +186,10 @@ if [ ! -d "${PORTSDIR}" ]; then
 	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
 	exit 1
 fi
-
 make_args="${make_args} PORTSDIR=${PORTSDIR}"
+
+jobs="$(sysctl -n hw.ncpu)"
+[ -n "${jobs}" ] && make_args="${make_args} -j${jobs}"
 
 cd ${SRCDIR}
 main_loop
