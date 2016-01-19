@@ -27,7 +27,7 @@ EOF
 }
 
 mktmp() {
-	local tmp="$(mktemp -t pkg-cutter)"
+	local tmp="$(mktemp -t ${0##*/})"
 	if [ -z "${tmp}" ]; then
 		echo "===> Failed to create temporary file" >&2
 		exit 1

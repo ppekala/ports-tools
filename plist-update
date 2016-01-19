@@ -38,7 +38,7 @@ if [ -z "${PKGNAME}" ]; then
 	exit 1
 fi
 
-tempfile="$(mktemp -t tb-plist-update)"
+tempfile="$(mktemp -t ${0##*/})"
 if [ -z "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1

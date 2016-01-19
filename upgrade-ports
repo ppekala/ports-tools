@@ -264,7 +264,7 @@ done
 last_upd="$(get_entry_dates | head -n 1)"
 
 if [ ${last_read} -lt ${last_upd} ]; then
-	tmpfile="$(mktemp -t upgrade-ports)"
+	tmpfile="$(mktemp -t ${0##*/})"
 	if [ -z "${tmpfile}" ]; then
 		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1 "" ${wait_for_key}

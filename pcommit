@@ -228,7 +228,7 @@ if [ ${ignore_empty} -eq 0 ]; then
 	done
 fi
 
-tempfile="$(mktemp -t pcommit)"
+tempfile="$(mktemp -t ${0##*/})"
 if [ -z "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1

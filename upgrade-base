@@ -29,7 +29,7 @@ ask_yesno() {
 }
 
 delete_old_files() {
-	local tmpfile="$(mktemp -t upgrade-base)"
+	local tmpfile="$(mktemp -t ${0##*/})"
 	[ -z "${tmpfile}" ] && return
 
 	for type in libs files dirs; do

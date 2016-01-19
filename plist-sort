@@ -163,8 +163,8 @@ function keyword_line_untokenize(line, keyword) {
 }
 
 END {
-	"mktemp" | getline tmpfile;
-	close("mktemp");
+	"mktemp -t plist-sort" | getline tmpfile;
+	close("mktemp -t plist-sort");
 	for (i in files) print files[i] | ("sort -u >" tmpfile);
 	close("sort -u >" tmpfile);
 	
