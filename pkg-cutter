@@ -118,6 +118,7 @@ while true; do
 	for pkg in ${pkg_leafs}; do
 		case ${pkg_seen} in *${pkg%@*}*) continue;; esac
 		case ${pkg_exclude} in *${pkg%-*}*) continue;; esac
+		[ ${pkg%-*} != "pkg" ] || continue
 
 		size="$(number_humanize ${pkg#*@})"
 		pkg_seen="${pkg_seen} ${pkg%@*}"
