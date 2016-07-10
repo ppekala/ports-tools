@@ -6,12 +6,30 @@ readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
 
 readonly command="${1}"
-readonly query="${2}"
+query="${2}"
 readonly build="${3:-none}"
 
 export PORTSDIR # needed for portsearch
 
 interrupted=0 # build interrupted by ctrl+c
+
+check_portname() {
+	if [ "${1}" = "." ]; then
+		port="$(echo ${PWD} | awk '{
+			n = split($0, p ,"/");
+			print p[n-1] "/" p[n];
+		}')"
+	else
+		port="${1}"
+	fi
+
+	if [ ! -d "${POUDRIERE_PORTS}/${port}" ]; then
+		printf "${POUDRIERE_PORTS}/${port}: port directory does not exists\n\n" >&2
+		display_usage
+	fi
+
+	echo ${port}
+}
 
 display_usage() {
 	<< EOF >&2 cat
@@ -27,8 +45,7 @@ Usage: ${0##*/} <command> <query> [jail_name] [poudriere testport args]
  query: (bdeps|match) - portname
         (file) - name of file to read category/port entries from
         (grep) - grep pattern
-        (ldeps) - category/port
-        (name) - category/port or '.' to build port from current directory
+        (ldeps|name) - category/port or '.' for port from current directory
 
  jail_name: poudriere jail name or 'all' for all available jails
 
@@ -103,10 +120,7 @@ grep)
 		grep -q "${query}" {} \; -print | grep -v "${query}/Makefile" \
 		| sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
-	if [ ! -d "${POUDRIERE_PORTS}/${query}" ]; then
-		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n" >&2
-		display_usage
-	fi
+	query=$(check_portname ${query})
 	tmp="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec grep -q \
 		"^[^#].*${query}[ \\]*\$" {} \; -print | sed 's|\./||')"
 
@@ -140,13 +154,7 @@ ldeps)
 match)
 	ports="$(portsearch -n ${query} | grep Path: | cut -f 4- -d '/')" ;;
 name)
-	if [ "${query}" != "." -a ! -d "${POUDRIERE_PORTS}/${query}" ]; then
-		printf "${POUDRIERE_PORTS}/${query}: port directory does not exists\n\n" >&2
-		display_usage
-	fi
-	ports="${query}"
-	[ "${ports}" = "." ] && ports="$(echo ${PWD} | \
-		awk '{ n = split($0, p ,"/"); print p[n-1] "/" p[n]; }')" ;;
+	ports=$(check_portname ${query}) ;;
 *)
 	display_usage
 esac
