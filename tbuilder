@@ -1,6 +1,6 @@
 #!/bin/sh
 
-readonly PORTSDIR="${PORTSDIR:-/usr/ports}"
+readonly PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
 readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
@@ -8,6 +8,8 @@ readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
 readonly command="${1}"
 readonly query="${2}"
 readonly build="${3:-none}"
+
+export PORTSDIR # needed for portsearch
 
 interrupted=0 # build interrupted by ctrl+c
 
