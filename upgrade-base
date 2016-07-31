@@ -178,6 +178,9 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
+jobs="$(sysctl -n hw.ncpu)"
+[ -n "${jobs}" ] && make_args="${make_args} -j${jobs}"
+
 # needed for rebuilding kernel modules ports
 PORTSDIR=${PORTSDIR:-/usr/ports}
 [ -d "${PORTSDIR}" ] || \
@@ -188,8 +191,8 @@ if [ ! -d "${PORTSDIR}" ]; then
 fi
 make_args="${make_args} PORTSDIR=${PORTSDIR}"
 
-jobs="$(sysctl -n hw.ncpu)"
-[ -n "${jobs}" ] && make_args="${make_args} -j${jobs}"
+ports_modules="$(pkg which -qo /boot/modules/* | uniq | tr '\n' ' ')"
+[ -n "${ports_modules}" ] && export PORTS_MODULES="${ports_modules}"
 
 cd ${SRCDIR}
 main_loop
