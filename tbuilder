@@ -64,10 +64,10 @@ poudriere_test_build() {
 	if [ "${port}" != "${option}" ]; then
 		if [ "${option}" != "OPT_UNKNOWN"  ]; then
 			echo "*** port ${port} needs ${option} to be set ***"
-			port_cfg="-c"
 		else
 			echo "*** port ${port} unknown option needed ***"
 		fi
+		port_cfg="-c"
 	fi
 
 	${SUDO} poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
@@ -138,14 +138,16 @@ ldeps)
 			[ -n "$(echo ${option} | grep ^-)" ] || continue
 
 			if [ -n "$(make -V BUILD_DEPENDS -V LIB_DEPENDS \
-				WITH_${option#-}=yes | grep ${query})" ]
+				OPTIONS_DEFAULT=${option#-} | grep ${query})" ]
 			then
 				ports="${ports} ${path}:${option#-}"
 				continue 2
 			fi
 
-			[ -z "$(make -V RUN_DEPENDS WITH_${option#-}=yes | \
-				grep ${query})" ] || continue 2
+			[ -z "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
+				-V PATCH_DEPENDS -V RUN_DEPENDS -V TEST_DEPENDS \
+				OPTIONS_DEFAULT=${option#-} | grep ${query})" ] \
+				|| continue 2
 		done
 		
 		ports="${ports} ${path}:OPT_UNKNOWN"
