@@ -205,8 +205,8 @@ END {
 	close(tmpfile);
 	system("cat /dev/null>" tmpfile);
 
-	for (i in dirs) print dirs[i] | ("sort -u -r >" tmpfile);
-	close("sort -u -r >" tmpfile);
+	for (i in dirs) print dirs[i] | ("sort -u >" tmpfile);
+	close("sort -u >" tmpfile);
 	
 	while((getline line < tmpfile) > 0)
 		keyword_line_untokenize(line, "dir");
