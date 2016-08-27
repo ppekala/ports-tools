@@ -50,6 +50,24 @@ BEGIN {
 	}
 }
 
+function store_pathname(path, tokens) {
+	is_dir=0;
+	if (match(tokens, "@dir"))
+		is_dir=1;
+
+	if (match(path, "^/")) {
+		if (is_dir == 1)
+			dirs_nonprefix[path] = tokens;
+		else
+			files_nonprefix[path] = tokens;
+	} else {
+		if (is_dir == 1)
+			dirs[path] = tokens;
+		else
+			files[path] = tokens;
+	}
+}
+
 function str_replace(string, pattern, new_pattern) {
 	new_str=""
 	n = split(string, array, pattern);
@@ -72,14 +90,14 @@ function plist_split(string, array) {
 	array[2] = substr(string, n+1);
 }
 
-function keyword_line_tokenize(line, keyword, out) {
+function keyword_line_tokenize(line, keyword) {
 	path = chunks = "";
 
 	n = split(line, array, "%%");
 
 	if (n == 1) {
 		plist_split(array[1], p);
-		out[p[2]] = p[2] separator p[1];
+		store_pathname(p[2], p[2] separator p[1]);
 		return;
 	}
 	for (i=1; i <= n; i++) {
@@ -99,7 +117,7 @@ function keyword_line_tokenize(line, keyword, out) {
 		} else
 			path = path array[i];
 	}
-	out[path] = path chunks;
+	store_pathname(path, path chunks);
 }
 
 function keyword_line_untokenize(line, keyword) {
@@ -125,54 +143,20 @@ function keyword_line_untokenize(line, keyword) {
 	printf("%s %s\n", cmd, path);
 }
 
-/^(%%[0-9A-Z_]*%%)*([a-z]|\/)+/ { # files
-	path = chunks = "";
-
-	n = split($0, array, "%%");
-
-	if (n == 1) {
-		files[array[1]] = array[1];
-		next;
-	}
-	for (i=1; i <= n; i++) {
-		if (opt_subs[array[i]] != "") {
-			chunks = chunks separator array[i];
-			continue;
-		}
-		if (subs[array[i]] != "") {
-			path = path subs[array[i]];
-			chunks = chunks separator array[i];
-		} else
-			path = path array[i];
-	}
-	files[path] = path chunks;
+function sort_to_file(array, file) {
+	for (i in array) print array[i] | ("sort -u >" file);
+	close("sort -u >" file);
 }
 
-/^(%%[0-9A-Z_]*%%)*@dir/ { # dirs
-	keyword_line_tokenize($0, "dir", dirs);
+function truncate_file(file) {
+	close(file);
+	system("cat /dev/null>" file);
 }
 
-/^(%%[0-9A-Z_]*%%)*@sample/ {
-	keyword_line_tokenize($0, "sample", files);
-}
+function print_files(array, file) {
+	sort_to_file(array, file);
 
-/^(%%[0-9A-Z_]*%%)*@\(.*\)/ {
-	keyword_line_tokenize($0, "", files);
-}
-
-/^(%%[0-9A-Z_]*%%)*@/ { # other commands, @exec, @unexec etc
-	if (match($0, "@(dir|sample)") || match($0, "@\(.*\) "))
-		next;
-	cmds[n_cmds++] = $0;
-}
-
-END {
-	"mktemp -t plist-sort" | getline tmpfile;
-	close("mktemp -t plist-sort");
-	for (i in files) print files[i] | ("sort -u >" tmpfile);
-	close("sort -u >" tmpfile);
-	
-	while((getline line < tmpfile) > 0) {
+	while((getline line < file) > 0) {
 		if (match(line, "@\(.*\)")) {
 			keyword_line_untokenize(line, "");
 			continue;
@@ -182,7 +166,7 @@ END {
 			continue;
 		}
 
-		n = split(line, p, separator); 
+		n = split(line, p, separator);
 		path = p[1];
 
 		if (n == 1) {
@@ -202,16 +186,65 @@ END {
 		}
 		print path;
 	}
-	close(tmpfile);
-	system("cat /dev/null>" tmpfile);
+	truncate_file(file);
+}
 
-	for (i in dirs) print dirs[i] | ("sort -u >" tmpfile);
-	close("sort -u >" tmpfile);
-	
+function print_dirs(array, file) {
+	sort_to_file(array, file);
 	while((getline line < tmpfile) > 0)
 		keyword_line_untokenize(line, "dir");
+	truncate_file(file);
+}
 
-	close(tmpfile);
+/^(%%[0-9A-Z_]*%%)*([a-z]|\/)+/ { # files
+	path = chunks = "";
+
+	n = split($0, array, "%%");
+
+	if (n == 1) {
+		store_pathname(array[1], array[1]);
+		next;
+	}
+	for (i=1; i <= n; i++) {
+		if (opt_subs[array[i]] != "") {
+			chunks = chunks separator array[i];
+			continue;
+		}
+		if (subs[array[i]] != "") {
+			path = path subs[array[i]];
+			chunks = chunks separator array[i];
+		} else
+			path = path array[i];
+	}
+	store_pathname(path, path chunks);
+}
+
+/^(%%[0-9A-Z_]*%%)*@dir/ { # dirs
+	keyword_line_tokenize($0, "dir");
+}
+
+/^(%%[0-9A-Z_]*%%)*@sample/ {
+	keyword_line_tokenize($0, "sample");
+}
+
+/^(%%[0-9A-Z_]*%%)*@\(.*\)/ {
+	keyword_line_tokenize($0, "");
+}
+
+/^(%%[0-9A-Z_]*%%)*@/ { # other commands, @exec, @unexec etc
+	if (match($0, "@(dir|sample)") || match($0, "@\(.*\) "))
+		next;
+	cmds[n_cmds++] = $0;
+}
+
+END {
+	"mktemp -t plist-sort" | getline tmpfile;
+	close("mktemp -t plist-sort");
+
+	print_files(files, tmpfile);
+	print_files(files_nonprefix, tmpfile);
+	print_dirs(dirs, tmpfile);
+	print_dirs(dirs_nonprefix, tmpfile);
 	system("rm " tmpfile);
 	
 	if (n_cmds > 1) {
