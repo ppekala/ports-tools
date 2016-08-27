@@ -156,9 +156,13 @@ function keyword_line_untokenize(line, keyword) {
 	keyword_line_tokenize($0, "sample", files);
 }
 
+/^(%%[0-9A-Z_]*%%)*@\(.*\)/ {
+	keyword_line_tokenize($0, "", files);
+}
+
 /^(%%[0-9A-Z_]*%%)*@/ { # other commands, @exec, @unexec etc
-	if (match($0, "@(dir|sample)"))
-		next;	
+	if (match($0, "@(dir|sample)") || match($0, "@\(.*\) "))
+		next;
 	cmds[n_cmds++] = $0;
 }
 
@@ -169,6 +173,10 @@ END {
 	close("sort -u >" tmpfile);
 	
 	while((getline line < tmpfile) > 0) {
+		if (match(line, "@\(.*\)")) {
+			keyword_line_untokenize(line, "");
+			continue;
+		}
 		if (match(line, "@sample")) {
 			keyword_line_untokenize(line, "sample");
 			continue;
