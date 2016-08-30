@@ -84,15 +84,6 @@ reinplace-check
 
 Checks for files with stale REINPLACE_CMD actions or shows diff's of them.
 
-rports
-------
-
-Script to sync port directory with your redports.org checkout
-
-tbopt
------
-Sets port options in specific or all tinderbox builds.
-
 tbuilder
 --------
 
