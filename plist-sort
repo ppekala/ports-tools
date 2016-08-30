@@ -12,7 +12,6 @@ if [ -z "${PKGNAME}" -o -z "${PREFIX}" ]; then
 fi
 
 [ -n "${plist_file}" ] || plist_file=$(make -V PLIST)
-
 if [ ! -f "${plist_file}" ]; then
 	echo "===> Plist file was not found: ${plist_file}" >&2
 	exit 1
@@ -94,7 +93,6 @@ function keyword_line_tokenize(line, keyword) {
 	path = chunks = "";
 
 	n = split(line, array, "%%");
-
 	if (n == 1) {
 		plist_split(array[1], p);
 		store_pathname(p[2], p[2] separator p[1]);
@@ -200,7 +198,6 @@ function print_dirs(array, file) {
 	path = chunks = "";
 
 	n = split($0, array, "%%");
-
 	if (n == 1) {
 		store_pathname(array[1], array[1]);
 		next;
