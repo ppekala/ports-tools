@@ -53,17 +53,28 @@ EOF
 	exit 1
 }
 
+is_build_dep() {
+	[ -n "$(make -V BUILD_DEPENDS -V LIB_DEPENDS ${2} \
+		| grep ${1})" ] && return 0 || return 1
+}
+
+is_other_dep() {
+	[ -n "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
+		-V RUN_DEPENDS -V TEST_DEPENDS ${2} | grep ${1})" ] && \
+		return 0 || return 1
+}
+
 poudriere_jails() {
 	poudriere jail -lq | cut -d" " -f1
 }
 
 poudriere_test_build() {
-	local jname="${1}" port="${2%%:*}" option="${2##*:}"
-	local port_cfg="" outcome="success"
+	local jname="${1}" port="${2%%:*}" option="$(echo ${2} | cut -d: -f2)"
+	local opt_switch="${2##*:}" port_cfg="" outcome="success"
 
 	if [ "${port}" != "${option}" ]; then
 		if [ "${option}" != "OPT_UNKNOWN"  ]; then
-			echo "*** port ${port} needs ${option} to be set ***"
+			echo "*** port ${port} needs ${option} set to ${opt_switch} ***"
 		else
 			echo "*** port ${port} unknown option needed ***"
 		fi
@@ -128,29 +139,30 @@ ldeps)
 		path="$(dirname ${path})"
 		[ "${query}" != "${path}" ] || continue
 		cd ${POUDRIERE_PORTS}/${path}
-		if [ -n "$(make -V BUILD_DEPENDS -V LIB_DEPENDS | grep ${query})" ]; then
-			ports="${ports} ${path}"
+		if is_build_dep ${query}; then
+			ports="${ports} ${path}::"
 			continue
 		fi
-		[ -z "$(make -V RUN_DEPENDS | grep ${query})" ] || continue
+		is_other_dep ${query} && continue
 
 		for option in $(make pretty-print-config); do
 			[ -n "$(echo ${option} | grep ^-)" ] || continue
 
-			if [ -n "$(make -V BUILD_DEPENDS -V LIB_DEPENDS \
-				OPTIONS_DEFAULT=${option#-} | grep ${query})" ]
-			then
-				ports="${ports} ${path}:${option#-}"
+			if is_build_dep ${query} OPTIONS_DEFAULT=${option#-}; then
+				ports="${ports} ${path}:${option#-}:on"
 				continue 2
 			fi
-
-			[ -z "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
-				-V PATCH_DEPENDS -V RUN_DEPENDS -V TEST_DEPENDS \
-				OPTIONS_DEFAULT=${option#-} | grep ${query})" ] \
-				|| continue 2
+			is_other_dep ${query} OPTIONS_DEFAULT=${option#-} && continue 2
 		done
-		
-		ports="${ports} ${path}:OPT_UNKNOWN"
+		for option in $(make pretty-print-config); do
+			[ -n "$(echo ${option} | grep ^+)" ] || continue
+
+			if is_build_dep ${query} OPTIONS_UNSET=${option#+}; then
+				ports="${ports} ${path}:${option#+}:off"
+				continue 2
+			fi
+		done
+		ports="${ports} ${path}:OPT_UNKNOWN:none"
 	done
 	;;	
 match)
@@ -164,14 +176,15 @@ esac
 for port in ${ports}; do
 	case ${build} in
 	none)
+		option="$(echo ${port} | cut -d: -f2)"
 		if [ "${command}" != "name" ]; then
-			case ${port##*:} in
-			"${port}")
+			case ${option} in
+			"")
 				echo "Found match: ${port%%:*}" ;;
 			"OPT_UNKNOWN")
 				echo "Found match: ${port%%:*}, unknown option needed" ;;
 			*)
-				echo "Found match: ${port%%:*}, needs ${port##*:}=on" ;;
+				echo "Found match: ${port%%:*}, needs ${option}=${port##*:}" ;;
 			esac
 		fi
 		;;
