@@ -69,12 +69,12 @@ poudriere_jails() {
 }
 
 poudriere_test_build() {
-	local jname="${1}" port="${2%%:*}" option="$(echo ${2} | cut -d: -f2)"
-	local opt_switch="${2##*:}" port_cfg="" outcome="success"
+	local jname="${1}" port="${2%%:*}" option=${2#*:}
+	local port_cfg="" outcome="success"
 
 	if [ "${port}" != "${option}" ]; then
 		if [ "${option}" != "OPT_UNKNOWN"  ]; then
-			echo "*** port ${port} needs ${option} set to ${opt_switch} ***"
+			echo "*** port ${port} needs ${option%:*} set to ${option#*:} ***"
 		else
 			echo "*** port ${port} unknown option needed ***"
 		fi
@@ -176,15 +176,15 @@ esac
 for port in ${ports}; do
 	case ${build} in
 	none)
-		option="$(echo ${port} | cut -d: -f2)"
+		option=${port#*:}
 		if [ "${command}" != "name" ]; then
-			case ${option} in
+			case ${option%:*} in
 			"")
 				echo "Found match: ${port%%:*}" ;;
 			"OPT_UNKNOWN")
 				echo "Found match: ${port%%:*}, unknown option needed" ;;
 			*)
-				echo "Found match: ${port%%:*}, needs ${option}=${port##*:}" ;;
+				echo "Found match: ${port%%:*}, needs ${option%:*}=${option#*:}" ;;
 			esac
 		fi
 		;;
@@ -204,9 +204,9 @@ if [ -n "${BUILD_RESULTS}" ]; then
 	printf "%-40s %-15s %s\n" "PORTNAME" "JAIL" "RESULT"
 
 	for result in ${BUILD_RESULTS}; do
+		params=${result#*:}
 		printf "%-40s %-15s %s\n" "${result%%:*}" \
-			"$(echo ${result} | awk -F: '{ print $2 }')" \
-			"${result##*:}"
+			${params%:*} ${params#*:}
 	done
 	echo ""
 fi
