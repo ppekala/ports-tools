@@ -146,21 +146,21 @@ ldeps)
 		is_other_dep ${query} && continue
 
 		for option in $(make pretty-print-config); do
-			[ -n "$(echo ${option} | grep ^-)" ] || continue
-
-			if is_build_dep ${query} OPTIONS_DEFAULT=${option#-}; then
-				ports="${ports} ${path}:${option#-}:on"
-				continue 2
-			fi
-			is_other_dep ${query} OPTIONS_DEFAULT=${option#-} && continue 2
+			case ${option} in -*)
+				if is_build_dep ${query} OPTIONS_DEFAULT=${option#-}; then
+					ports="${ports} ${path}:${option#-}:on"
+					continue 2
+				fi
+				is_other_dep ${query} OPTIONS_DEFAULT=${option#-} && continue 2
+			esac
 		done
 		for option in $(make pretty-print-config); do
-			[ -n "$(echo ${option} | grep ^+)" ] || continue
-
-			if is_build_dep ${query} OPTIONS_UNSET=${option#+}; then
-				ports="${ports} ${path}:${option#+}:off"
-				continue 2
-			fi
+			case ${option} in +*)
+				if is_build_dep ${query} OPTIONS_UNSET=${option#+}; then
+					ports="${ports} ${path}:${option#+}:off"
+					continue 2
+				fi
+			esac
 		done
 		ports="${ports} ${path}:OPT_UNKNOWN:none"
 	done
