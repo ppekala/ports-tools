@@ -43,7 +43,7 @@ if [ -z "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi
-[ -f ${PLIST} ] && plist_out="pkg-plist.new" || plist_out="pkg-plist"
+[ -f ${PLIST} ] && plist_out="pkg-plist.new" || plist_out="${PLIST}"
 
 options_subs="PORTDOCS PORTEXAMPLES"
 for sub in $(make -V PLIST_SUB); do
@@ -166,6 +166,5 @@ if [ ${?} -eq 1 ]; then
 			break
 		esac
 	done
-else
-	rm ${plist_out}
 fi
+rm ${plist_out}
