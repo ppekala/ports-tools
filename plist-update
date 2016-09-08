@@ -56,6 +56,10 @@ done
 make check-plist 2>&1 | awk ${awk_args} -v options_subs="${options_subs}" \
 	-v plist_subs="$(make -V PLIST_SUB)" '
 BEGIN {
+	# blacklisted plist subs that should
+	# not be in final version of new plist
+	subs_blacklist["QT_BINDIR"] = 1;
+
 	n = split(options_subs, s_array, " ");
 	for (i=1; i<=n; i++)
 		opt_subs[s_array[i]] = s_array[i];
@@ -120,6 +124,18 @@ function no_subs_path(path) {
 	return new_path;
 }
 
+function remove_blacklisted_subs(path) {
+	n = split(path, array, "%%");
+	if (n == 1)
+		return path;
+
+	for (i in array) {
+		if (array[i] in subs_blacklist)
+			sub("%%" array[i] "%%", subs[array[i]], path);
+	}
+	return path;
+}
+
 /^Error: Missing:/ {
 	path = get_plist_path();
 	path = no_subs_path(path);
@@ -133,8 +149,10 @@ function no_subs_path(path) {
 	path = get_plist_path();
 	ns_path = no_subs_path(path);
 
-	if (plist[ns_path] == "")
+	if (plist[ns_path] == "") {
+		path = remove_blacklisted_subs(path);
 		plist[ns_path] = subname dir path;
+	}
 }
 
 END {
