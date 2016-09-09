@@ -252,8 +252,6 @@ END {
 	print_dirs(dirs_nonprefix, tmpfile);
 	system("rm " tmpfile);
 	
-	if (n_cmds > 1) {
-		printf("\n@comment Lines below should be sorted manually\n");
+	if (n_cmds > 1)
 		for (i in cmds) print cmds[i];
-	}
 }' ${plist_file}
