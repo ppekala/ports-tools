@@ -86,8 +86,7 @@ get_entry_dates() {
 get_removed_ports() {
 	awk -v date="${1}" '
 	!/^#/ {
-		n = split($0, field, "|");
-		if (n != 4)
+		if (split($0, field, "|") != 4)
 			next;
 
 		gsub("-", "", field[3]);
@@ -101,8 +100,7 @@ get_removed_ports() {
 removal_reason() {
 	awk -v port="${1}" '
 	!/^#/ {
-		n = split($0, field, "|");
-		if (n != 4)
+		if (split($0, field, "|") != 4)
 			next;
 
 		if (field[1] == port)
