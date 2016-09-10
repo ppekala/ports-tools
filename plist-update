@@ -106,30 +106,27 @@ function get_plist_path() {
 function no_subs_path(path) {
 	new_path = "";
 
-	n = split(path, array, "%%");
-	if (n == 1)
+	if ((n = split(path, array, "%%")) == 1)
 		return path;
 
 	for (i=1; i<=n; i++) {
-		if (opt_subs[array[i]] != "")
+		if (array[i] in opt_subs)
 			continue;
 
-		if (subs[array[i]] != "") {
+		if (array[i] in subs) {
 			new_path = new_path subs[array[i]];
 			continue;
 		}
 		new_path = new_path array[i];
 	}
-
 	return new_path;
 }
 
 function remove_blacklisted_subs(path) {
-	n = split(path, array, "%%");
-	if (n == 1)
+	if ((n = split(path, array, "%%")) == 1)
 		return path;
 
-	for (i in array) {
+	for (i=1; i<=n; i++) {
 		if (array[i] in subs_blacklist)
 			sub("%%" array[i] "%%", subs[array[i]], path);
 	}
@@ -140,7 +137,7 @@ function remove_blacklisted_subs(path) {
 	path = get_plist_path();
 	path = no_subs_path(path);
 
-	if (plist[path] != "")
+	if (path in plist)
 		delete plist[path];
 }
 
@@ -149,20 +146,15 @@ function remove_blacklisted_subs(path) {
 	path = get_plist_path();
 	ns_path = no_subs_path(path);
 
-	if (plist[ns_path] == "") {
+	if (ns_path in plist == 0) {
 		path = remove_blacklisted_subs(path);
 		plist[ns_path] = subname dir path;
 	}
 }
 
 END {
-	for (file in plist) {
-		if (plist[file] != "") {
-			print plist[file];
-			#printf("file <%s> var <%s>\n", file, plist[file]);
-		}
-	}
-
+	for (file in plist)
+		print plist[file];
 }' > ${tempfile}
 
 plist-sort ${tempfile} > ${plist_out}
