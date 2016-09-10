@@ -8,9 +8,9 @@ Usage: ${0##*/} [-c category] [-h] [-m maintainer] [-n name] [-s string]
 
     -c - port category
     -h - show this help
-    -m - port's maintainer
-    -n - port's name
-    -s - string to find in port's Makefile
+    -m - port maintainer
+    -n - port name
+    -s - string to find in port Makefile
 
 EOF
 	exit 1
