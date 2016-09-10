@@ -56,6 +56,12 @@ if [ ! -f "$(make -VINDEXFILE)" ]; then
 	make fetchindex || exit 1
 fi
 
+if [ -z "${search_args}" ]; then
+	find . -name Makefile -depth 3 -exec grep -l "${string}" {} \; \
+		2>/dev/null | sed 's|^.\/||; s|\/Makefile$||' | sort
+	exit
+fi
+
 make quicksearch ${search_args} | awk '/^Path:/ { print $2 }' | while read portdir; do
 	if [ -n "${string}" ]; then
 		[ -e ${portdir}/Makefile ] || continue
