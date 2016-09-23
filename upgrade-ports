@@ -84,27 +84,19 @@ get_entry_dates() {
 }
 
 get_removed_ports() {
-	awk -v date="${1}" '
-	!/^#/ {
-		if (split($0, field, "|") != 4)
-			next;
-
-		gsub("-", "", field[3]);
-		if (field[2] != "" || field[3] < date)
-			next;
-
-		print field[1];
+	awk -F '|' -v date="${1}" '
+	!/^#/ && NR = 4 {
+		gsub("-", "", $3);
+		if ($2 == "" && $3 > date)
+			print $1;
 	}' ${PORTSDIR}/MOVED
 }
 
 removal_reason() {
-	awk -v port="${1}" '
-	!/^#/ {
-		if (split($0, field, "|") != 4)
-			next;
-
-		if (field[1] == port)
-			print field[4];
+	awk -F '|' -v port="${1}" '
+	!/^#/ && NR = 4 {
+		if ($1 == port)
+			print $4;
 	}' ${PORTSDIR}/MOVED
 }
 
@@ -115,7 +107,6 @@ updating_commands() {
 		in_cmd=0;
 		cmd="";
 	}
-
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
 		sub(":", "", $0);
 		if (entry == $0)
@@ -124,7 +115,6 @@ updating_commands() {
 			if (in_entry == 1)
 				exit;
 	}
-
 	{
 		if (in_entry != 1)
 			next;
@@ -173,7 +163,6 @@ updating_entry() {
 			if (in_entry == 1)
 				exit;
 	}
-
 	{
 		if (in_entry == 1)
 			print $0;
