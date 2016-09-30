@@ -72,7 +72,7 @@ poudriere_test_build() {
 	local jname="${1}" port="${2%%:*}" option=${2#*:}
 	local port_cfg="" outcome="success"
 
-	if [ -n "${option%:*}" ]; then
+	if [ "${port}" != "${option}" ]; then
 		if [ "${option%:*}" != "OPT_UNKNOWN"  ]; then
 			echo "*** port ${port} needs ${option%:*} set to ${option#*:} ***"
 		else
@@ -140,7 +140,7 @@ ldeps)
 		[ "${query}" != "${path}" ] || continue
 		cd ${POUDRIERE_PORTS}/${path}
 		if is_build_dep ${query}; then
-			ports="${ports} ${path}::"
+			ports="${ports} ${path}"
 			continue
 		fi
 		is_other_dep ${query} && continue
