@@ -230,7 +230,7 @@ function print_dirs(array, file) {
 }
 
 /^(%%[0-9A-Z_]*%%)*@/ { # other commands, @exec, @unexec etc
-	if (match($0, "@(dir|sample)") || match($0, "@\(.*\) "))
+	if (match($0, "@(dir|sample)") || match($0, "@\\(.*\\)"))
 		next;
 	cmds[n_cmds++] = $0;
 }
@@ -245,6 +245,6 @@ END {
 	print_dirs(dirs_nonprefix, tmpfile);
 	system("rm " tmpfile);
 	
-	if (n_cmds > 1)
-		for (i in cmds) print cmds[i];
+	for (i in cmds)
+		print cmds[i];
 }' ${plist_file}
