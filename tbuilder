@@ -179,7 +179,7 @@ for port in ${ports}; do
 		option=${port#*:}
 		if [ "${command}" != "name" ]; then
 			case ${option%:*} in
-			"")
+			"${port%%:*}")
 				echo "Found match: ${port%%:*}" ;;
 			"OPT_UNKNOWN")
 				echo "Found match: ${port%%:*}, unknown option needed" ;;
