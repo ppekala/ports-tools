@@ -1,15 +1,12 @@
 #!/bin/sh
 
 readonly PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-readonly PATH="${PATH}:${PORTSDIR}/Tools/scripts"
 readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
 readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
 
 readonly command="${1}"
 query="${2}"
 readonly build="${3:-none}"
-
-export PORTSDIR # needed for portsearch
 
 interrupted=0 # build interrupted by ctrl+c
 
@@ -119,7 +116,7 @@ trap 'interrupted=1' int
 
 case ${command} in
 bdeps)
-	ports="$(portsearch -b ${query} | grep Path: | cut -f 4- -d '/')" ;;
+	ports="$(pfind -b ${query})" ;;
 file)
 	if [ ! -f "${query}" ]; then
 		echo "File ${query} does not exists" >&2
@@ -166,7 +163,7 @@ ldeps)
 	done
 	;;	
 match)
-	ports="$(portsearch -n ${query} | grep Path: | cut -f 4- -d '/')" ;;
+	ports="$(pfind -n ${query})" ;;
 name)
 	ports=$(check_portname ${query}) ;;
 *)

@@ -4,8 +4,9 @@ PORTSDIR=${PORTSDIR:-/usr/ports}
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-c category] [-h] [-m maintainer] [-n name] [-s string]
+Usage: ${0##*/} [ -b bdep ] [-c category] [-h] [-m maintainer] [-n name] [-s string]
 
+    -b - port needing certain build dependency
     -c - port category
     -h - show this help
     -m - port maintainer
@@ -16,8 +17,10 @@ EOF
 	exit 1
 }
 
-while getopts "c:hm:n:s:" option; do
+while getopts "b:c:hm:n:s:" option; do
 	case ${option} in
+	b)
+		bdeps="${OPTARG}" ;;
 	c)
 		category="${OPTARG}" ;;
 	m)
@@ -31,8 +34,8 @@ while getopts "c:hm:n:s:" option; do
 	esac
 done
 
-[ -z "${category}" -a -z "${maintainer}" -a -z "${name}" -a -z "${string}" ] && \
-	display_usage
+[ -z "${bdeps}" -a -z "${category}" -a -z "${maintainer}" -a -z "${name}" \
+	-a -z "${string}" ] && display_usage
 
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
@@ -46,7 +49,8 @@ if [ -n "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
 	exit 1
 fi
 
-[ -z "${category}" ] || search_args="path=${PORTSDIR}/${category}/"
+[ -z "${bdeps}" ] || search_args="bdeps=${bdeps}"
+[ -z "${category}" ] || search_args="${search_args} path=${PORTSDIR}/${category}/"
 [ -z "${maintainer}" ] || search_args="${search_args} maint=${maintainer}"
 [ -z "${name}" ] || search_args="${search_args} name=${name}"
 
