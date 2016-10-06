@@ -4,38 +4,43 @@ PORTSDIR=${PORTSDIR:-/usr/ports}
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [ -b bdep ] [-c category] [-h] [-m maintainer] [-n name] [-s string]
+Usage: ${0##*/} [-h]
+       ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name] [-g regexp]
+       ${0##*/} [-g regexp] [-s master category/port]
 
     -b - port needing certain build dependency
     -c - port category
+    -g - find ports with Makefile containing grep pattern
     -h - show this help
     -m - port maintainer
     -n - port name
-    -s - string to find in port Makefile
+    -s - find slave ports
 
 EOF
 	exit 1
 }
 
-while getopts "b:c:hm:n:s:" option; do
+while getopts "b:c:g:hm:n:s:" option; do
 	case ${option} in
 	b)
 		bdeps="${OPTARG}" ;;
 	c)
 		category="${OPTARG}" ;;
+	g)
+		string="${OPTARG}" ;;
 	m)
 		maintainer="${OPTARG}" ;;
 	n)
 		name="${OPTARG}" ;;
 	s)
-		string="${OPTARG}" ;;
+		master="${OPTARG}" ;;
 	*)
 		display_usage
 	esac
 done
 
 [ -z "${bdeps}" -a -z "${category}" -a -z "${maintainer}" -a -z "${name}" \
-	-a -z "${string}" ] && display_usage
+	-a -z "${string}" -a -z "${master}" ] && display_usage
 
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
@@ -49,10 +54,16 @@ if [ -n "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
 	exit 1
 fi
 
+if [ -n "${master}" -a ! -d ${PORTSDIR}/${master} ]; then
+	echo "No such port: ${PORTSDIR}/${master}" >&2
+	exit 1
+fi
+
 [ -z "${bdeps}" ] || search_args="bdeps=${bdeps}"
 [ -z "${category}" ] || search_args="${search_args} path=${PORTSDIR}/${category}/"
 [ -z "${maintainer}" ] || search_args="${search_args} maint=${maintainer}"
 [ -z "${name}" ] || search_args="${search_args} name=${name}"
+[ -n "${master}" -a -n "${search_args}" ] && display_usage
 
 cd ${PORTSDIR}
 if [ ! -f "$(make -VINDEXFILE)" ]; then
@@ -60,13 +71,30 @@ if [ ! -f "$(make -VINDEXFILE)" ]; then
 	make fetchindex || exit 1
 fi
 
-if [ -z "${search_args}" ]; then
+if [ -z "${search_args}" -a -z "${master}" ]; then
 	find . -name Makefile -depth 3 -exec grep -l "${string}" {} \; \
 		2>/dev/null | sed 's|^.\/||; s|\/Makefile$||' | sort
 	exit
 fi
 
-make quicksearch ${search_args} | awk '/^Path:/ { print $2 }' | while read portdir; do
+if [ -n "${master}" ]; then
+	portdir="$(realpath ${PORTSDIR}/${master})"
+	# search for slaves only in the same category for performance reasons
+	cd ${portdir%/*}
+	candidates=$(for match in $(grep -Rl ${portdir##*/} * 2>/dev/null); do
+		[ -d "${match%%/*}" ] || continue
+		[ "${portdir##*/}" = "${match%%/*}" ] || echo ${match%%/*}
+	done | sort -u)
+	portdirs=$(for candidate in ${candidates}; do
+		masterdir=$(realpath `make -C ${candidate%%/*} -V MASTERDIR`)
+		[ "${portdir}" = "${masterdir}" ] && \
+			echo ${PORTSDIR}/${master%/*}/${candidate}
+	done)
+else
+	portdirs="$(make quicksearch ${search_args} | awk '/^Path:/ { print $2 }')"
+fi
+
+for portdir in ${portdirs}; do
 	if [ -n "${string}" ]; then
 		[ -e ${portdir}/Makefile ] || continue
 		[ -n "$(grep "${string}" ${portdir}/Makefile)" ] || continue
