@@ -32,17 +32,18 @@ display_usage() {
 	<< EOF >&2 cat
 Usage: ${0##*/} <command> <query> [jail_name] [poudriere testport args]
 
- command: bdeps - build ports having certain build dependency
-          file  - build ports read from file
-          grep  - build ports containing phrase in Makefile
-          ldeps - build ports linking with certain library
-          match - build ports with name matching certain phrase
-          name  - build specific port
+ command: bdeps  - build ports having certain build dependency
+          file   - build ports read from file
+          grep   - build ports containing phrase in Makefile
+          ldeps  - build ports linking with certain library
+          match  - build ports with name matching certain phrase
+          name   - build specific port
+          slaves - build slaves of certain port
 
  query: (bdeps|match) - portname
         (file) - name of file to read category/port entries from
         (grep) - grep pattern
-        (ldeps|name) - category/port or '.' for port from current directory
+        (ldeps|name|slaves) - category/port or '.' for port from current directory
 
  jail_name: poudriere jail name or 'all' for all available jails
 
@@ -166,6 +167,9 @@ match)
 	ports="$(pfind -n ${query})" ;;
 name)
 	ports=$(check_portname ${query}) ;;
+slaves)
+	master=$(check_portname ${query})
+	ports=$(pfind -s ${master}) ;;
 *)
 	display_usage
 esac

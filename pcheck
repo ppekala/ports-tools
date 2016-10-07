@@ -95,10 +95,18 @@ else
 	echo "===> Port's description file is missing"
 fi
 
-which portlint >/dev/null
-if [ ${?} -eq 0 ]; then
+if which portlint >/dev/null; then
 	echo "===> Portlint output:"
 	portlint -abt
 else
 	echo "===> Portlint not found, skipping port checks"
+fi
+
+bdeps=$(pfind -b `make -V PORTNAME` | awk 'END {print NR}')
+[ ${bdeps} -gt 0 ] && echo "===> Port is build dependency for ${bdeps} port(s)"
+
+slaves="$(pfind -s `make -V CATEGORIES | awk '{print $1}'`"/"`basename $PWD`)"
+if [ -n "${slaves}" ]; then
+	echo "===> Found slave ports:"
+	echo ${slaves} | tr ' ' '\n'
 fi
