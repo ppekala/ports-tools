@@ -43,7 +43,12 @@ if [ -z "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi
-[ -f ${PLIST} ] && plist_out="pkg-plist.new" || plist_out="${PLIST}"
+if [ -f ${PLIST} ]; then
+	wrkdir="$(make -V WRKDIR)"
+	plist_out="${wrkdir}/.pkg-plist.new"
+else
+	plist_out="${PLIST}"
+fi
 
 options_subs="PORTDOCS PORTEXAMPLES"
 for sub in $(make -V PLIST_SUB); do
@@ -177,4 +182,3 @@ if [ ${?} -eq 1 ]; then
 		esac
 	done
 fi
-rm ${plist_out}
