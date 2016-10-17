@@ -63,7 +63,8 @@ make check-plist 2>&1 | awk ${awk_args} -v options_subs="${options_subs}" \
 BEGIN {
 	# blacklisted plist subs that should
 	# not be in final version of new plist
-	subs_blacklist["QT_BINDIR"] = 1;
+	subs_blacklist["QT_BINDIR"] = "bin";
+	subs_blacklist["QT_LIBDIR"] = "lib";
 
 	n = split(options_subs, s_array, " ");
 	for (i=1; i<=n; i++)
@@ -132,7 +133,8 @@ function remove_blacklisted_subs(path) {
 		return path;
 
 	for (i=1; i<=n; i++) {
-		if (array[i] in subs_blacklist)
+		if (array[i] in subs_blacklist &&
+		    subs_blacklist[array[i]] == subs[array[i]])
 			sub("%%" array[i] "%%", subs[array[i]], path);
 	}
 	return path;
