@@ -74,7 +74,7 @@ BEGIN {
 		if (split(array[pair], p_array, "=") != 2)
 			continue;
 
-		if (opt_subs[p_array[1]] != "")
+		if (p_array[1] in opt_subs)
 			continue;
 
 		gsub("\"", "", p_array[2]);
