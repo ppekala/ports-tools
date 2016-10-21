@@ -20,6 +20,11 @@ EOF
 	exit 1
 }
 
+grep_files() {
+	find . -name ${1} -depth ${2} -exec grep -l "${3}" {} \; \
+		2>/dev/null | sed 's|^.\/||'
+}
+
 while getopts "b:c:g:hm:n:s:" option; do
 	case ${option} in
 	b)
@@ -72,8 +77,7 @@ if [ ! -f "$(make -VINDEXFILE)" ]; then
 fi
 
 if [ -z "${search_args}" -a -z "${master}" ]; then
-	find . -name Makefile -depth 3 -exec grep -l "${string}" {} \; \
-		2>/dev/null | sed 's|^.\/||; s|\/Makefile$||' | sort
+	grep_files Makefile 3 "${string}" | sed 's|\/Makefile$||' | sort
 	exit
 fi
 
@@ -81,7 +85,7 @@ if [ -n "${master}" ]; then
 	portdir="$(realpath ${PORTSDIR}/${master})"
 	# search for slaves only in the same category for performance reasons
 	cd ${portdir%/*}
-	candidates=$(for match in $(grep -Rl ${portdir##*/} * 2>/dev/null); do
+	candidates=$(for match in $(grep_files "Makefile*" 2 ${portdir##*/}); do
 		[ -d "${match%%/*}" ] || continue
 		[ "${portdir##*/}" = "${match%%/*}" ] || echo ${match%%/*}
 	done | sort -u)
