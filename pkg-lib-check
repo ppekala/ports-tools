@@ -250,7 +250,7 @@ if [ ${test_all} -eq 0 ]; then
 else
 	packages="$(pkg query '%n-%v')"
 	if [ -z "${packages}" ]; then
-		echo "No packages installed" >&2
+		echo "===> No packages installed" >&2
 		exit 1
 	fi
 fi

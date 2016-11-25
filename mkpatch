@@ -24,7 +24,7 @@ fi
 
 p_files="$(find . -name '*.orig' | sed 's#^./##')"
 if [ -z "${p_files}" ]; then
-	echo "No patched files found"
+	echo "===> No patched files found"
 	exit
 fi
 

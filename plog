@@ -27,19 +27,19 @@ poudriere_jails() {
 [ "${cmd}" != "send" -a "${cmd}" != "show" ] && display_usage
 
 if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
+	echo "===> Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
 	exit 1
 fi
 
 [ -n "${port}" ] || port="."
 if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
-	printf "${POUDRIERE_PORTS}/${port}: no such port found\n\n" >&2
+	printf "===> ${POUDRIERE_PORTS}/${port}: no such port found\n\n" >&2
 	display_usage
 fi
 
 if [ -n "${jail}" ]; then
 	if [ -z "$(poudriere_jails | grep ${jail})" ]; then
-		printf "${jail}: no such poudriere jail\n\n" >&2
+		printf "===> ${jail}: no such poudriere jail\n\n" >&2
 		display_usage
 	fi
 fi

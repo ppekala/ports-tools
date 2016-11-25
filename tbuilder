@@ -21,7 +21,7 @@ check_portname() {
 	fi
 
 	if [ ! -d "${POUDRIERE_PORTS}/${port}" ]; then
-		printf "${POUDRIERE_PORTS}/${port}: port directory does not exists\n\n" >&2
+		printf "===> ${POUDRIERE_PORTS}/${port}: port directory does not exists\n\n" >&2
 		display_usage
 	fi
 
@@ -90,7 +90,7 @@ poudriere_test_build() {
 if [ "${build}" != "none" -a "${build}" != "all" \
 	-a -z "$(poudriere_jails | grep ${build})" ]
 then
-	printf "${build}: no such poudriere jail\n\n" >&2
+	printf "===> ${build}: no such poudriere jail\n\n" >&2
 	display_usage
 fi
 
@@ -100,7 +100,7 @@ if [ -n "${4}" ]; then
 fi
 
 if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
+	echo "===> Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
 	exit 1
 fi
 
@@ -120,7 +120,7 @@ bdeps)
 	ports="$(pfind -b ${query})" ;;
 file)
 	if [ ! -f "${query}" ]; then
-		echo "File ${query} does not exists" >&2
+		echo "===> File ${query} does not exists" >&2
 		exit 1
 	fi
 	ports="$(cat "${query}" | grep -v '^#')" ;;

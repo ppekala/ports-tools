@@ -124,7 +124,7 @@ while getopts "bj:hr:" option; do
 		[1-9])
 			JOBS="${OPTARG}" ;;
 		*)
-			echo "-j requires numerical argument" >&2
+			echo "===> -j requires numerical argument" >&2
 			exit 1
 		esac ;;
 	r)
@@ -137,12 +137,12 @@ done
 
 which portmaster > /dev/null
 if [ ${?} -ne 0 ]; then
-	echo "This script requires portmaster" >&2
+	echo "===> This script requires portmaster" >&2
 	exit 1
 fi
 
 if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to rebuild packages" >&2
+	echo "===> You need root privileges to rebuild packages" >&2
 	exit 1
 fi
 
@@ -156,7 +156,7 @@ fi
 
 pkg_all="$(echo ${packages} | wc -w)"
 if [ ${pkg_all} -eq 0 ]; then
-	echo "No packages to check found"
+	echo "===> No packages to check found"
 	exit
 fi
 
@@ -167,7 +167,7 @@ readonly TMP_STALE="$(mktemp -t lbc-stale)"
 readonly TMP_BAD="$(mktemp -t lbc-bad)"
 
 if [ -z "${TMP_SEM}" -o -z "${TMP_STALE}" -o -z "${TMP_BAD}" ]; then
-	echo "Failed to create temporary files" >&2
+	echo "===> Failed to create temporary files" >&2
 	exit_clean 1
 fi
 
@@ -177,7 +177,7 @@ if [ -f "${IGNORE_FILE}" ]; then
 	n=0
 	pkg_ignore="$(grep -v '^#' "${IGNORE_FILE}")"
 	for pkg in ${pkg_ignore}; do n=$((n+1)); done
-	[ ${n} -eq 0 ] || echo "Read ${IGNORE_FILE}, ${n} entries found"
+	[ ${n} -eq 0 ] || echo "===> Read ${IGNORE_FILE}, ${n} entries found"
 fi
 
 lockf -k "${TMP_SEM}" echo ${JOBS} > "${TMP_SEM}"
@@ -215,11 +215,11 @@ fi
 
 pkg_stale="$(cat ${TMP_STALE})"
 if [ -z "${pkg_stale}" ]; then
-	printf "No packages linked to stale libs found\n\n"
+	printf "===> No packages linked to stale libs found\n\n"
 	exit_clean 0
 fi
 
-printf "Following packages are linked to stale libs:\n\n"
+printf "===> Following packages are linked to stale libs:\n\n"
 for pkg in ${pkg_stale}; do
 	pkg_re="${pkg_re} ${pkg%%@*}"
 	echo "   ${pkg%%@*} => ${pkg#*@}" | sed 's|@| |g'

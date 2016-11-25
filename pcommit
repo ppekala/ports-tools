@@ -304,6 +304,6 @@ while true; do
 	[Vv])
 		${PSVN} diff | ${PAGER_DIFF} ;;
 	*)
-		echo "No such command: ${cmd}"
+		echo "===> No such command: ${cmd}"
 	esac
 done

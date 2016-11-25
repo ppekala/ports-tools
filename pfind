@@ -50,17 +50,17 @@ done
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
+	echo "===> Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
 	exit 1
 fi
 
 if [ -n "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
-	echo "No such category: ${category}" >&2
+	echo "===> No such category: ${category}" >&2
 	exit 1
 fi
 
 if [ -n "${master}" -a ! -d ${PORTSDIR}/${master} ]; then
-	echo "No such port: ${PORTSDIR}/${master}" >&2
+	echo "===> No such port: ${PORTSDIR}/${master}" >&2
 	exit 1
 fi
 

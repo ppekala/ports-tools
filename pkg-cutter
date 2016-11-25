@@ -103,7 +103,7 @@ while getopts "hoxy" option; do
 done
 
 if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to remove packages" >&2
+	echo "===> You need root privileges to remove packages" >&2
 	exit 1
 fi
 
@@ -156,7 +156,7 @@ if [ -n "${tmpfile}" ]; then
 	dialog --clear
 fi
 
-[ -z "${pkg_seen}" ] && echo "No leaf packages to remove"
+[ -z "${pkg_seen}" ] && echo "===> No leaf packages to remove"
 
 [ ${rm_count} -gt 0 ] && \
-	echo "Packages removed: ${rm_count}  Disk space freed: $(number_humanize ${rm_freed})"
+	echo "===> Packages removed: ${rm_count}  Disk space freed: $(number_humanize ${rm_freed})"

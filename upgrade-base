@@ -98,7 +98,7 @@ main_loop() {
 
 			n_entry=$(last_updating_entry)
 			if [ ${n_entry} -gt ${l_entry} ]; then
-				printf "New entries since last upgrade in ${SRCDIR}/UPDATING file:\n\n"
+				printf "===> New entries since last upgrade in ${SRCDIR}/UPDATING file:\n\n"
 				awk -v entry="${l_entry}" '
 				BEGIN { new_entry=0; }
 	
@@ -174,7 +174,7 @@ while getopts "chsu" option; do
 done
 
 if [ "$(id -u)" != "0" ]; then
-	echo "You need root privileges to upgrade base system" >&2
+	echo "===> You need root privileges to upgrade base system" >&2
 	exit 1
 fi
 
@@ -186,7 +186,7 @@ PORTSDIR=${PORTSDIR:-/usr/ports}
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
+	echo "===> Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
 	exit 1
 fi
 make_args="${make_args} PORTSDIR=${PORTSDIR}"

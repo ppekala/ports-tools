@@ -34,7 +34,7 @@ command_is_relevant() {
 		case ${arg} in
 		"-a")
 			if [ "${upgrade_prg}" = "portmaster" ]; then
-				printf "Skipping upgrade of all packages for now (${*})\n\n"
+				printf "===> Skipping upgrade of all packages for now (${*})\n\n"
 				IFS=${old_IFS}
 				return 1
 			fi
@@ -54,7 +54,7 @@ command_is_relevant() {
 
 			local ret=$(pkg info -e ${arg%:*}; echo ${?})
 			if [ ${ret} -eq 1 ]; then
-				printf "${arg} is not installed, skipping '${*}' command\n\n"
+				printf "===> ${arg} is not installed, skipping '${*}' command\n\n"
 				IFS=${old_IFS}
 				return 1
 			else
@@ -199,7 +199,7 @@ done
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 if [ ! -d "${PORTSDIR}" ]; then
-	echo "Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
+	echo "===> Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
 	exit 1
 fi
 
@@ -297,7 +297,7 @@ fi
 ${SUDO} portmaster -a ${portmaster_args}
 [ ${?} -ne 0 ] && upgrade_exit 1 "${last_upd}" ${wait_for_key}
 
-echo "==> Checking packages for missing libraries/dependencies"
+echo "===> Checking packages for missing libraries/dependencies"
 pkgs_rebuild=$(${SUDO} pkg check -dan | awk -v pkg_ignore="${UPGRADE_PORTS_IGNORE}" '
 BEGIN {
 	if ((n = split(pkg_ignore, array, " ")) > 0)
