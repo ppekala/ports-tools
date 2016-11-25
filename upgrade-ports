@@ -295,4 +295,44 @@ if [ ${last_read} -lt ${last_upd} ]; then
 fi
 
 ${SUDO} portmaster -a ${portmaster_args}
+[ ${?} -ne 0 ] && upgrade_exit 1 "${last_upd}" ${wait_for_key}
+
+echo "==> Checking packages for missing libraries/dependencies"
+pkgs_rebuild=$(${SUDO} pkg check -dan | awk -v pkg_ignore="${UPGRADE_PORTS_IGNORE}" '
+BEGIN {
+	if ((n = split(pkg_ignore, array, " ")) > 0)
+		for (i=1; i<=n; i++)
+			ignore[array[i]] = array[i];
+}
+
+function pkg_is_ignored(pkg) {
+	for (pattern in ignore)
+		if (match(pkg, ".*" pattern ".*"))
+			return 1;
+	return 0;
+}
+
+/is missing a required shared library:/ {
+	pkg=$1;
+	if (pkg_is_ignored(pkg) || pkg in rebuild)
+		next;
+	rebuild[pkg] = pkg;
+}
+
+/has a missing dependency:/ {
+	pkg=$6;
+	if (pkg_is_ignored(pkg) || pkg in rebuild)
+		next;
+
+	"pkg rquery -e '\''%n = " pkg  "'\'' %o" | getline origin
+	if (origin != "")
+		rebuild[pkg] = origin;
+}
+
+END {
+	for (i in rebuild)
+		printf("%s ", rebuild[i]);
+}')
+
+[ -n "${pkgs_rebuild}" ] && ${SUDO} portmaster ${pkgs_rebuild}
 upgrade_exit ${?} "${last_upd}" ${wait_for_key}
