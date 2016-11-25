@@ -334,5 +334,5 @@ END {
 		printf("%s ", rebuild[i]);
 }')
 
-[ -n "${pkgs_rebuild}" ] && ${SUDO} portmaster ${pkgs_rebuild}
+[ -n "${pkgs_rebuild}" ] && ${SUDO} portmaster ${portmaster_args} ${pkgs_rebuild}
 upgrade_exit ${?} "${last_upd}" ${wait_for_key}
