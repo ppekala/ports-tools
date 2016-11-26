@@ -243,7 +243,7 @@ for port in $(get_removed_ports ${last_read}); do
 	if [ $? -eq 0 ]; then
 		if ask_yesno "Remove obsolete ${port} ($(removal_reason ${port}))"
 		then
-			${SUDO} pkg delete -y ${port}
+			${SUDO} pkg delete --yes --force ${port}
 		fi
 	fi
 done
