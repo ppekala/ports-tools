@@ -10,6 +10,7 @@ answer_yes=0	# answer yes to all of the questions
 wait_for_key=0	# wait for key press after update finish
 
 ask_yesno() {
+	[ ${answer_yes} -eq 0 ] || return 0
 	while true; do
 		echo -n "${1} (y/n)? [y] "
 		
