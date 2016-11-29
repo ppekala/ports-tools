@@ -335,5 +335,24 @@ END {
 		printf("%s ", rebuild[i]);
 }')
 
-[ -n "${pkgs_rebuild}" ] && ${SUDO} portmaster ${portmaster_args} ${pkgs_rebuild}
+if [ -n "${pkgs_rebuild}" ]; then
+	for pkg in ${pkgs_rebuild}; do
+		case pkg in
+			*/*)
+				inst="${pkg}" ;;
+			*)
+				rinst="${pkg}"
+		esac
+	done
+	if [ -n "${inst}" ]; then
+		printf "\nPorts need to be INSTALLED:\n"
+		for port in ${inst}; do printf "  ${port}\n"; done
+	fi
+	if [ -n "${rinst}" ]; then
+		printf "\nPackages need to be REINSTALLED:\n"
+		for pkg in ${rinst}; do printf "  ${pkg}\n"; done
+	fi
+	ask_yesno "Continue with changes" && \
+		${SUDO} portmaster ${portmaster_args} ${pkgs_rebuild}
+fi
 upgrade_exit ${?} "${last_upd}" ${wait_for_key}
