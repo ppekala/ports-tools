@@ -289,10 +289,8 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		IFS=${old_IFS}
 		entry_prev="${entry}"
 	done
-	if [ ${answer_yes} -eq 0 ]; then
-		ask_yesno "Update ports with 'portmaster -a'"
-		[ ${?} -ne 0 ] && upgrade_exit 0 "${last_upd}" 0
-	fi	
+	ask_yesno "Update ports with 'portmaster -a'" || \
+		upgrade_exit 0 "${last_upd}" 0
 fi
 
 ${SUDO} portmaster -a ${portmaster_args}
