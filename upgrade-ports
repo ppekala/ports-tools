@@ -7,6 +7,7 @@ readonly PAGER="${PAGER:-less}"
 PORTSDIR=${PORTSDIR:-/usr/ports}
 
 answer_yes=0	# answer yes to all of the questions
+skip_update=0	# don't update ports tree
 wait_for_key=0	# wait for key press after update finish
 
 ask_yesno() {
@@ -70,9 +71,10 @@ command_is_relevant() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-h|-w|-y]
+Usage: ${0##*/} [-h|-u|-w|-y]
 
     -h - show this help
+    -u - don't update ports tree
     -w - wait for key press after finish
     -y - answer yes to all questions
 
@@ -185,8 +187,10 @@ upgrade_exit() {
 	exit ${1}
 }
 
-while getopts "hwy" option; do
+while getopts "huwy" option; do
 	case ${option} in
+	u)
+		skip_update=1 ;;
 	w)
 		wait_for_key=1 ;;
 	y)
@@ -233,10 +237,12 @@ fi
 
 [ -n "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
 
-${SUDO} portsnap fetch update
-if [ ${?} -ne 0 ]; then
-	echo "===> Ports tree update failed" >&2
-	upgrade_exit 1 "" ${wait_for_key}
+if [ ${skip_update} -eq 0 ]; then
+	${SUDO} portsnap fetch update
+	if [ ${?} -ne 0 ]; then
+		echo "===> Ports tree update failed" >&2
+		upgrade_exit 1 "" ${wait_for_key}
+	fi
 fi
 
 for port in $(get_removed_ports ${last_read}); do
