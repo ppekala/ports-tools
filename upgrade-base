@@ -54,9 +54,8 @@ delete_old_files() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-c|-h|-s|-u]
+Usage: ${0##*/} [-h|-s|-u]
 
-    -c - do not clean tree before build (NO_CLEAN=yes)
     -h - show this help
     -s - reset status and begin from start
     -u - don't update system source tree before build
@@ -160,10 +159,8 @@ save_state() {
 	echo "${1}" > ${CONF_FILE}
 }
 
-while getopts "chsu" option; do
+while getopts "hsu" option; do
 	case ${option} in
-	c)
-		make_args="${make_args} NO_CLEAN=yes" ;;
 	s)
 		echo > ${CONF_FILE} ;;
 	u)
