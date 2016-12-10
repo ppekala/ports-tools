@@ -113,8 +113,7 @@ check_registered_deps() {
 	local broken=0 dep
 	
 	for dep in $(pkg_full_deps ${1} ${1}); do
-		pkg info -e ${dep} 2>/dev/null
-		if [ ${?} -ne 0 ]; then
+		if ! pkg info --exists ${dep} 2>/dev/null; then
 			echo "non-existent dependency: ${dep}"
 			broken=1
 		fi
@@ -259,8 +258,7 @@ fi
 
 for pkg in ${packages}; do 
 	if [ ${test_all} -eq 0 ]; then
-		pkg info -e ${pkg} 2>/dev/null
-		if [ ${?} -ne 0 ]; then
+		if ! pkg info --exists ${pkg} 2>/dev/null; then
 			echo "${pkg}: no such package" >&2
 			continue
 		fi

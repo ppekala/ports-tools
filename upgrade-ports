@@ -53,9 +53,7 @@ command_is_relevant() {
 				change_origin=2
 				continue
 			fi
-
-			local ret=$(pkg-static info -e ${arg%:*}; echo ${?})
-			if [ ${ret} -eq 1 ]; then
+			if ! pkg-static info --exists ${arg%:*}; then
 				printf "===> ${arg} is not installed, skipping '${*}' command\n\n"
 				IFS=${old_IFS}
 				return 1
@@ -209,16 +207,13 @@ if [ ! -d "${PORTSDIR}" ]; then
 fi
 
 if [ $(id -u) -ne 0 ]; then
-	which sudo >/dev/null
-	if [ ${?} -eq 1 ]; then
+	if ! which sudo >/dev/null; then
 		echo "===> sudo not found" >&2
 		upgrade_exit 1 "" ${wait_for_key}
 	fi
 	SUDO="sudo"
 fi
-
-which portmaster >/dev/null
-if [ ${?} -eq 1 ]; then
+if ! which portmaster >/dev/null; then
 	echo "===> portmaster not found" >&2
 	upgrade_exit 1 "" ${wait_for_key}
 fi
@@ -238,8 +233,7 @@ fi
 [ -n "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
 
 if [ ${skip_update} -eq 0 ]; then
-	${SUDO} portsnap fetch update
-	if [ ${?} -ne 0 ]; then
+	if ! ${SUDO} portsnap fetch update; then
 		echo "===> Ports tree update failed" >&2
 		upgrade_exit 1 "" ${wait_for_key}
 	fi

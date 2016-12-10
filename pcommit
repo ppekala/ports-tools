@@ -68,8 +68,7 @@ file_add() {
 	
 	if ask_yesno "Add file ${file}"; then
 		[ ${non_interactive} -eq 0 ] || echo "===> Adding file ${file}"
-		${PSVN} -q add "${file}"
-		if [ ${?} -ne 0 ]; then
+		if ! ${PSVN} -q add "${file}"; then
 			echo "===> File addition failed" >&2
 			pcommit_exit 1
 		fi
@@ -99,8 +98,7 @@ file_remove() {
 
 	if ask_yesno "Remove ${n_kind} ${file}"; then 
 		[ ${non_interactive} -eq 0 ] || echo "===> Removing ${n_kind} ${file}"
-		${PSVN} -q --force rm "${file}"
-		if [ ${?} -ne 0 ]; then
+		if ! ${PSVN} -q --force rm "${file}"; then
 			echo "===> File removal failed" >&2
 			pcommit_exit 1
 		fi
@@ -218,8 +216,7 @@ if [ ${ignore_empty} -eq 0 ]; then
 	empty_files="$(find . -maxdepth ${depth} -type f -size 0 \
 			! -regex '.*\.svn/.*' | sed 's|^./||')"
 	for file in ${empty_files}; do
-		${PSVN} info "${file}" >/dev/null 2>&1
-		if [ ${?} -eq 0 ]; then
+		if ${PSVN} info "${file}" >/dev/null 2>&1; then
 			file_remove "${file}"
 		else
 			rm -f "${file}" && \
@@ -235,8 +232,7 @@ if [ -z "${tempfile}" ]; then
 fi
 trap 'pcommit_exit 1' int
 
-${PSVN} --show-updates status > ${tempfile}
-if [ ${?} -ne 0 ]; then
+if ! ${PSVN} --show-updates status > ${tempfile}; then
 	echo "===> '${PSVN} status' failed" >&2
 	pcommit_exit 1 
 fi

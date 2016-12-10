@@ -135,8 +135,7 @@ while getopts "bj:hr:" option; do
 	esac
 done
 
-which portmaster > /dev/null
-if [ ${?} -ne 0 ]; then
+if ! which portmaster > /dev/null; then
 	echo "===> This script requires portmaster" >&2
 	exit 1
 fi

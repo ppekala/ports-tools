@@ -66,8 +66,7 @@ EOF
 # $1 make target
 # $2 state status afterwards
 exec_cmd() {
-	${1}
-	if [ ${?} -ne 0 ]; then
+	if ! ${1}; then
 		echo "===> '${1}' failed" >&2
 		exit 1
 	fi
@@ -89,8 +88,7 @@ main_loop() {
 	"")
 		if [ ${skip_tree_update} -eq 0 ]; then
 			l_entry=$(last_updating_entry)
-			${PSVN} update
-			if [ ${?} -ne 0 ]; then
+			if ! ${PSVN} update; then
 				echo "===> Updating of source tree failed" >&2
 				exit 1
 			fi
@@ -115,8 +113,7 @@ main_loop() {
 						print $0;
 				}' ${SRCDIR}/UPDATING
 
-				ask_yesno "Continue with upgrade"
-				if [ ${?} -ne 0 ]; then
+				if ! ask_yesno "Continue with upgrade"; then
 					save_state "REPO_UPDATED"
 					exit
 				fi

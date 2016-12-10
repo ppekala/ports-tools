@@ -27,8 +27,7 @@ while getopts "hs:" option; do
 	esac
 done
 
-which plist-sort >/dev/null
-if [ ${?} -eq 1 ]; then
+if ! which plist-sort >/dev/null; then
 	echo "===> Required script plist-sort not found" >&2
 	exit 1
 fi
@@ -168,8 +167,7 @@ plist-sort ${tempfile} > ${plist_out}
 rm ${tempfile}
 [ "${plist_out}" = "pkg-plist" ] && exit
 
-cmp -s ${PLIST} ${plist_out}
-if [ ${?} -eq 1 ]; then
+if ! cmp -s ${PLIST} ${plist_out}; then
 	diff -u ${PLIST} ${plist_out} | ${PAGER_DIFF}
 	
 	while true; do
