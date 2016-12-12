@@ -140,7 +140,7 @@ if ! which portmaster > /dev/null; then
 	exit 1
 fi
 
-if [ "$(id -u)" != "0" ]; then
+if [ $(id -u) -ne 0 ]; then
 	echo "===> You need root privileges to rebuild packages" >&2
 	exit 1
 fi
