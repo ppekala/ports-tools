@@ -4,14 +4,14 @@ readonly PSVN="${PSVN:-svn}"
 
 echo "===> Removing work dirs..."
 
-if [ -n "$(make -V PORTNAME)" ]; then
+if [ "$(make -V PORTNAME)" ]; then
 	depth=2
 else 
-	[ -n "$(make -V PORTSTOP)" ] && depth=4 || depth=3
+	[ "$(make -V PORTSTOP)" ] && depth=4 || depth=3
 fi
 
 wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
-if [ -n "${wrk_dirs}" ]; then
+if [ "${wrk_dirs}" ]; then
 	for wdir in ${wrk_dirs}; do
 		if [ ${depth} -ne 2 ]; then
 			echo "===> Running 'make clean' in ${wdir%%/work}"
@@ -22,7 +22,7 @@ if [ -n "${wrk_dirs}" ]; then
 		fi
 
 		ret="$(make ${make_args} clean 2>/dev/null)"
-		if [ -n "$(echo ${ret} | grep 'not writable')" ]; then
+		if [ "$(echo ${ret} | grep 'not writable')" ]; then
 			if [ ${depth} -ne 2 ]; then
 				echo "  Failed to 'make clean' in ${wdir%%/work}"
 			else
@@ -40,7 +40,7 @@ ${PSVN} status --no-ignore | while read line; do
 	status="$(echo ${line} | awk '{ print $1 }')"
 	file="$(echo ${line} | awk ' { print $2 }')"
 	
-	[ -z "${status}" -o -z "${file}" ] && continue
+	[ ! "${status}" -o ! "${file}" ] && continue
 	
 	if [ "${status}" = "?" -o "${status}" = "I" ]; then
 		[ "${file}" != "distfiles" ] || continue

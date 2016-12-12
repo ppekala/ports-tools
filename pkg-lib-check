@@ -37,13 +37,13 @@ check_for_link_errors() {
 
 		# library not found on system
 		case ${lib} in not_found*)
-			if [ -z "${javavm}" ]; then
+			if [ ! "${javavm}" ]; then
 				javavm="$(pkg_full_deps ${package} ${package} | egrep "jdk|jre")"
-				[ -z "${javavm}" ] && javavm="no"
+				[ "${javavm}" ] || javavm="no"
 			fi
 
 			[ "${javavm}" != "no" ] && \
-			[ -n "$(pkg info -lq ${javavm} | grep ${lib##not_found})" ] && \
+			[ "$(pkg info -lq ${javavm} | grep ${lib##not_found})" ] && \
 				continue
 		
 			[ ${show_direct_deps} -eq 0 ] && \
@@ -69,7 +69,7 @@ check_for_link_errors() {
 	done
 	
 	[ ${2} -eq 0 ] && return 0
-	[ -z "${link_noexist}" -a -z "${link_leftover}" ] && return 0
+	[ ! "${link_noexist}" -a ! "${link_leftover}" ] && return 0
 	
 	print_header ${package}
 	print_list "${link_noexist}" "linked to non existent: "
@@ -94,7 +94,7 @@ check_for_missing_deps() {
 		esac
 	done
 
-	[ -z "${missing_deps}" ] && return
+	[ "${missing_deps}" ] || return
 
 	all_deps="$(for pkg in ${missing_deps}; do
 		pkg_full_deps ${pkg} ${pkg}
@@ -134,12 +134,12 @@ dependency_is_inherited() {
 		check_for_link_errors ${p_dep} 0
 		ret_deps="$(check_for_missing_deps ${p_dep} "${PKG_DEPS}")"
 
-		[ -z "${ret_deps}" ] && PKG_DEPS_OK="${PKG_DEPS_OK} ${p_dep}"
+		[ "${ret_deps}" ] || PKG_DEPS_OK="${PKG_DEPS_OK} ${p_dep}"
 		
 		case ${ret_deps} in
 		*${dep}*)
-			if [ -n "${inh}" ]; then
-				[ -z "$(pkg info -rq ${inh} | grep ${p_dep})" ] && \
+			if [ "${inh}" ]; then
+				[ "$(pkg info -rq ${inh} | grep ${p_dep})" ] || \
 					inh="${p_dep}"
 			else
 				inh="${p_dep}"
@@ -147,7 +147,7 @@ dependency_is_inherited() {
 		esac
 	done
 
-	[ -z "${inh}" ] || echo "$(pkg info -qo ${inh})"
+	[ ! "${inh}" ] || echo "$(pkg info -qo ${inh})"
 }
 
 display_usage() {
@@ -173,10 +173,10 @@ find_linked_to() {
 	local ret="$(pkg info -lq ${package} | while read file; do
 		[ -L "${file}" ] && continue
 	
-		[ -n "$(ldd "${file}" 2>/dev/null | grep -i ".*${query}.*=>")" ] \
+		[ "$(ldd "${file}" 2>/dev/null | grep -i ".*${query}.*=>")" ] \
 			&& echo ${file}
 	done)"
-	[ -z "${ret}" ] && return
+	[ "${ret}" ] || return
 	
 	print_header ${package}
 	print_list "${ret}"
@@ -223,15 +223,15 @@ while getopts "adhfls:" option; do
 		test_all=1 ;;
 	d)
 		[ ${full_check} -eq 1 -o ${only_link_err} -eq 1 -o \
-			-n "${search_str}" ] && display_usage
+			"${search_str}" ] && display_usage
 		show_direct_deps=1 ;;
 	f)
 		[ ${show_direct_deps} -eq 1 -o ${show_direct_deps} -eq 1 -o \
-			-n "${search_str}" ] && display_usage		
+			"${search_str}" ] && display_usage
 		full_check=1 ;;
 	l)
 		[ ${show_direct_deps} -eq 1 -o ${full_check} -eq 1 -o \
-			-n "${search_str}" ] && display_usage
+			"${search_str}" ] && display_usage
 		only_link_err=1 ;;
 	s)
 		[ ${show_direct_deps} -eq 1 -o ${full_check} -eq 1 -o \
@@ -245,10 +245,10 @@ done
 if [ ${test_all} -eq 0 ]; then
 	shift $((OPTIND-1))
 	packages="${@}"
-	[ -z "${packages}" ] && display_usage
+	[ "${packages}" ] || display_usage
 else
 	packages="$(pkg query '%n-%v')"
-	if [ -z "${packages}" ]; then
+	if [ ! "${packages}" ]; then
 		echo "===> No packages installed" >&2
 		exit 1
 	fi
@@ -263,7 +263,7 @@ for pkg in ${packages}; do
 			continue
 		fi
 	fi
-	if [ -n "${search_str}" ]; then
+	if [ "${search_str}" ]; then
 		find_linked_to ${pkg} ${search_str}
 		continue
 	fi
@@ -276,7 +276,7 @@ for pkg in ${packages}; do
 	[ ${only_link_err} -eq 1 ] && continue
 
 	m_deps="$(check_for_missing_deps ${pkg} "${PKG_DEPS}")"
-	[ ${link_errors} -eq 0 -a -n "${m_deps}" ] && print_header ${pkg}
+	[ ${link_errors} -eq 0 -a "${m_deps}" ] && print_header ${pkg}
 
 	for md in ${m_deps}; do
 		if [ ${full_check} -eq 1 ]; then
@@ -285,7 +285,7 @@ for pkg in ${packages}; do
 			inh=""
 		fi
 
-		if [ -z "${inh}" ]; then
+		if [ ! "${inh}" ]; then
 			echo ${prefix}"dependency: $(pkg info -qo ${md})"
 		else
 			echo "missing dependency: $(pkg info -qo ${md}) (inherited from ${inh})"

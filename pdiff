@@ -17,7 +17,7 @@ portdir_clean() {
 	
 	if [ -d "${dir}/work" ]; then
 		cd "${dir}"
-		if [ -n "$(make clean 2>/dev/null | grep 'not writable')" ]; then
+		if [ "$(make clean 2>/dev/null | grep 'not writable')" ]; then
 			echo "===> Failed to make clean in ${dir}" >&2
 			exit 1
 		fi
@@ -25,7 +25,7 @@ portdir_clean() {
 	find "${dir}" -name "*.(orig|rej)" -or -size 0 -delete > /dev/null
 }
 
-if [ -z "${port}" -o -z "${category}" ]; then
+if [ ! "${port}" -o ! "${category}" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi

@@ -31,14 +31,14 @@ if [ ! -d "${POUDRIERE_PORTS}" ]; then
 	exit 1
 fi
 
-[ -n "${port}" ] || port="."
+[ "${port}" ] || port="."
 if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
 	printf "===> ${POUDRIERE_PORTS}/${port}: no such port found\n\n" >&2
 	display_usage
 fi
 
-if [ -n "${jail}" ]; then
-	if [ -z "$(poudriere_jails | grep ${jail})" ]; then
+if [ "${jail}" ]; then
+	if [ ! "$(poudriere_jails | grep ${jail})" ]; then
 		printf "===> ${jail}: no such poudriere jail\n\n" >&2
 		display_usage
 	fi
@@ -49,7 +49,7 @@ fi
 readonly PKGBASE="$(make -V PKGBASE 2>/dev/null)"
 readonly PKGVERSION="$(make -V PKGVERSION 2>/dev/null)"
 
-if [ -z "${PKGBASE}" ]; then
+if [ ! "${PKGBASE}" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
@@ -57,7 +57,7 @@ fi
 logdir="${POUDRIERE_DIR}/data/logs/bulk/latest-per-pkg/${PKGBASE}/${PKGVERSION}"
 ports_tree="$(basename "${POUDRIERE_PORTS}")"
 
-if [ -z "${jail}" ]; then
+if [ ! "${jail}" ]; then
 	for j in $(poudriere_jails | sort -h); do
 		if [ -f "${logdir}/${j}-${ports_tree}.log" ]; then
 			jail="${j}"
@@ -65,7 +65,7 @@ if [ -z "${jail}" ]; then
 		fi
 	done
 	
-	if [ -z "${jail}" ]; then
+	if [ ! "${jail}" ]; then
 		echo "===> Could not find any build logs for ${PKGBASE}-${PKGVERSION}" >&2
 		exit 1
 	fi

@@ -3,7 +3,7 @@
 readonly patterns="${@}"
 
 [ -f pkg-descr ] && WRKSRC="$(make -V WRKSRC)" || WRKSRC="."
-if [ -n "${WRKSRC}" ]; then
+if [ "${WRKSRC}" ]; then
 	if [ ! -d "${WRKSRC}" ]; then
 		while true; do
 			echo -n "WRKSRC does not exist, run 'make configure' (y/n)? " >/dev/stderr
@@ -23,13 +23,13 @@ if [ -n "${WRKSRC}" ]; then
 fi
 
 p_files="$(find . -name '*.orig' | sed 's#^./##')"
-if [ -z "${p_files}" ]; then
+if [ ! "${p_files}" ]; then
 	echo "===> No patched files found"
 	exit
 fi
 
 for f in ${p_files}; do
-	if [ -n "${patterns}" ]; then
+	if [ "${patterns}" ]; then
 		matched=0
 		for p in ${patterns}; do
 			case ${f} in *${p}*)

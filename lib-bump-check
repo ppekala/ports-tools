@@ -13,19 +13,19 @@ check_package() {
 		[ -L "${file}" ] && continue
 		ldd "${file}" 2>/dev/null | awk '/not found/ { print $1 }'
 	done | sort -u)"
-	[ -z "${libs}" ] && return
+	[ "${libs}" ] || return
 
 	local pkg_files="$(pkg-static info -lq ${pkg})"
 	for lib in ${libs}; do 
 		case ${pkg_files} in *${lib}*)
 			continue
 		esac
-		if [ -z "${javavm}" ]; then
+		if [ ! "${javavm}" ]; then
 			javavm="$(pkg-static info -dq ${pkg} | egrep 'jdk|jre')"
-			[ -z "${javavm}" ] && javavm="no"
+			[ "${javavm}" ] || javavm="no"
 		fi
 		[ "${javavm}" != "no" ] && \
-			[ -n "$(pkg-static info -lq ${javavm} | grep ${lib})" ] && \
+			[ "$(pkg-static info -lq ${javavm} | grep ${lib})" ] && \
 			continue
 		echo -n "${lib} "
 	done
@@ -105,7 +105,7 @@ newer_library_available() {
 
 pkg_is_ignored() {
 	local pkg="${1}"
-	[ -n "${pkg_ignore}" ] || return 1
+	[ "${pkg_ignore}" ] || return 1
 
 	for ignored in ${pkg_ignore}; do
 		case ${pkg} in *${ignored}*) return 0 ;; esac
@@ -119,7 +119,7 @@ while getopts "bj:hr:" option; do
 	b)
 		bump_ignore=1 ;;
 	j)
-		[ -n "${OPTARG}" ] || display_usage
+		[ "${OPTARG}" ] || display_usage
 		case ${OPTARG} in
 		[1-9])
 			JOBS="${OPTARG}" ;;
@@ -128,7 +128,7 @@ while getopts "bj:hr:" option; do
 			exit 1
 		esac ;;
 	r)
-		[ -n "${OPTARG}" ] || display_usage
+		[ "${OPTARG}" ] || display_usage
 		PKG_PARENT="${OPTARG}" ;;
 	*)
 		display_usage
@@ -145,9 +145,9 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
-[ -n "${JOBS}" ] || JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
+[ "${JOBS}" ] || JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
 
-if [ -n "${PKG_PARENT}" ]; then
+if [ "${PKG_PARENT}" ]; then
 	packages="$(pkg-static info -rq ${PKG_PARENT} 2>/dev/null)"
 else
 	packages="$(pkg-static query '%n-%v' 2>/dev/null)"
@@ -165,7 +165,7 @@ readonly TMP_SEM="$(mktemp -t lbc-sem)"
 readonly TMP_STALE="$(mktemp -t lbc-stale)"
 readonly TMP_BAD="$(mktemp -t lbc-bad)"
 
-if [ -z "${TMP_SEM}" -o -z "${TMP_STALE}" -o -z "${TMP_BAD}" ]; then
+if [ ! "${TMP_SEM}" -o ! "${TMP_STALE}" -o ! "${TMP_BAD}" ]; then
 	echo "===> Failed to create temporary files" >&2
 	exit_clean 1
 fi
@@ -190,7 +190,7 @@ for pkg in ${packages}; do
 		trap 'job_free' EXIT
 		
 		ret="$(check_package ${pkg})"
-		[ -z "${ret}" ] && exit
+		[ "${ret}" ] || exit
 
 		for lib in ${ret}; do
 			newer_library_available ${lib}
@@ -206,14 +206,14 @@ jobs_finish_wait
 printf "\n\n"
 
 pkg_bad_deps="$(cat ${TMP_BAD})"
-if [ -n "${pkg_bad_deps}" ]; then
+if [ "${pkg_bad_deps}" ]; then
 	printf "Following packages were ignored due probable packaging problems:\n\n"
 	echo "${pkg_bad_deps}" | fmt -w 78
 	echo ""
 fi
 
 pkg_stale="$(cat ${TMP_STALE})"
-if [ -z "${pkg_stale}" ]; then
+if [ ! "${pkg_stale}" ]; then
 	printf "===> No packages linked to stale libs found\n\n"
 	exit_clean 0
 fi
@@ -229,7 +229,7 @@ while true; do
 	printf "\nTotal: ${n_stale} package(s)\n\n"
 	echo -e "Do you want to reinstall them (y/n)? [y] \c"
 	read answer
-	[ -n "${answer}" ] || answer="y"
+	[ "${answer}" ] || answer="y"
 
 	case ${answer} in	
 	[Nn])

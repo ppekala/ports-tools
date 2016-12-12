@@ -20,7 +20,7 @@ EOF
 	exit 1
 fi
 
-if [ -z "${PKGNAME}" ]; then
+if [ ! "${PKGNAME}" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
@@ -45,10 +45,10 @@ find work -name "*.bak" -print | while read file; do
 
 	case ${cmd} in
 	check)
-		[ -z "$(diff "${file}" "${file%.bak}")" ] && \
+		[ "$(diff "${file}" "${file%.bak}")" ] || \
 			echo "File ${file%.bak} not modified" ;;
 	show)
-		if [ -n "${patterns}" ]; then
+		if [ "${patterns}" ]; then
 			matched=0
 			for p in ${patterns}; do
 				case ${file%.bak} in *${p}*)

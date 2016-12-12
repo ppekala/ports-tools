@@ -52,12 +52,12 @@ EOF
 }
 
 is_build_dep() {
-	[ -n "$(make -V BUILD_DEPENDS -V LIB_DEPENDS ${2} \
+	[ "$(make -V BUILD_DEPENDS -V LIB_DEPENDS ${2} \
 		| grep ${1})" ] && return 0 || return 1
 }
 
 is_other_dep() {
-	[ -n "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
+	[ "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
 		-V RUN_DEPENDS -V TEST_DEPENDS ${2} | grep ${1})" ] && \
 		return 0 || return 1
 }
@@ -85,7 +85,7 @@ poudriere_test_build() {
 	BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:${outcome}"
 }
 
-[ -z "${query}" ] && display_usage
+[ "${query}" ] || display_usage
 
 if [ "${build}" != "none" -a "${build}" != "all" \
 	-a -z "$(poudriere_jails | grep ${build})" ]
@@ -94,7 +94,7 @@ then
 	display_usage
 fi
 
-if [ -n "${4}" ]; then
+if [ "${4}" ]; then
 	shift 3;
 	poudriere_args="${*}";
 fi
@@ -199,7 +199,7 @@ for port in ${ports}; do
 	esac
 done
 
-if [ -n "${BUILD_RESULTS}" ]; then
+if [ "${BUILD_RESULTS}" ]; then
 	printf "\n===> Following build(s) were performed:\n"
 	printf "%-40s %-15s %s\n" "PORTNAME" "JAIL" "RESULT"
 

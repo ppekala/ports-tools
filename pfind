@@ -44,8 +44,8 @@ while getopts "b:c:g:hm:n:s:" option; do
 	esac
 done
 
-[ -z "${bdeps}" -a -z "${category}" -a -z "${maintainer}" -a -z "${name}" \
-	-a -z "${string}" -a -z "${master}" ] && display_usage
+[ ! "${bdeps}" -a ! "${category}" -a ! "${maintainer}" -a ! "${name}" \
+	-a ! "${string}" -a ! "${master}" ] && display_usage
 
 [ -d "${PORTSDIR}" ] || \
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
@@ -54,21 +54,21 @@ if [ ! -d "${PORTSDIR}" ]; then
 	exit 1
 fi
 
-if [ -n "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
+if [ "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
 	echo "===> No such category: ${category}" >&2
 	exit 1
 fi
 
-if [ -n "${master}" -a ! -d ${PORTSDIR}/${master} ]; then
+if [ "${master}" -a ! -d ${PORTSDIR}/${master} ]; then
 	echo "===> No such port: ${PORTSDIR}/${master}" >&2
 	exit 1
 fi
 
-[ -z "${bdeps}" ] || search_args="bdeps=${bdeps}"
-[ -z "${category}" ] || search_args="${search_args} path=${PORTSDIR}/${category}/"
-[ -z "${maintainer}" ] || search_args="${search_args} maint=${maintainer}"
-[ -z "${name}" ] || search_args="${search_args} name=${name}"
-[ -n "${master}" -a -n "${search_args}" ] && display_usage
+[ ! "${bdeps}" ] || search_args="bdeps=${bdeps}"
+[ ! "${category}" ] || search_args="${search_args} path=${PORTSDIR}/${category}/"
+[ ! "${maintainer}" ] || search_args="${search_args} maint=${maintainer}"
+[ ! "${name}" ] || search_args="${search_args} name=${name}"
+[ "${master}" -a "${search_args}" ] && display_usage
 
 cd ${PORTSDIR}
 if [ ! -f "$(make -VINDEXFILE)" ]; then
@@ -76,12 +76,12 @@ if [ ! -f "$(make -VINDEXFILE)" ]; then
 	make fetchindex || exit 1
 fi
 
-if [ -z "${search_args}" -a -z "${master}" ]; then
+if [ ! "${search_args}" -a ! "${master}" ]; then
 	grep_files Makefile 3 "${string}" | sed 's|\/Makefile$||' | sort
 	exit
 fi
 
-if [ -n "${master}" ]; then
+if [ "${master}" ]; then
 	portdir="$(realpath ${PORTSDIR}/${master})"
 	# search for slaves only in the same category for performance reasons
 	cd ${portdir%/*}
@@ -99,9 +99,9 @@ else
 fi
 
 for portdir in ${portdirs}; do
-	if [ -n "${string}" ]; then
+	if [ "${string}" ]; then
 		[ -e ${portdir}/Makefile ] || continue
-		[ -n "$(grep "${string}" ${portdir}/Makefile)" ] || continue
+		[ "$(grep "${string}" ${portdir}/Makefile)" ] || continue
 	fi  
 	echo ${portdir} | sed "s|${PORTSDIR}/||"
 done

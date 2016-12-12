@@ -17,7 +17,7 @@ ask_yesno() {
 		echo -n "${1} (y/n)? [y] "
 		
 		read answer
-		[ -n "${answer}" ] || answer="y"
+		[ "${answer}" ] || answer="y"
 
 		case ${answer} in
 		[Nn])
@@ -30,7 +30,7 @@ ask_yesno() {
 
 delete_old_files() {
 	local tmpfile="$(mktemp -t ${0##*/})"
-	[ -z "${tmpfile}" ] && return
+	[ "${tmpfile}" ] || return
 
 	for type in libs files dirs; do
 		${MAKE} check-old-${type} | grep '^/' > ${tmpfile}
@@ -39,7 +39,7 @@ delete_old_files() {
 			items="${items} \"${file}\" ${tstr} on"
 		done
 	done
-	if [ -n "${items}" ]; then
+	if [ "${items}" ]; then
 		echo "--stdout --checklist \"Choose old files to delete\" \
 			$((tlines-3)) ${dwidth} $((tlines-5)) \
 			${items}" > ${tmpfile}
@@ -173,7 +173,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 jobs="$(sysctl -n hw.ncpu)"
-[ -n "${jobs}" ] && make_args="${make_args} -j${jobs}"
+[ "${jobs}" ] && make_args="${make_args} -j${jobs}"
 
 # needed for rebuilding kernel modules ports
 PORTSDIR=${PORTSDIR:-/usr/ports}
@@ -186,7 +186,7 @@ fi
 make_args="${make_args} PORTSDIR=${PORTSDIR}"
 
 ports_modules="$(pkg which -qo /boot/modules/* | uniq | tr '\n' ' ')"
-[ -n "${ports_modules}" ] && export PORTS_MODULES="${ports_modules}"
+[ "${ports_modules}" ] && export PORTS_MODULES="${ports_modules}"
 
 cd ${SRCDIR}
 main_loop

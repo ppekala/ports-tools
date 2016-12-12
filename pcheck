@@ -21,7 +21,7 @@ EOF
 reinplace_file() {
 	local file="${1}" expr="${2}"
 	
-	[ -n "${expr}" ] || return
+	[ "${expr}" ] || return
 	sed -E "${expr}" ${file} > ${file}.new
 	mv ${file}.new ${file}
 }
@@ -35,7 +35,7 @@ while getopts "hs" option; do
 	esac
 done
 
-if [ -z "$(make -V PKGNAME 2>/dev/null)" ]; then
+if [ ! "$(make -V PKGNAME 2>/dev/null)" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
@@ -43,7 +43,7 @@ fi
 descr_file="$(make -V DESCR)"
 
 rej_files="$(find -E . -name "*.rej" ! -regex '\./(\.svn|work)/.*')"
-if [ -n "${rej_files}" ]; then
+if [ "${rej_files}" ]; then
 	echo "===> Found rejected patch file(s)" >&2
 	echo " ${rej_files}" | sed 's|./||g' >&2
 	exit 1
@@ -61,14 +61,14 @@ if [ ${skip_spellcheck} -eq 0 ]; then
 fi
 
 find -E . -type f ! -regex '\./(\.svn|work)/.*' | while read file; do
-	if [ -z "$(tail -n 1 ${file} | tr '\n' '~' | grep '~$')" ]; then
+	if [ ! "$(tail -n 1 ${file} | tr '\n' '~' | grep '~$')" ]; then
 		echo >> ${file}
 		echo "===> Added final newline to ${file##./}"
 	fi
 done
 
 comment="$(make -V COMMENT)"
-if [ -n "$(echo ${comment} | grep -E '^(A|An) ')" ]; then
+if [ "$(echo ${comment} | grep -E '^(A|An) ')" ]; then
 	new_comment="$(echo ${comment} | awk '{ 
 		gsub("^(A|An) ", "", $0); 
 		print toupper( substr($0, 1, 1) ) substr($0, 2);
@@ -80,12 +80,12 @@ reinplace_file Makefile "${sed_expr}"
 
 if [ -f "${descr_file}" ]; then	
 	sed_expr=""
-	if [ -n "$(grep '^Author:' ${descr_file})" ]; then
+	if [ "$(grep '^Author:' ${descr_file})" ]; then
 		sed_expr="/^Author:/d;"
 		echo "===> Deleting Author: line from description file"
 	fi
 
-	if [ -n "$(grep -E '^WWW:(	| {2,})' ${descr_file})" ]; then
+	if [ "$(grep -E '^WWW:(	| {2,})' ${descr_file})" ]; then
 		sed_expr="${sed_expr} s#^WWW:(	| {2,})#WWW: #g;"
 		echo "===> Fixing WWW: line in description file"
 	fi
@@ -105,7 +105,7 @@ bdeps=$(pfind -b `make -V PORTNAME` | awk 'END {print NR}')
 [ ${bdeps} -gt 0 ] && echo "===> Port is build dependency for ${bdeps} port(s)"
 
 slaves="$(pfind -s `make -V CATEGORIES | awk '{print $1}'`"/"`basename $PWD`)"
-if [ -n "${slaves}" ]; then
+if [ "${slaves}" ]; then
 	echo "===> Found slave ports:"
 	echo ${slaves} | tr ' ' '\n'
 fi

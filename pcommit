@@ -20,7 +20,7 @@ ask_yesno() {
 		echo -n "${1} (y/n)? [y] "
 		
 		read answer
-		[ -n "${answer}" ] || answer="y"
+		[ "${answer}" ] || answer="y"
 
 		case ${answer} in
 		[Nn])
@@ -33,7 +33,7 @@ ask_yesno() {
 
 cache_concat() {
 	local str="$(eval echo $"$1")"
-	[ -z "${str}" ] && str="${2}" || str="${str} ${2}"
+	[ ! "${str}" ] && str="${2}" || str="${str} ${2}"
 	setvar ${1} "${str}"
 }
 
@@ -138,7 +138,7 @@ file_set_props() {
 }
 
 pcommit_exit() {
-	[ -z "${tempfile}" ] || rm -f ${tempfile}
+	[ ! "${tempfile}" ] || rm -f ${tempfile}
 	exit ${1}
 }
 
@@ -147,7 +147,7 @@ remove_empty_dirs() {
 		[ -d ${dir} ] || continue
 		case ${dir_cache_ignore} in *${dir}*) continue ;; esac
 		
-		if [ -z "$(ls ${dir} 2>&1)" ]; then
+		if [ ! "$(ls ${dir} 2>&1)" ]; then
 			echo "===> Removing empty directory ${dir}"
 			${PSVN} -q rm ${dir}
 		fi
@@ -167,14 +167,14 @@ while getopts "cehn" option; do
 	esac
 done
 
-if [ -n "$(make -V PORTNAME)" ]; then
+if [ "$(make -V PORTNAME)" ]; then
 	depth=2
 else 
-	[ -n "$(make -V PORTSTOP)" ] && depth=4 || depth=3
+	[ "$(make -V PORTSTOP)" ] && depth=4 || depth=3
 fi
 
 wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
-if [ -n "${wrk_dirs}" ]; then
+if [ "${wrk_dirs}" ]; then
 	for wdir in ${wrk_dirs}; do
 		if [ ${depth} -ne 2 ]; then
 			echo "===> Running 'make clean' in ${wdir%%/work}"
@@ -185,7 +185,7 @@ if [ -n "${wrk_dirs}" ]; then
 		fi
 
 		ret="$(make ${make_args} clean 2>/dev/null)"
-		if [ -n "$(echo ${ret} | grep 'not writable')" ]; then
+		if [ "$(echo ${ret} | grep 'not writable')" ]; then
 			if [ ${depth} -ne 2 ]; then
 				echo "===> Failed to 'make clean' in ${wdir%%/work}" >&2
 			else
@@ -197,7 +197,7 @@ if [ -n "${wrk_dirs}" ]; then
 fi
 
 rej_files="$(find . -name "*.rej" -maxdepth ${depth} | sed 's|^./||g')"
-if [ -n "${rej_files}" ]; then
+if [ "${rej_files}" ]; then
 	echo "===> Found rejected patch files" >&2
 	echo ${rej_files} | tr ' ' '\n'
 	exit 1
@@ -206,7 +206,7 @@ fi
 old_files="$(find -E . \( -name "*.orig" -or -name "svn-commit.*" \) \
 	! -regex '.*(\.svn|work)/.*' -delete -print -maxdepth ${depth} | \
 	sed 's|^./||g')"
-if [ -n "${old_files}" ]; then
+if [ "${old_files}" ]; then
 	echo "===> Removed old temporary files"
 	echo ${old_files} | tr ' ' '\n'
 fi
@@ -226,7 +226,7 @@ if [ ${ignore_empty} -eq 0 ]; then
 fi
 
 tempfile="$(mktemp -t ${0##*/})"
-if [ -z "${tempfile}" ]; then
+if [ ! "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi

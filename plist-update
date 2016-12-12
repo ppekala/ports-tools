@@ -32,13 +32,13 @@ if ! which plist-sort >/dev/null; then
 	exit 1
 fi
 
-if [ -z "${PKGNAME}" ]; then
+if [ ! "${PKGNAME}" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
 tempfile="$(mktemp -t ${0##*/})"
-if [ -z "${tempfile}" ]; then
+if [ ! "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi

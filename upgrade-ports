@@ -16,7 +16,7 @@ ask_yesno() {
 		echo -n "${1} (y/n)? [y] "
 		
 		read answer
-		[ -n "${answer}" ] || answer="y"
+		[ "${answer}" ] || answer="y"
 
 		case ${answer} in
 		[Nn])
@@ -32,7 +32,7 @@ command_is_relevant() {
 
 	IFS=" "
 	for arg in ${*}; do
-		[ -n "${upgrade_prg}" ] || upgrade_prg="${arg}"
+		[ "${upgrade_prg}" ] || upgrade_prg="${arg}"
 		case ${arg} in
 		"-a")
 			if [ "${upgrade_prg}" = "portmaster" ]; then
@@ -175,8 +175,8 @@ updating_entry() {
 # $2 - last read/executed UPDATING entry
 # $3 - wait for final keypress?
 upgrade_exit() {
-	[ -n "${2}" ] && echo ${2} > ${CONFIG}
-	[ -n "${tmpfile}" -a -f "${tmpfile}" ] && rm -rf "${tmpfile}"
+	[ "${2}" ] && echo ${2} > ${CONFIG}
+	[ "${tmpfile}" -a -f "${tmpfile}" ] && rm -rf "${tmpfile}"
 
 	if [ ${3} -eq 1 ]; then
 		printf "\n===> Press Enter key to finish.\n\n"
@@ -218,7 +218,7 @@ if ! which portmaster >/dev/null; then
 	upgrade_exit 1 "" ${wait_for_key}
 fi
 
-if [ -n "${UPGRADE_PORTS_IGNORE}" ]; then
+if [ "${UPGRADE_PORTS_IGNORE}" ]; then
 	for pattern in ${UPGRADE_PORTS_IGNORE}; do
 		portmaster_args="${portmaster_args} -x ${pattern}"
 	done
@@ -230,7 +230,7 @@ else
 	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
 fi
 
-[ -n "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
+[ "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
 
 if [ ${skip_update} -eq 0 ]; then
 	if ! ${SUDO} portsnap fetch update; then
@@ -253,7 +253,7 @@ last_upd="$(get_entry_dates | head -n 1)"
 
 if [ ${last_read} -lt ${last_upd} ]; then
 	tmpfile="$(mktemp -t ${0##*/})"
-	if [ -z "${tmpfile}" ]; then
+	if [ ! "${tmpfile}" ]; then
 		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1 "" ${wait_for_key}
 	fi
@@ -333,7 +333,7 @@ END {
 		printf("%s ", rebuild[i]);
 }')
 
-if [ -n "${pkgs_rebuild}" ]; then
+if [ "${pkgs_rebuild}" ]; then
 	for pkg in ${pkgs_rebuild}; do
 		case pkg in
 			*/*)
@@ -342,11 +342,11 @@ if [ -n "${pkgs_rebuild}" ]; then
 				rinst="${pkg}"
 		esac
 	done
-	if [ -n "${inst}" ]; then
+	if [ "${inst}" ]; then
 		printf "\nPorts need to be INSTALLED:\n"
 		for port in ${inst}; do printf "  ${port}\n"; done
 	fi
-	if [ -n "${rinst}" ]; then
+	if [ "${rinst}" ]; then
 		printf "\nPackages need to be REINSTALLED:\n"
 		for pkg in ${rinst}; do printf "  ${pkg}\n"; done
 	fi
