@@ -84,11 +84,20 @@ get_entry_dates() {
 	egrep "^[0-9]{8}:" ${PORTSDIR}/UPDATING | sed 's/://'
 }
 
+get_moved_ports() {
+	awk -F '|' -v date="${1}" '
+	!/^#/ && NR = 4 && $2 {
+		gsub("-", "", $3);
+		if ($3 > date)
+			print $1 ":" $2;
+	}' ${PORTSDIR}/MOVED
+}
+
 get_removed_ports() {
 	awk -F '|' -v date="${1}" '
-	!/^#/ && NR = 4 {
+	!/^#/ && NR = 4 && !$2 {
 		gsub("-", "", $3);
-		if ($2 == "" && $3 > date)
+		if ($3 > date)
 			print $1;
 	}' ${PORTSDIR}/MOVED
 }
@@ -254,6 +263,11 @@ for port in $(get_removed_ports ${last_read}); do
 			${SUDO} pkg-static delete --yes --force ${port}
 		fi
 	fi
+done
+for ports in $(get_moved_ports ${last_read}); do
+	pkg_exists ${ports%%:*} &&
+		${SUDO} pkg-static set --change-origin ${ports} --yes &&
+		echo "===> Port ${ports%%:*} moved to ${ports##*:}"
 done
 
 last_upd="$(get_entry_dates | head -n 1)"
