@@ -199,7 +199,7 @@ while getopts "huwy" option; do
 	esac
 done
 
-[ -d "${PORTSDIR}" ] || \
+[ -d "${PORTSDIR}" ] ||
 	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 if [ ! -d "${PORTSDIR}" ]; then
 	echo "===> Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
@@ -289,7 +289,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		IFS=${old_IFS}
 		entry_prev="${entry}"
 	done
-	ask_yesno "Update ports with 'portmaster -a'" || \
+	ask_yesno "Update ports with 'portmaster -a'" ||
 		upgrade_exit 0 "${last_upd}" 0
 fi
 
@@ -350,7 +350,7 @@ if [ "${pkgs_rebuild}" ]; then
 		printf "\nPackages need to be REINSTALLED:\n"
 		for pkg in ${rinst}; do printf "  ${pkg}\n"; done
 	fi
-	ask_yesno "Continue with changes" && \
+	ask_yesno "Continue with changes" &&
 		${SUDO} portmaster ${portmaster_args} ${pkgs_rebuild}
 fi
 upgrade_exit ${?} "${last_upd}" ${wait_for_key}

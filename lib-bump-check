@@ -24,8 +24,8 @@ check_package() {
 			javavm="$(pkg-static info -dq ${pkg} | egrep 'jdk|jre')"
 			[ "${javavm}" ] || javavm="no"
 		fi
-		[ "${javavm}" != "no" ] && \
-			[ "$(pkg-static info -lq ${javavm} | grep ${lib})" ] && \
+		[ "${javavm}" != "no" ] &&
+			[ "$(pkg-static info -lq ${javavm} | grep ${lib})" ] &&
 			continue
 		echo -n "${lib} "
 	done

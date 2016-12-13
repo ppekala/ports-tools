@@ -58,7 +58,7 @@ is_build_dep() {
 
 is_other_dep() {
 	[ "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
-		-V RUN_DEPENDS -V TEST_DEPENDS ${2} | grep ${1})" ] && \
+		-V RUN_DEPENDS -V TEST_DEPENDS ${2} | grep ${1})" ] &&
 		return 0 || return 1
 }
 
@@ -125,8 +125,8 @@ file)
 	ports="$(cat "${query}" | grep -v '^#')" ;;
 grep)
 	ports="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec \
-		grep -q "${query}" {} \; -print | grep -v "${query}/Makefile" \
-		| sed -E 's;(\./|/Makefile);;g')" ;;
+		grep -q "${query}" {} \; -print | grep -v "${query}/Makefile" |
+		sed -E 's;(\./|/Makefile);;g')" ;;
 ldeps)
 	query=$(check_portname ${query})
 	tmp="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec grep -q \

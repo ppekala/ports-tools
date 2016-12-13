@@ -45,7 +45,7 @@ find work -name "*.bak" -print | while read file; do
 
 	case ${cmd} in
 	check)
-		[ "$(diff "${file}" "${file%.bak}")" ] || \
+		[ "$(diff "${file}" "${file%.bak}")" ] ||
 			echo "File ${file%.bak} not modified" ;;
 	show)
 		if [ "${patterns}" ]; then

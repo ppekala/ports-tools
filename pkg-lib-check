@@ -42,11 +42,11 @@ check_for_link_errors() {
 				[ "${javavm}" ] || javavm="no"
 			fi
 
-			[ "${javavm}" != "no" ] && \
-			[ "$(pkg info -lq ${javavm} | grep ${lib##not_found})" ] && \
+			[ "${javavm}" != "no" ] &&
+				[ "$(pkg info -lq ${javavm} | grep ${lib##not_found})" ] &&
 				continue
 		
-			[ ${show_direct_deps} -eq 0 ] && \
+			[ ${show_direct_deps} -eq 0 ] &&
 				link_noexist="${link_noexist} ${lib##not_found}"
 			continue
 		esac
@@ -55,7 +55,7 @@ check_for_link_errors() {
 
 		# skip false positive libGL - this library is shared between packages
 		if [ ${?} -ne 0 -a "${lib%%*/lib/libGL.so.*}" ]; then
-			[ ${show_direct_deps} -eq 0 ] && \
+			[ ${show_direct_deps} -eq 0 ] &&
 				link_leftover="${link_leftover} ${lib}"
 			continue
 		fi
@@ -83,7 +83,7 @@ check_for_link_errors() {
 check_for_missing_deps() {
 	local package="${1}" deps="${2}" missing_deps
 
-	[ ${show_direct_deps} -eq 0 ] && \
+	[ ${show_direct_deps} -eq 0 ] &&
 		registered_deps="$(pkg_full_deps ${package} ${package})"
 	for dep in ${deps}; do
 		case ${registered_deps} in
@@ -139,7 +139,7 @@ dependency_is_inherited() {
 		case ${ret_deps} in
 		*${dep}*)
 			if [ "${inh}" ]; then
-				[ "$(pkg info -rq ${inh} | grep ${p_dep})" ] || \
+				[ "$(pkg info -rq ${inh} | grep ${p_dep})" ] ||
 					inh="${p_dep}"
 			else
 				inh="${p_dep}"
@@ -173,8 +173,8 @@ find_linked_to() {
 	local ret="$(pkg info -lq ${package} | while read file; do
 		[ -L "${file}" ] && continue
 	
-		[ "$(ldd "${file}" 2>/dev/null | grep -i ".*${query}.*=>")" ] \
-			&& echo ${file}
+		[ "$(ldd "${file}" 2>/dev/null | grep -i ".*${query}.*=>")" ] &&
+			echo ${file}
 	done)"
 	[ "${ret}" ] || return
 	

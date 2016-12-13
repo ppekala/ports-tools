@@ -112,7 +112,7 @@ file_remove() {
 		fi
 		return 0
 	else
-		[ "${n_kind}" = "file" ] && \
+		[ "${n_kind}" = "file" ] &&
 			cache_concat dir_cache_ignore "$(dirname "${file}")"
 		return 1
 	fi
@@ -131,7 +131,7 @@ file_set_props() {
 		${PSVN} -q -- propdel svn:keywords "${file}" ;;
 	esac
 
-	[ "${_file##/*}" != "bsd.port.mk" ] && \
+	[ "${_file##/*}" != "bsd.port.mk" ] &&
 		${PSVN} -q -- propset svn:eol-style native "${file}"
 	${PSVN} -q -- propset svn:mime-type text/plain "${file}"
 	${PSVN} -q -- propdel cvs2svn:cvs-rev "${file}"
@@ -204,7 +204,7 @@ if [ "${rej_files}" ]; then
 fi
 
 old_files="$(find -E . \( -name "*.orig" -or -name "svn-commit.*" \) \
-	! -regex '.*(\.svn|work)/.*' -delete -print -maxdepth ${depth} | \
+	! -regex '.*(\.svn|work)/.*' -delete -print -maxdepth ${depth} |
 	sed 's|^./||g')"
 if [ "${old_files}" ]; then
 	echo "===> Removed old temporary files"
@@ -219,7 +219,7 @@ if [ ${ignore_empty} -eq 0 ]; then
 		if ${PSVN} info "${file}" >/dev/null 2>&1; then
 			file_remove "${file}"
 		else
-			rm -f "${file}" && \
+			rm -f "${file}" &&
 				echo "===> Removed empty untracked file ${file}"
 		fi
 	done

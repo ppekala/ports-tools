@@ -158,5 +158,5 @@ fi
 
 [ "${pkg_seen}" ] || echo "===> No leaf packages to remove"
 
-[ ${rm_count} -gt 0 ] && \
+[ ${rm_count} -gt 0 ] &&
 	echo "===> Packages removed: ${rm_count}  Disk space freed: $(number_humanize ${rm_freed})"
