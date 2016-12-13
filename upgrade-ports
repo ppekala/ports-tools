@@ -53,7 +53,7 @@ command_is_relevant() {
 				change_origin=2
 				continue
 			fi
-			if ! pkg-static info --exists ${arg%:*}; then
+			if ! pkg_exists ${arg%:*}; then
 				printf "===> ${arg} is not installed, skipping '${*}' command\n\n"
 				IFS=${old_IFS}
 				return 1
@@ -91,6 +91,11 @@ get_removed_ports() {
 		if ($2 == "" && $3 > date)
 			print $1;
 	}' ${PORTSDIR}/MOVED
+}
+
+pkg_exists() {
+	[ "${1}" ] || return 1
+	pkg-static info --exists ${1} 2>&1 >/dev/null
 }
 
 removal_reason() {
@@ -243,8 +248,7 @@ if [ ${skip_update} -eq 0 ]; then
 fi
 
 for port in $(get_removed_ports ${last_read}); do
-	pkg-static info -e ${port} 2>&1 >/dev/null
-	if [ $? -eq 0 ]; then
+	if pkg_exists ${port}; then
 		if ask_yesno "Remove obsolete ${port} ($(removal_reason ${port}))"
 		then
 			${SUDO} pkg-static delete --yes --force ${port}
