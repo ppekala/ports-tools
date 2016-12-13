@@ -175,10 +175,13 @@ updating_entry() {
 # $2 - last read/executed UPDATING entry
 # $3 - wait for final keypress?
 upgrade_exit() {
+	local keywait=${3}
+
 	[ "${2}" ] && echo ${2} > ${CONFIG}
+	[ "${keywait}" ] || keywait=${wait_for_key}
 	[ "${tmpfile}" -a -f "${tmpfile}" ] && rm -rf "${tmpfile}"
 
-	if [ ${3} -eq 1 ]; then
+	if [ ${keywait} -eq 1 ]; then
 		printf "\n===> Press Enter key to finish.\n\n"
 		read key
 	fi
@@ -209,13 +212,13 @@ fi
 if [ $(id -u) -ne 0 ]; then
 	if ! which sudo >/dev/null; then
 		echo "===> sudo not found" >&2
-		upgrade_exit 1 "" ${wait_for_key}
+		upgrade_exit 1
 	fi
 	SUDO="sudo"
 fi
 if ! which portmaster >/dev/null; then
 	echo "===> portmaster not found" >&2
-	upgrade_exit 1 "" ${wait_for_key}
+	upgrade_exit 1
 fi
 
 if [ "${UPGRADE_PORTS_IGNORE}" ]; then
@@ -235,7 +238,7 @@ fi
 if [ ${skip_update} -eq 0 ]; then
 	if ! ${SUDO} portsnap fetch update; then
 		echo "===> Ports tree update failed" >&2
-		upgrade_exit 1 "" ${wait_for_key}
+		upgrade_exit 1
 	fi
 fi
 
@@ -255,7 +258,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 	tmpfile="$(mktemp -t ${0##*/})"
 	if [ ! "${tmpfile}" ]; then
 		echo "===> Failed to create temporary file" >&2
-		upgrade_exit 1 "" ${wait_for_key}
+		upgrade_exit 1
 	fi
 
 	for entry in $(get_entry_dates | sort -u); do
@@ -281,7 +284,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 				
 				if [ ${ret} -ne 0 ]; then
 					echo "===> Upgrade command '${cmd}' failed" >&2
-					upgrade_exit ${ret} "${entry_prev}" ${wait_for_key}
+					upgrade_exit ${ret} ${entry_prev}
 				fi
 			fi
 		done
@@ -290,11 +293,10 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		entry_prev="${entry}"
 	done
 	ask_yesno "Update ports with 'portmaster -a'" ||
-		upgrade_exit 0 "${last_upd}" 0
+		upgrade_exit 0 ${last_upd} 0
 fi
 
-${SUDO} portmaster -a ${portmaster_args}
-[ ${?} -ne 0 ] && upgrade_exit 1 "${last_upd}" ${wait_for_key}
+${SUDO} portmaster -a ${portmaster_args} || upgrade_exit 1 ${last_upd}
 
 echo "===> Checking packages for missing libraries/dependencies"
 pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${UPGRADE_PORTS_IGNORE}" '
@@ -353,4 +355,4 @@ if [ "${pkgs_rebuild}" ]; then
 	ask_yesno "Continue with changes" &&
 		${SUDO} portmaster ${portmaster_args} ${pkgs_rebuild}
 fi
-upgrade_exit ${?} "${last_upd}" ${wait_for_key}
+upgrade_exit ${?} ${last_upd}
