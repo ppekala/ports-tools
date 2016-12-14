@@ -39,10 +39,8 @@ BEGIN {
 	for (pair=1; pair<=n; pair++) {
 		if (split(array[pair], p_array, "=") != 2)
 			continue;
-
 		if (p_array[1] in opt_subs)
 			continue;
-
 		gsub("\"", "", p_array[2]);
 		if (p_array[2] && p_array[2] != "@comment")
 			subs[p_array[1]] = p_array[2];
@@ -50,36 +48,22 @@ BEGIN {
 }
 
 function store_pathname(path, tokens) {
-	is_dir=0;
-	if (match(tokens, "@dir"))
-		is_dir=1;
+	is_dir = match(tokens, "@dir");
 
-	if (match(path, "^/")) {
-		if (is_dir == 1)
-			dirs_nonprefix[path] = tokens;
-		else
-			files_nonprefix[path] = tokens;
-	} else {
-		if (is_dir == 1)
-			dirs[path] = tokens;
-		else
-			files[path] = tokens;
-	}
+	if (match(path, "^/")) # nonprefix items
+		(is_dir) ? dirs_np[path] = tokens : files_np[path] = tokens;
+	else
+		(is_dir) ? dirs[path] = tokens : files[path] = tokens;
 }
 
 function str_replace(string, pattern, new_pattern) {
-	new_str=""
+	str=""
 
 	if ((n = split(string, array, pattern)) == 1)
 		return string;
-
-	for (i=1; i <= n; i++) {
-		if (i != n)
-			new_str = new_str array[i] new_pattern;
-		else
-			new_str = new_str array[i];
-	}
-	return new_str;
+	for (i=1; i <= n; i++)
+		str = (i != n) ? str array[i] new_pattern : str array[i];
+	return str;
 }
 
 function plist_split(string, array) {
@@ -89,11 +73,10 @@ function plist_split(string, array) {
 }
 
 function keyword_line_tokenize(line, keyword) {
-	path = chunks = suffix = "";
+	path = chunks = "";
 	# little hack to get depth first sorting order
 	# suffix is removed after sort in untokenize function
-	if (keyword == "dir")
-		suffix = "zzz";
+	suffix = (keyword == "dir") ? "zzz" : "";
 
 	if ((n = split(line, array, "%%")) == 1) {
 		plist_split(array[1], p);
@@ -167,7 +150,6 @@ function print_files(array, file) {
 			keyword_line_untokenize(line, "sample");
 			continue;
 		}
-
 		if ((n = split(line, p, separator)) == 1) {
 			print p[1];
 			continue;
@@ -240,9 +222,9 @@ END {
 	close("mktemp -t plist-sort");
 
 	print_files(files, tmpfile);
-	print_files(files_nonprefix, tmpfile);
+	print_files(files_np, tmpfile);
 	print_dirs(dirs, tmpfile);
-	print_dirs(dirs_nonprefix, tmpfile);
+	print_dirs(dirs_np, tmpfile);
 	system("rm " tmpfile);
 	
 	for (i in cmds)
