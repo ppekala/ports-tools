@@ -83,11 +83,8 @@ BEGIN {
 	}
 	if (plist_file) {
 		while ((getline line < plist_file) > 0) {
-			n = index(line, "@dir");
-			k = index(line, "@sample");
-
-			if (n > 0 || k > 0) {
-				i = split(substr(line,n>0 ? n : k), p,  " ");
+			if (match(line, "@\(dir|sample\)")) {
+				plist_split(substr(line, RSTART), p);
 				plist[ no_subs_path(p[2]) ] = line;
 			} else 
 				plist[ no_subs_path(line) ] = line;
@@ -124,6 +121,12 @@ function no_subs_path(path) {
 		new_path = new_path array[i];
 	}
 	return new_path;
+}
+
+function plist_split(string, array) {
+	n = index(string, " ");
+	array[1] = substr(string, 1, n-1);
+	array[2] = substr(string, n+1);
 }
 
 function remove_blacklisted_subs(path) {
