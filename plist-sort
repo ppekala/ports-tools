@@ -44,7 +44,7 @@ BEGIN {
 			continue;
 
 		gsub("\"", "", p_array[2]);
-		if (p_array[2] != "" && p_array[2] != "@comment")
+		if (p_array[2] && p_array[2] != "@comment")
 			subs[p_array[1]] = p_array[2];
 	}
 }

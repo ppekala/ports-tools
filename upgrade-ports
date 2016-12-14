@@ -385,7 +385,7 @@ function pkg_is_ignored(pkg) {
 		next;
 
 	"pkg-static rquery -e '\''%n = " pkg  "'\'' %o" | getline origin
-	if (origin != "")
+	if (origin)
 		rebuild[pkg] = origin;
 }
 

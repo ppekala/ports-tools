@@ -78,11 +78,10 @@ BEGIN {
 			continue;
 
 		gsub("\"", "", p_array[2]);
-		if (p_array[2] != "" && p_array[2] != "@comment")
+		if (p_array[2] && p_array[2] != "@comment")
 			subs[p_array[1]] = p_array[2];
 	}
-
-	if (plist_file != "") {
+	if (plist_file) {
 		while ((getline line < plist_file) > 0) {
 			n = index(line, "@dir");
 			k = index(line, "@sample");
@@ -95,7 +94,7 @@ BEGIN {
 		}
 		close(plist_file);
 	}
-	if (subname != "")
+	if (subname)
 		subname = "%%" subname "%%";
 }
 
