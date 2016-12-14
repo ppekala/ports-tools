@@ -27,43 +27,84 @@ ask_yesno() {
 	done
 }
 
-command_is_relevant() {
-	local change_origin=0 old_IFS=${IFS} upgrade_prg=""
+command_is_valid() {
+	local old_IFS=${IFS}
 
 	IFS=" "
-	for arg in ${*}; do
-		[ "${upgrade_prg}" ] || upgrade_prg="${arg}"
-		case ${arg} in
-		"-a")
-			if [ "${upgrade_prg}" = "portmaster" ]; then
-				printf "===> Skipping upgrade of all packages for now (${*})\n\n"
-				IFS=${old_IFS}
-				return 1
-			fi
-			;;
-		"-o")
-			change_origin=1
-			continue
-		esac
+	if [ "${*%% *}" = "pkg" ]; then
+		cmd_pkg_validate ${*#pkg }
+	else
+		cmd_pm_validate ${*#portmaster }
+	fi
+	ret=${?}
+	IFS=${old_IFS}
+	return ${ret}
+}
 
-		if [ ${change_origin} -ne 0 ]; then
-			if [ "${upgrade_prg}" = "portmaster" -a \
-				${change_origin} -eq 1 ]
-			then
-				change_origin=2
-				continue
-			fi
+cmd_pkg_validate() {
+	local check_exists=0 command=""
+
+	for arg in ${*}; do
+		if [ ! "${command}" ]; then
+			command=${arg}
+			[ "${command}" = "delete" ] && check_exists=1
+			[ "${command}" = "info" ] && return 1
+			continue
+		fi
+		case ${arg} in
+			-o)
+				check_exists=1
+				continue ;;
+			-*)
+				echo "===> Pkg unhandled option: ${arg}"
+				return 1
+		esac
+		if [ ${check_exists} -eq 1 ]; then
 			if ! pkg_exists ${arg%:*}; then
-				printf "===> ${arg} is not installed, skipping '${*}' command\n\n"
-				IFS=${old_IFS}
+				echo "===> ${arg%:*} is not installed, skipping 'pkg ${*}' command"
 				return 1
 			else
-				change_origin=0
+				check_exists=0
 			fi
 		fi
 	done
+	return 0
+}
 
-	IFS=${old_IFS}
+cmd_pm_validate() {
+	local change_origin=0 check_exists=0
+
+	for arg in ${*}; do
+		case ${arg} in
+		-a)
+			echo "===> Skipping upgrade of all packages for now (portmaster ${*})"
+			return 1 ;;
+		-f|-w)
+			continue ;;
+		-o)
+			change_origin=1
+			continue ;;
+		-r)
+			check_exists=1
+			continue ;;
+		-*)
+			echo "===> Portmaster unhandled option: ${arg}"
+			return 1
+		esac
+		if [ ${change_origin} -eq 1 ]; then
+			change_origin=0
+			check_exists=1
+			continue
+		fi
+		if [ ${check_exists} -eq 1 ]; then
+			if ! pkg_exists ${arg}; then
+				echo "===> ${arg} is not installed, skipping 'portmaster ${*}' command"
+				return 1
+			else
+				check_exists=0
+			fi
+		fi
+	done
 	return 0
 }
 
@@ -289,7 +330,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		IFS=$'\n'
 		
 		for cmd in $(cat ${tmpfile}); do
-			command_is_relevant ${cmd} || continue
+			command_is_valid ${cmd} || continue
 			case ${cmd} in "portmaster "*)
 				cmd="${cmd} ${portmaster_args}"
 			esac
