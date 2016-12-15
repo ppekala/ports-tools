@@ -150,79 +150,53 @@ pkg_exists() {
 
 removal_reason() {
 	awk -F '|' -v port="${1}" '
-	!/^#/ && NR = 4 {
-		if ($1 == port)
-			print $4;
-	}' ${PORTSDIR}/MOVED
+	!/^#/ && NR = 4 && $1 == port { print $4 }' ${PORTSDIR}/MOVED
 }
 
 updating_commands() {
-	awk -v entry="${1}" '
-	BEGIN {
-		in_entry=0;
-		in_cmd=0;
-		cmd="";
+	awk -F ':' -v entry="${1}" '
+	function strip_command(str) {
+		sub("^[ \t#]*", "", str);
+		in_cmd = sub(/\\$/, "", str);
+		return str;
 	}
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
-		sub(":", "", $0);
-		if (entry == $0)
+		if (entry == $1)
 			in_entry=1;
-		else
-			if (in_entry == 1)
-				exit;
+		else if (in_entry)
+			exit;
 	}
-	{
-		if (in_entry != 1)
-			next;
-
-		if (in_cmd == 0) {
-			if (match($0, /^[ \t#]*pkg /))
-				cmd = substr($0, index($0, "pkg "));
-			if (match($0, /^[ \t#]*portmaster/))
-				cmd = substr($0, index($0, "portmaster"));
-			if (cmd == "")
-				next;
-
-			if (match(cmd, /\\$/)) {
-				sub(/\\$/, "", cmd);
-				in_cmd=1;
-			} else {
+	in_entry && !in_cmd {
+		if (match($0, /^[ \t#]*(pkg|portmaster) /)) {
+			cmd = strip_command($0);
+			if (!in_cmd) {
 				print cmd;
 				cmd="";
 			}
-		} else {
-			sub(/^[ \t]*/, "", $0);
-
-			if (match($0, /\\$/)) {
-				sub(/\\$/, "", $0);
-				cmd=cmd $0;
-			} else {
-				print cmd $0;
-				cmd="";
-				in_cmd=0;
-			}
+		}
+		next;
+	}
+	in_entry && in_cmd {
+		line = strip_command($0);
+		if (in_cmd)
+			cmd=cmd line;
+		else {
+			print cmd line;
+			cmd="";
 		}
 	}' ${PORTSDIR}/UPDATING
 }
 
 updating_entry() {
 	echo ""
-	awk -v entry="${1}" '
-	BEGIN { in_entry=0; }
-	
+	awk -F ':' -v entry="${1}" '
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
-		curr_entry=$0;
-		sub(":", "", curr_entry);
-		if (entry == curr_entry)
+		if (entry == $1)
 			in_entry=1;
-		else
-			if (in_entry == 1)
-				exit;
+		else if (in_entry)
+			exit;
 	}
-	{
-		if (in_entry == 1)
-			print $0;
-	}' ${PORTSDIR}/UPDATING
+	in_entry { print $0 }' ${PORTSDIR}/UPDATING
 	echo ""
 }
 
