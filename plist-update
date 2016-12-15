@@ -83,7 +83,8 @@ BEGIN {
 	}
 	if (plist_file) {
 		while ((getline line < plist_file) > 0) {
-			if (match(line, "@\(dir|sample\)")) {
+			if (match(line, "@\(dir|sample\)") ||
+			    match(line, "@\\(.*\\)")) {
 				plist_split(substr(line, RSTART), p);
 				plist[ no_subs_path(p[2]) ] = line;
 			} else 
