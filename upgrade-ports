@@ -334,19 +334,22 @@ BEGIN {
 		for (i=1; i<=n; i++)
 			ignore[array[i]] = array[i];
 }
-function pkg_check(pkg) {
+function pkg_needs_rebuild(pkg) {
 	for (pattern in ignore)
 		if (match(pkg, ".*" pattern ".*"))
-			next;
+			return 0;
 	if (pkg in rebuild)
-		next;
+		return 0;
+	return 1;
 }
 /is missing a required shared library:/ {
-	pkg_check($1);
+	if (!pkg_needs_rebuild($1))
+		next;
 	rebuild[$1] = $1;
 }
 /has a missing dependency:/ {
-	pkg_check($6);
+	if (!pkg_needs_rebuild($6))
+		next;
 	"pkg-static rquery -e '\''%n = " $6  "'\'' %o" | getline origin
 	if (origin)
 		rebuild[$6] = origin;
