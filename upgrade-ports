@@ -2,7 +2,6 @@
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
-readonly PAGER="${PAGER:-less}"
 
 PORTSDIR=${PORTSDIR:-/usr/ports}
 
@@ -261,7 +260,6 @@ if [ -f "${CONFIG}" ]; then
 else
 	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
 fi
-
 [ "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
 
 if [ ${skip_update} -eq 0 ]; then
@@ -325,10 +323,8 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		IFS=${old_IFS}
 		entry_prev="${entry}"
 	done
-	ask_yesno "Update ports with 'portmaster -a'" ||
-		upgrade_exit 0 ${last_upd} 0
+	ask_yesno "Proceed with upgrade" || upgrade_exit 0 ${last_upd} 0
 fi
-
 ${SUDO} portmaster -a ${portmaster_args} || upgrade_exit 1 ${last_upd}
 
 echo "===> Checking packages for missing libraries/dependencies"
@@ -338,31 +334,23 @@ BEGIN {
 		for (i=1; i<=n; i++)
 			ignore[array[i]] = array[i];
 }
-
-function pkg_is_ignored(pkg) {
+function pkg_check(pkg) {
 	for (pattern in ignore)
 		if (match(pkg, ".*" pattern ".*"))
-			return 1;
-	return 0;
+			next;
+	if (pkg in rebuild)
+		next;
 }
-
 /is missing a required shared library:/ {
-	pkg=$1;
-	if (pkg_is_ignored(pkg) || pkg in rebuild)
-		next;
-	rebuild[pkg] = pkg;
+	pkg_check($1);
+	rebuild[$1] = $1;
 }
-
 /has a missing dependency:/ {
-	pkg=$6;
-	if (pkg_is_ignored(pkg) || pkg in rebuild)
-		next;
-
-	"pkg-static rquery -e '\''%n = " pkg  "'\'' %o" | getline origin
+	pkg_check($6);
+	"pkg-static rquery -e '\''%n = " $6  "'\'' %o" | getline origin
 	if (origin)
-		rebuild[pkg] = origin;
+		rebuild[$6] = origin;
 }
-
 END {
 	for (i in rebuild)
 		printf("%s ", rebuild[i]);
@@ -371,10 +359,8 @@ END {
 if [ "${pkgs_rebuild}" ]; then
 	for pkg in ${pkgs_rebuild}; do
 		case pkg in
-			*/*)
-				inst="${pkg}" ;;
-			*)
-				rinst="${pkg}"
+			*/*) inst="${pkg}" ;;
+			*) rinst="${pkg}"
 		esac
 	done
 	if [ "${inst}" ]; then
