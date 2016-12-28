@@ -187,7 +187,6 @@ updating_commands() {
 }
 
 updating_entry() {
-	echo ""
 	awk -F ':' -v entry="${1}" '
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
 		if (entry == $1)
@@ -196,7 +195,6 @@ updating_entry() {
 			exit;
 	}
 	in_entry { print $0 }' ${PORTSDIR}/UPDATING
-	echo ""
 }
 
 # $1 - exit status
@@ -292,6 +290,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		upgrade_exit 1
 	fi
 
+	printf "===> New entries since last upgrade in ${PORTSDIR}/UPDATING file:\n\n"
 	for entry in $(get_entry_dates | sort -u); do
 		[ ${entry} -gt ${last_read} ] || continue
 		
