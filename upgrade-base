@@ -96,22 +96,14 @@ main_loop() {
 			n_entry=$(last_updating_entry)
 			if [ ${n_entry} -gt ${l_entry} ]; then
 				printf "===> New entries since last upgrade in ${SRCDIR}/UPDATING file:\n\n"
-				awk -v entry="${l_entry}" '
-				BEGIN { new_entry=0; }
-	
+				awk -F ':' -v entry="${l_entry}" '
 				/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
-					curr_entry=$0;
-					sub(":", "", curr_entry);
-					if (entry == curr_entry)
+					if (entry == $1)
 						exit;
 					else
 						new_entry=1;
 				}
-
-				{
-					if (new_entry == 1)
-						print $0;
-				}' ${SRCDIR}/UPDATING
+				new_entry { print $0 }' ${SRCDIR}/UPDATING
 
 				if ! ask_yesno "Continue with upgrade"; then
 					save_state "REPO_UPDATED"
