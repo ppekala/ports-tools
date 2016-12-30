@@ -144,7 +144,7 @@ get_removed_ports() {
 
 pkg_exists() {
 	[ "${1}" ] || return 1
-	pkg-static info --exists ${1} 2>&1 >/dev/null
+	pkg-static info --exists ${1} >/dev/null 2>&1
 }
 
 ports_upgrade_sort() {
