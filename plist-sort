@@ -28,7 +28,6 @@ done
 awk -v prefix="${PREFIX}/" -v plist_subs="$(make -V PLIST_SUB)" \
 	-v options_subs="${options_subs}" '
 BEGIN { 
-	n_cmds=1;
 	separator="###";
 
 	n = split(options_subs, s_array, " ");
@@ -214,7 +213,7 @@ function print_dirs(array, file) {
 /^(%%[0-9A-Z_]*%%)*@/ { # other commands, @exec, @unexec etc
 	if (match($0, "@(dir|sample)") || match($0, "@\\(.*\\)"))
 		next;
-	cmds[n_cmds++] = $0;
+	cmds[++n_cmds] = $0;
 }
 
 END {
