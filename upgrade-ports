@@ -147,6 +147,59 @@ pkg_exists() {
 	pkg-static info --exists ${1} 2>&1 >/dev/null
 }
 
+ports_upgrade_sort() {
+	echo ${*} | tr ' ' '\n' | awk -v portsdir="${PORTSDIR}" '
+	function partition(a, s, e) {
+		i = s-1; j = e+1;
+
+		while(1) {
+			do i++; while (ports_cmp(a[i], a[s]) < 0)
+			do j--; while (ports_cmp(a[j], a[s]) > 0)
+
+			if (i >= j)
+				return j;
+
+			tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+		}
+	}
+	function ports_cmp(a, b) {
+		if (match(port_deps[b], a))
+			return -1;
+		if (match(port_deps[a], b))
+			return 1;
+		return port_ndeps[a] - port_ndeps[b];
+	}
+	function qsort(a, start, end) {
+		if (start >= end)
+			return;
+		p = partition(a, start, end);
+		qsort(a, start, p);
+		qsort(a, p+1, end);
+	}
+	{
+		ports[++n_ports] = $0;
+		while ("make -C " portsdir "/" $0 " all-depends-list" | getline line) {
+			sub(portsdir "/", " ", line);
+			port_deps[$0] = port_deps[$0] line;
+			port_ndeps[$0]++;
+		}
+	}
+	END {
+		qsort(ports, 1, n_ports);
+		for(x=1; x<=n_ports; x++)
+			print ports[x];
+	}'
+}
+
+rebuild_ports() {
+	for port in $(ports_upgrade_sort ${*}); do
+		[ -d ${PORTSDIR}/${port} ] || continue
+		cd ${PORTSDIR}/${port}
+		[ -d work ] && ${SUDO} make clean
+		${SUDO} make reinstall clean || upgrade_exit 1 ${last_upd}
+	done
+}
+
 removal_reason() {
 	awk -F '|' -v port="${1}" '
 	!/^#/ && NR = 4 && $1 == port { print $4 }' ${PORTSDIR}/MOVED
@@ -324,7 +377,14 @@ if [ ${last_read} -lt ${last_upd} ]; then
 	done
 	ask_yesno "Proceed with upgrade" || upgrade_exit 0 ${last_upd} 0
 fi
-${SUDO} portmaster -a ${portmaster_args} || upgrade_exit 1 ${last_upd}
+
+echo "===> Checking for ports needing upgrade"
+need_upgrade="$(env PORTSDIR=${PORTSDIR} pkg-static version -o -l '<' | cut -f1 -d' ')"
+if [ ! "${need_upgrade}" ]; then
+	echo "===> No ports needing upgrade found"
+	upgrade_exit 0 ${last_upd}
+fi
+rebuild_ports ${need_upgrade}
 
 echo "===> Checking packages for missing libraries/dependencies"
 pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${UPGRADE_PORTS_IGNORE}" '
@@ -361,8 +421,10 @@ END {
 if [ "${pkgs_rebuild}" ]; then
 	for pkg in ${pkgs_rebuild}; do
 		case pkg in
-			*/*) inst="${pkg}" ;;
-			*) rinst="${pkg}"
+			*/*) inst="${inst} ${pkg}" ;;
+			*)
+				rinst="${rinst} ${pkg}"
+				o_rinst="${o_rinst} $(pkg-static info -oq ${pkg})"
 		esac
 	done
 	if [ "${inst}" ]; then
@@ -373,7 +435,6 @@ if [ "${pkgs_rebuild}" ]; then
 		printf "\nPackages need to be REINSTALLED:\n"
 		for pkg in ${rinst}; do printf "  ${pkg}\n"; done
 	fi
-	ask_yesno "Continue with changes" &&
-		${SUDO} portmaster ${portmaster_args} ${pkgs_rebuild}
+	ask_yesno "Continue with changes" && rebuild_ports ${inst} ${o_rinst}
 fi
 upgrade_exit ${?} ${last_upd}
