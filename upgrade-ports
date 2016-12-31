@@ -12,7 +12,7 @@ wait_for_key=0	# wait for key press after update finish
 ask_yesno() {
 	[ ${answer_yes} -eq 0 ] || return 0
 	while true; do
-		echo -n "${1} (y/n)? [y] "
+		printf "\n${1} (y/n)? [y] "
 		
 		read answer
 		[ "${answer}" ] || answer="y"
@@ -189,6 +189,12 @@ ports_upgrade_sort() {
 		for(x=1; x<=n_ports; x++)
 			print ports[x];
 	}'
+}
+
+print_list() {
+	[ "${2}" ] || return
+	printf "\n${1}\n"
+	for item in ${2}; do printf "\t${item}\n"; done | sort
 }
 
 rebuild_ports() {
@@ -375,7 +381,6 @@ if [ ${last_read} -lt ${last_upd} ]; then
 		IFS=${old_IFS}
 		entry_prev="${entry}"
 	done
-	ask_yesno "Proceed with upgrade" || upgrade_exit 0 ${last_upd} 0
 fi
 
 echo "===> Checking for ports needing upgrade"
@@ -384,7 +389,13 @@ if [ ! "${need_upgrade}" ]; then
 	echo "===> No ports needing upgrade found"
 	upgrade_exit 0 ${last_upd}
 fi
-rebuild_ports ${need_upgrade}
+
+print_list "Following ports will be UPGRADED:" "${need_upgrade}"
+if ask_yesno "Proceed with upgrade"; then
+	rebuild_ports ${need_upgrade}
+else
+	upgrade_exit 0 ${last_upd}
+fi
 
 echo "===> Checking packages for missing libraries/dependencies"
 pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${UPGRADE_PORTS_IGNORE}" '
@@ -427,14 +438,8 @@ if [ "${pkgs_rebuild}" ]; then
 				o_rinst="${o_rinst} $(pkg-static info -oq ${pkg})"
 		esac
 	done
-	if [ "${inst}" ]; then
-		printf "\nPorts need to be INSTALLED:\n"
-		for port in ${inst}; do printf "  ${port}\n"; done
-	fi
-	if [ "${rinst}" ]; then
-		printf "\nPackages need to be REINSTALLED:\n"
-		for pkg in ${rinst}; do printf "  ${pkg}\n"; done
-	fi
+	print_list "Ports need to be INSTALLED:" "${inst}"
+	print_list "Packages need to be REINSTALLED:" "${rinst}"
 	ask_yesno "Continue with changes" && rebuild_ports ${inst} ${o_rinst}
 fi
 upgrade_exit ${?} ${last_upd}
