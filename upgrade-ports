@@ -28,8 +28,9 @@ ask_yesno() {
 
 check_for_missing_deps() {
 	local m_deps=""
-	deps=$(make -C ${PORTSDIR}/${1} -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS \
-		| tr ' ' '\n' | cut -d':' -f2 | sort -u)
+	deps=$(make -C ${PORTSDIR}/${1} -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
+		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
+		tr ' ' '\n' | cut -d':' -f2 | sort -u)
 	for dep in ${deps}; do
 		if ! pkg_exists ${dep}; then
 			m_deps="${m_deps} ${dep}"
