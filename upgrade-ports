@@ -26,6 +26,20 @@ ask_yesno() {
 	done
 }
 
+check_for_missing_deps() {
+	local m_deps=""
+	deps=$(make -C ${PORTSDIR}/${1} -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS \
+		| tr ' ' '\n' | cut -d':' -f2 | sort -u)
+	for dep in ${deps}; do
+		if ! pkg_exists ${dep}; then
+			m_deps="${m_deps} ${dep}"
+			ret=$(check_for_missing_deps ${dep})
+			[ "${ret}" ] && m_deps="${m_deps} ${ret}"
+		fi
+	done
+	echo ${m_deps}
+}
+
 command_is_valid() {
 	local old_IFS=${IFS}
 
@@ -390,6 +404,11 @@ if [ ! "${need_upgrade}" ]; then
 	upgrade_exit 0 ${last_upd}
 fi
 
+need_install=$(for port in ${need_upgrade}; do
+	check_for_missing_deps ${port}
+done | tr ' ' '\n' | sort -u)
+
+print_list "Following ports need to be INSTALLED:" "${need_install}"
 print_list "Following ports will be UPGRADED:" "${need_upgrade}"
 if ask_yesno "Proceed with upgrade"; then
 	rebuild_ports ${need_upgrade}
