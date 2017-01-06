@@ -395,11 +395,8 @@ if [ ${last_read} -lt ${last_upd} ]; then
 fi
 
 echo "===> Checking for ports needing upgrade"
-for pkg in $(pkg lock -lq); do
-	locked="${locked} $(pkg-static info -oq ${pkg})"
-done
 for port in $(env PORTSDIR=${PORTSDIR} pkg-static version -o -l '<' | cut -f1 -d' '); do
-	case ${locked} in *${port}*) continue ;; esac
+	[ "$(pkg-static info -kq ${port})" == "yes" ] && continue
 	need_upgrade="${need_upgrade} ${port}"
 done
 if [ ! "${need_upgrade}" ]; then
@@ -419,8 +416,11 @@ else
 	upgrade_exit 0 ${last_upd}
 fi
 
+for pkg in $(pkg-static lock -lq); do
+	pkg_ignore="${pkg_ignore} $(pkg-static query %n ${pkg})"
+done
 echo "===> Checking packages for missing libraries/dependencies"
-pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk pkg_ignore="$(pkg lock -lq)" '
+pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${pkg_ignore}" '
 BEGIN {
 	if ((n = split(pkg_ignore, array, " ")) > 0)
 		for (i=1; i<=n; i++)
@@ -428,7 +428,7 @@ BEGIN {
 }
 function pkg_needs_rebuild(pkg) {
 	for (pattern in ignore)
-		if (match(pkg, ".*" pattern ".*"))
+		if (match(pkg, pattern))
 			return 0;
 	if (pkg in rebuild)
 		return 0;
