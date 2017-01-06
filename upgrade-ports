@@ -213,9 +213,10 @@ print_list() {
 }
 
 rebuild_ports() {
+	echo "===> Calculating ports upgrade order"
 	for port in $(ports_upgrade_sort ${*}); do
 		[ -d ${PORTSDIR}/${port} ] || continue
-		pkg_exists ${port} && make_cmd="install" || make_cmd="reinstall"
+		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
 		cd ${PORTSDIR}/${port}
 		[ -d work ] && ${SUDO} make clean
 		${SUDO} make ${make_cmd} clean || upgrade_exit 1 ${last_upd}
