@@ -322,12 +322,6 @@ if ! which portmaster >/dev/null; then
 	upgrade_exit 1
 fi
 
-if [ "${UPGRADE_PORTS_IGNORE}" ]; then
-	for pattern in ${UPGRADE_PORTS_IGNORE}; do
-		portmaster_args="${portmaster_args} -x ${pattern}"
-	done
-fi
-
 if [ -f "${CONFIG}" ]; then
 	last_read="$(cat "${CONFIG}")"
 else
@@ -400,7 +394,13 @@ if [ ${last_read} -lt ${last_upd} ]; then
 fi
 
 echo "===> Checking for ports needing upgrade"
-need_upgrade="$(env PORTSDIR=${PORTSDIR} pkg-static version -o -l '<' | cut -f1 -d' ')"
+for pkg in $(pkg lock -lq); do
+	locked="${locked} $(pkg-static info -oq ${pkg})"
+done
+for port in $(env PORTSDIR=${PORTSDIR} pkg-static version -o -l '<' | cut -f1 -d' '); do
+	case ${locked} in *port*) continue ;; esac
+	need_upgrade="${need_upgrade} ${port}"
+done
 if [ ! "${need_upgrade}" ]; then
 	echo "===> No ports needing upgrade found"
 	upgrade_exit 0 ${last_upd}
@@ -419,7 +419,7 @@ else
 fi
 
 echo "===> Checking packages for missing libraries/dependencies"
-pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${UPGRADE_PORTS_IGNORE}" '
+pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk pkg_ignore="$(pkg lock -lq)" '
 BEGIN {
 	if ((n = split(pkg_ignore, array, " ")) > 0)
 		for (i=1; i<=n; i++)
