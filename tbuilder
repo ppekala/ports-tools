@@ -68,7 +68,7 @@ poudriere_jails() {
 
 poudriere_test_build() {
 	local jname="${1}" port="${2%%:*}" option=${2#*:}
-	local port_cfg="" outcome="success"
+	local port_cfg outcome="success"
 
 	if [ "${port}" != "${option}" ]; then
 		if [ "${option%:*}" != "OPT_UNKNOWN"  ]; then

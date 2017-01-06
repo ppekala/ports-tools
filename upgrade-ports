@@ -27,7 +27,7 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
-	local m_deps=""
+	local m_deps
 	deps=$(make -C ${PORTSDIR}/${1} -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
@@ -38,7 +38,7 @@ check_for_missing_deps() {
 			[ "${ret}" ] && m_deps="${m_deps} ${ret}"
 		fi
 	done
-	echo ${m_deps}
+	[ "${m_deps}" ] && echo ${m_deps}
 }
 
 command_is_valid() {
@@ -56,7 +56,7 @@ command_is_valid() {
 }
 
 cmd_pkg_validate() {
-	local check_exists=0 command=""
+	local check_exists=0 command
 
 	for arg in ${*}; do
 		if [ ! "${command}" ]; then
