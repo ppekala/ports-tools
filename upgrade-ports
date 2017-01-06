@@ -398,7 +398,7 @@ for pkg in $(pkg lock -lq); do
 	locked="${locked} $(pkg-static info -oq ${pkg})"
 done
 for port in $(env PORTSDIR=${PORTSDIR} pkg-static version -o -l '<' | cut -f1 -d' '); do
-	case ${locked} in *port*) continue ;; esac
+	case ${locked} in *${port}*) continue ;; esac
 	need_upgrade="${need_upgrade} ${port}"
 done
 if [ ! "${need_upgrade}" ]; then
