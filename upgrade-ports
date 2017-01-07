@@ -215,11 +215,22 @@ print_list() {
 rebuild_ports() {
 	echo "===> Calculating ports upgrade order"
 	for port in $(ports_upgrade_sort ${*}); do
+		case ${build_skipped} in *${port}*) continue ;; esac
 		[ -d ${PORTSDIR}/${port} ] || continue
-		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
 		cd ${PORTSDIR}/${port}
 		[ -d work ] && ${SUDO} make clean
-		${SUDO} make ${make_cmd} clean || upgrade_exit 1 ${last_upd}
+		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
+		${SUDO} make ${make_cmd} clean
+		if [ ${?} -ne 0 ]; then
+			build_failed="${build_failed} ${port}"
+			consumers=$(pkg-static query %ro ${port})
+			[ "${consumers}" ] || continue
+			for con in ${consumers}; do
+				case ${need_upgrade} in *${con}*)
+					build_skipped="${build_skipped} ${con}" ;;
+				esac
+			done
+		fi
 	done
 }
 
@@ -416,7 +427,7 @@ else
 	upgrade_exit 0 ${last_upd}
 fi
 
-for pkg in $(pkg-static lock -lq); do
+for pkg in ${build_failed} ${build_skipped} $(pkg-static lock -lq); do
 	pkg_ignore="${pkg_ignore} $(pkg-static query %n ${pkg})"
 done
 echo "===> Checking packages for missing libraries/dependencies"
@@ -462,6 +473,15 @@ if [ "${pkgs_rebuild}" ]; then
 	done
 	print_list "Ports need to be INSTALLED:" "${inst}"
 	print_list "Packages need to be REINSTALLED:" "${rinst}"
-	ask_yesno "Continue with changes" && rebuild_ports ${inst} ${o_rinst}
+	if ask_yesno "Continue with changes"; then
+		rebuild_ports ${inst} ${o_rinst}
+		upgrade_exit ${?} ${last_upd}
+	fi
 fi
-upgrade_exit ${?} ${last_upd}
+if [ "${build_failed}" ]; then
+	printf "\nNot all ports were upgraded successfully, check your system and try again.\n\n"
+	print_list "Following ports failed to be UPGRADED:" "${build_failed}"
+	print_list "Following ports upgrades were SKIPPED:" "${build_skipped}"
+	upgrade_exit 1 ${last_upd}
+fi
+upgrade_exit 0 ${last_upd}
