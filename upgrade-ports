@@ -419,10 +419,24 @@ need_install=$(for port in ${need_upgrade}; do
 	check_for_missing_deps ${port}
 done | tr ' ' '\n' | sort -u)
 
-print_list "Following ports need to be INSTALLED:" "${need_install}"
+for port in ${need_upgrade} ${need_install}; do
+	conflicts=$(make -C ${PORTSDIR}/${port} -VCONFLICTS -VCONFLICTS_INSTALL)
+	[ "${conflicts}" ] || continue
+	for cnfl in ${conflicts}; do
+		for origin in $(pkg-static query -g %o "${cnfl}"); do
+			need_remove="${need_remove} ${origin} $(pkg-static query %ro ${origin})"
+			[ "${port}" == "${origin}" ] &&
+				conflicts_self="${conflicts_self} ${port}"
+		done
+	done
+done
+
+print_list "Following ports need to be REMOVED:" "${need_remove}"
+print_list "Following ports need to be INSTALLED:" "${need_install} ${conflicts_self}"
 print_list "Following ports will be UPGRADED:" "${need_upgrade}"
 if ask_yesno "Proceed with upgrade"; then
-	rebuild_ports ${need_upgrade}
+	${SUDO} pkg-static delete --yes ${need_remove}
+	rebuild_ports ${need_upgrade} ${conflicts_self}
 else
 	upgrade_exit 0 ${last_upd}
 fi
