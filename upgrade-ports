@@ -2,8 +2,7 @@
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
-
-PORTSDIR=${PORTSDIR:-/usr/ports}
+export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
 answer_yes=0	# answer yes to all of the questions
 skip_update=0	# don't update ports tree
@@ -163,7 +162,7 @@ pkg_exists() {
 }
 
 ports_upgrade_sort() {
-	echo ${*} | tr ' ' '\n' | awk -v portsdir="${PORTSDIR}" '
+	echo ${*} | tr ' ' '\n' | awk '
 	function partition(a, s, e) {
 		i = s-1; j = e+1;
 
@@ -193,8 +192,8 @@ ports_upgrade_sort() {
 	}
 	{
 		ports[++n_ports] = $0;
-		while ("make -C " portsdir "/" $0 " all-depends-list" | getline line) {
-			sub(portsdir "/", " ", line);
+		while ("make -C " ENVIRON["PORTSDIR"] "/" $0 " all-depends-list" | getline line) {
+			sub(ENVIRON["PORTSDIR"] "/", " ", line);
 			port_deps[$0] = port_deps[$0] line;
 			port_ndeps[$0]++;
 		}
@@ -406,7 +405,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 fi
 
 echo "===> Checking for ports needing upgrade"
-for port in $(env PORTSDIR=${PORTSDIR} pkg-static version -o -l '<' | cut -f1 -d' '); do
+for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
 	[ "$(pkg-static info -kq ${port})" == "yes" ] && continue
 	need_upgrade="${need_upgrade} ${port}"
 done

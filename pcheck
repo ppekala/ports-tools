@@ -1,7 +1,6 @@
 #!/bin/sh
 
-readonly PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-export PORTSDIR # needed for portlint
+export readonly PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
 
 readonly hunspell="hunspell -d en_US"
 

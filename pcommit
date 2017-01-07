@@ -1,7 +1,6 @@
 #!/bin/sh
 
-LANG=C
-
+readonly LANG=C
 readonly PAGER="${PAGER:-less}"
 readonly PAGER_DIFF="${PAGER_DIFF:-$PAGER}"
 readonly PSVN="${PSVN:-svn}"

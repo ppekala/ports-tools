@@ -1,7 +1,6 @@
 #!/bin/sh
 
-LANG=C
-
+readonly LANG=C
 readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
 readonly PREFIX="$(make -V PREFIX 2>/dev/null)"
 plist_file="${1}"
