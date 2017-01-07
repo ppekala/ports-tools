@@ -406,7 +406,7 @@ fi
 
 echo "===> Checking for ports needing upgrade"
 for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
-	[ "$(pkg-static info -kq ${port})" == "yes" ] && continue
+	[ "$(pkg-static info -kq ${port})" = "yes" ] && continue
 	need_upgrade="${need_upgrade} ${port}"
 done
 if [ ! "${need_upgrade}" ]; then
@@ -425,7 +425,7 @@ for port in ${need_upgrade} ${need_install}; do
 	for cnfl in ${conflicts}; do
 		for origin in $(pkg-static query -g %o "${cnfl}"); do
 			need_remove="${need_remove} ${origin} $(pkg-static query %ro ${origin})"
-			[ "${port}" == "${origin}" ] &&
+			[ "${port}" = "${origin}" ] &&
 				conflicts_self="${conflicts_self} ${port}"
 		done
 	done
