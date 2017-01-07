@@ -420,7 +420,8 @@ need_install=$(for port in ${need_upgrade}; do
 done | tr ' ' '\n' | sort -u)
 
 for port in ${need_upgrade} ${need_install}; do
-	conflicts=$(make -C ${PORTSDIR}/${port} -VCONFLICTS -VCONFLICTS_INSTALL)
+	conflicts=$(make -C ${PORTSDIR}/${port} -VCONFLICTS -VCONFLICTS_BUILD \
+		-VCONFLICTS_INSTALL)
 	[ "${conflicts}" ] || continue
 	for cnfl in ${conflicts}; do
 		for origin in $(pkg-static query -g %o "${cnfl}"); do
