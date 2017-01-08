@@ -423,19 +423,24 @@ for port in ${need_upgrade} ${need_install}; do
 	[ "${conflicts}" ] || continue
 	for cnfl in ${conflicts}; do
 		for origin in $(pkg-static query -g %o "${cnfl}"); do
-			need_remove="${need_remove} ${origin} $(pkg-static query %ro ${origin})"
-			[ "${port}" = "${origin}" ] &&
+			r_origins=$(pkg-static query %ro ${origin})
+			[ "${r_origins}" ] && need_remove="${need_remove} ${r_origins}"
+			if [ "${port}" = "${origin}" ]; then
 				conflicts_self="${conflicts_self} ${port}"
+			else
+				need_remove="${need_remove} ${origin}"
+			fi
 		done
 	done
 done
 
 print_list "Following ports need to be REMOVED:" "${need_remove}"
-print_list "Following ports need to be INSTALLED:" "${need_install} ${conflicts_self}"
+print_list "Following ports need to be INSTALLED:" "${need_install}"
 print_list "Following ports will be UPGRADED:" "${need_upgrade}"
 if ask_yesno "Proceed with upgrade"; then
-	[ "${need_remove}" ] && ${SUDO} pkg-static delete --yes ${need_remove}
-	rebuild_ports ${need_upgrade} ${conflicts_self}
+	[ "${need_remove}" ] &&
+		${SUDO} pkg-static delete --yes ${need_remove} ${conflicts_self}
+	rebuild_ports ${need_upgrade}
 else
 	upgrade_exit 0 ${last_upd}
 fi
