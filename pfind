@@ -46,7 +46,7 @@ done
 	-a ! "${string}" -a ! "${master}" ] && display_usage
 
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
-if [ -d "${PORTSDIR}" ]; then
+if [ ! -d "${PORTSDIR}" ]; then
 	echo "===> Ports directory not found: ${PORTSDIR}" >&2
 	echo "===> Try setting PORTSDIR enviroment variable" >&2
 	exit 1
