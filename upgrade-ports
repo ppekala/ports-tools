@@ -435,61 +435,49 @@ print_list "Following ports need to be REMOVED:" "${need_remove}"
 print_list "Following ports need to be INSTALLED:" "${need_install} ${conflicts_self}"
 print_list "Following ports will be UPGRADED:" "${need_upgrade}"
 if ask_yesno "Proceed with upgrade"; then
-	${SUDO} pkg-static delete --yes ${need_remove}
+	[ "${need_remove}" ] && ${SUDO} pkg-static delete --yes ${need_remove}
 	rebuild_ports ${need_upgrade} ${conflicts_self}
 else
 	upgrade_exit 0 ${last_upd}
 fi
 
+echo "===> Checking packages for missing libraries/dependencies"
 for pkg in ${build_failed} ${build_skipped} $(pkg-static lock -lq); do
 	pkg_ignore="${pkg_ignore} $(pkg-static query %n ${pkg})"
 done
-echo "===> Checking packages for missing libraries/dependencies"
-pkgs_rebuild=$(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${pkg_ignore}" '
+eval $(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${pkg_ignore}" '
 BEGIN {
-	if ((n = split(pkg_ignore, array, " ")) > 0)
+	if ((n = split(pkg_ignore, array, " ")))
 		for (i=1; i<=n; i++)
 			ignore[array[i]] = array[i];
 }
-function pkg_needs_rebuild(pkg) {
-	for (pattern in ignore)
-		if (match(pkg, pattern))
-			return 0;
-	if (pkg in rebuild)
-		return 0;
-	return 1;
+/has a missing dependency:/ {
+	if ($6 in ignore)
+		next;
+	miss_deps[$1] = $1;
+	if ($6 in install)
+		next;
+	"pkg-static rquery %o " $6 | getline missing;
+	install[$6] = missing;
+	inst = inst ? inst " " missing : missing;
 }
 /is missing a required shared library:/ {
-	if (!pkg_needs_rebuild($1))
+	if ($1 in rebuild || $1 in ignore || $1 in miss_deps)
 		next;
-	rebuild[$1] = $1;
-}
-/has a missing dependency:/ {
-	if (!pkg_needs_rebuild($6))
-		next;
-	"pkg-static rquery -e '\''%n = " $6  "'\'' %o" | getline origin
-	if (origin)
-		rebuild[$6] = origin;
+	"pkg-static query %o " $1 | getline origin;
+	rebuild[$1] = origin;
+	rinst = rinst ? rinst " " origin : origin;
 }
 END {
-	for (i in rebuild)
-		printf("%s ", rebuild[i]);
+	print "check_install=\"" inst "\" check_rebuild=\"" rinst "\""
 }')
 
-if [ "${pkgs_rebuild}" ]; then
-	for pkg in ${pkgs_rebuild}; do
-		case pkg in
-			*/*) inst="${inst} ${pkg}" ;;
-			*)
-				rinst="${rinst} ${pkg}"
-				o_rinst="${o_rinst} $(pkg-static info -oq ${pkg})"
-		esac
-	done
-	print_list "Ports need to be INSTALLED:" "${inst}"
-	print_list "Packages need to be REINSTALLED:" "${rinst}"
+if [ "${check_install}" -o "${check_rebuild}" ]; then
+	print_list "Ports need to be INSTALLED:" "${check_install}"
+	print_list "Packages need to be REINSTALLED:" "${check_rebuild}"
 	if ask_yesno "Continue with changes"; then
-		rebuild_ports ${inst} ${o_rinst}
-		upgrade_exit ${?} ${last_upd}
+		rebuild_ports ${check_install} ${check_rebuild}
+		[ "${build_failed}" ] || upgrade_exit 1 ${last_upd}
 	fi
 fi
 if [ "${build_failed}" ]; then
