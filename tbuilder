@@ -99,7 +99,8 @@ if [ "${4}" ]; then
 fi
 
 if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "===> Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
+	echo "===> Poudriere ports directory not found: ${POUDRIERE_PORTS}" >&2
+	echo "===> Try setting POUDRIERE_PORTS enviroment variable" >&2
 	exit 1
 fi
 
