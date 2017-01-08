@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export readonly PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
+export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
 readonly hunspell="hunspell -d en_US"
 

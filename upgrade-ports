@@ -2,7 +2,12 @@
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
-export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+if [ -d "${PORTSDIR}" ]; then
+	echo "===> Ports directory not found: ${PORTSDIR}" >&2
+	echo "===> Try setting PORTSDIR enviroment variable" >&2
+	exit 1
+fi
 
 answer_yes=0	# answer yes to all of the questions
 skip_update=0	# don't update ports tree

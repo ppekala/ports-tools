@@ -1,10 +1,9 @@
 #!/bin/sh
 
-PORTSDIR="${PORTSDIR:-/usr/ports}"
-[ -d "${PORTSDIR}" ] ||
-	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "===> Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+if [ -d "${PORTSDIR}" ]; then
+	echo "===> Ports directory not found: ${PORTSDIR}" >&2
+	echo "===> Try setting PORTSDIR enviroment variable" >&2
 	exit 1
 fi
 

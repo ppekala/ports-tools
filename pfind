@@ -1,6 +1,11 @@
 #!/bin/sh
 
-PORTSDIR=${PORTSDIR:-/usr/ports}
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+if [ -d "${PORTSDIR}" ]; then
+	echo "===> Ports directory not found: ${PORTSDIR}" >&2
+	echo "===> Try setting PORTSDIR enviroment variable" >&2
+	exit 1
+fi
 
 display_usage() {
 	<< EOF >&2 cat
@@ -47,12 +52,6 @@ done
 [ ! "${bdeps}" -a ! "${category}" -a ! "${maintainer}" -a ! "${name}" \
 	-a ! "${string}" -a ! "${master}" ] && display_usage
 
-[ -d "${PORTSDIR}" ] || \
-	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "===> Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
-	exit 1
-fi
 
 if [ "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
 	echo "===> No such category: ${category}" >&2

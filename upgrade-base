@@ -5,6 +5,14 @@ readonly PSVN=${PSVN:-svn}
 readonly SRCDIR=${SRCDIR:-/usr/src}
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 readonly CONF_FILE="${XDG_CONFIG_HOME}/upgrade-base"
+# needed for rebuilding kernel modules ports
+readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+if [ -d "${PORTSDIR}" ]; then
+	echo "===> Ports directory not found: ${PORTSDIR}" >&2
+	echo "===> Try setting PORTSDIR enviroment variable" >&2
+	exit 1
+fi
+
 readonly tcols=$(stty size | cut -d" " -f2)
 readonly tlines=$(stty size | cut -d" " -f1)
 
@@ -166,15 +174,6 @@ fi
 
 jobs="$(sysctl -n hw.ncpu)"
 [ "${jobs}" ] && make_args="${make_args} -j${jobs}"
-
-# needed for rebuilding kernel modules ports
-PORTSDIR=${PORTSDIR:-/usr/ports}
-[ -d "${PORTSDIR}" ] ||
-	PORTSDIR="$(make -V PORTSDIR /usr/share/mk/bsd.ports.mk 2>/dev/null)"
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "===> Ports directory not found: ${PORTSDIR}, try setting PORTSDIR variable" >&2
-	exit 1
-fi
 make_args="${make_args} PORTSDIR=${PORTSDIR}"
 
 ports_modules="$(pkg which -qo /boot/modules/* | uniq | tr '\n' ' ')"
