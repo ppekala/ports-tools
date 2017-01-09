@@ -38,8 +38,8 @@ mktmp() {
 number_humanize() {
 	echo "${1}" | awk '{
 		bytes = $0;
-		gb=2^30; mb=2^20; kb=2^10;	
-		
+		gb=2^30; mb=2^20; kb=2^10;
+
 		if (bytes > gb) {
 			size = bytes/gb;
 			unit = "GB";
@@ -56,13 +56,13 @@ number_humanize() {
 		if (unit == "GB" || unit == "MB")
 			printf "%.1f %s", size, unit;
 		else
-			printf "%.0f %s", size, unit;		
+			printf "%.0f %s", size, unit;
 	}' | tr ',' '.'
 }
 
 update_exclude_list() {
 	count=0
-	
+
 	for pkg in $(pkg query '%n@%v'); do
 		status="off"
 		case ${pkg_exclude} in *${pkg%@*}*) status="on" ;; esac
@@ -98,7 +98,7 @@ while getopts "hoxy" option; do
 	y)
 		new_leafs_yes=1 ;;
 	*)
-		display_usage	
+		display_usage
 	esac
 done
 
@@ -110,7 +110,7 @@ fi
 [ -f "${EXCLUDE_CONF}" ] && pkg_exclude="$(grep -v '^#' "${EXCLUDE_CONF}")"
 [ ${exclude_opt} -eq 1 ] && update_exclude_list
 
-while true; do 
+while true; do
 	pkg_leafs="$(pkg query -e '%#r = 0' %n-%v@%sb)"
 	count=0
 	items=""
@@ -132,7 +132,7 @@ while true; do
 			[ ${?} -eq 1 ] && break
 		fi
 	fi
-	
+
 	[ ${count} -eq 0 ] && break
 
 	[ "${tmpfile}" ] || tmpfile="$(mktmp)"
@@ -141,8 +141,8 @@ while true; do
 
 	ret="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
 	[ "${ret}" ] || break
-	
-	for bytes in $(pkg query '%sb' ${ret}); do 
+
+	for bytes in $(pkg query '%sb' ${ret}); do
 		rm_freed=$((rm_freed+bytes));
 		rm_count=$((rm_count+1));
 	done

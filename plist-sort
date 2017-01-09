@@ -26,7 +26,7 @@ done
 
 awk -v prefix="${PREFIX}/" -v plist_subs="$(make -V PLIST_SUB)" \
 	-v options_subs="${options_subs}" '
-BEGIN { 
+BEGIN {
 	separator="###";
 
 	n = split(options_subs, s_array, " ");
@@ -224,7 +224,7 @@ END {
 	print_dirs(dirs, tmpfile);
 	print_dirs(dirs_np, tmpfile);
 	system("rm " tmpfile);
-	
+
 	for (i in cmds)
 		print cmds[i];
 }' ${plist_file}

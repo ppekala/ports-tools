@@ -6,7 +6,7 @@ echo "===> Removing work dirs..."
 
 if [ "$(make -V PORTNAME)" ]; then
 	depth=2
-else 
+else
 	[ "$(make -V PORTSTOP)" ] && depth=4 || depth=3
 fi
 
@@ -41,9 +41,9 @@ if ${PSVN} info >/dev/null 2>&1; then
 	${PSVN} status --no-ignore | while read line; do
 		status="$(echo ${line} | awk '{ print $1 }')"
 		file="$(echo ${line} | awk ' { print $2 }')"
-	
+
 		[ ! "${status}" -o ! "${file}" ] && continue
-	
+
 		if [ "${status}" = "?" -o "${status}" = "I" ]; then
 			[ "${file}" != "distfiles" ] || continue
 			echo "  ${file}"

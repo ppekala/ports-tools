@@ -8,7 +8,7 @@ if [ "${WRKSRC}" ]; then
 		while true; do
 			echo -n "WRKSRC does not exist, run 'make configure' (y/n)? " >/dev/stderr
 			read answer
-			
+
 			case ${answer} in
 			[Yy])
 				make configure >/dev/null 2>&1
@@ -18,7 +18,6 @@ if [ "${WRKSRC}" ]; then
 			esac
 		done
 	fi
-	
 	cd ${WRKSRC}
 fi
 

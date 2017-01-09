@@ -16,7 +16,7 @@ skip_tree_update=0	# don't update system sources before build
 ask_yesno() {
 	while true; do
 		echo -n "${1} (y/n)? [y] "
-		
+
 		read answer
 		[ "${answer}" ] || answer="y"
 
@@ -140,7 +140,7 @@ main_loop() {
 		echo "===> Garbage in ${CONF_FILE}, try upgrade-base -s" >&2
 		exit 1
 	esac
-	main_loop	
+	main_loop
 }
 
 # $1 state

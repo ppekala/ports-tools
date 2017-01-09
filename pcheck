@@ -19,7 +19,7 @@ EOF
 
 reinplace_file() {
 	local file="${1}" expr="${2}"
-	
+
 	[ "${expr}" ] || return
 	sed -E "${expr}" ${file} > ${file}.new
 	mv ${file}.new ${file}
@@ -68,8 +68,8 @@ done
 
 comment="$(make -V COMMENT)"
 if [ "$(echo ${comment} | grep -E '^(A|An) ')" ]; then
-	new_comment="$(echo ${comment} | awk '{ 
-		gsub("^(A|An) ", "", $0); 
+	new_comment="$(echo ${comment} | awk '{
+		gsub("^(A|An) ", "", $0);
 		print toupper( substr($0, 1, 1) ) substr($0, 2);
 	}')"
 	sed_expr="s|^COMMENT=.*|COMMENT=	${new_comment}|"
@@ -77,7 +77,7 @@ if [ "$(echo ${comment} | grep -E '^(A|An) ')" ]; then
 fi
 reinplace_file Makefile "${sed_expr}"
 
-if [ -f "${descr_file}" ]; then	
+if [ -f "${descr_file}" ]; then
 	sed_expr=""
 	if [ "$(grep '^Author:' ${descr_file})" ]; then
 		sed_expr="/^Author:/d;"

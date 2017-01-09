@@ -64,7 +64,7 @@ if [ ! "${jail}" ]; then
 			break
 		fi
 	done
-	
+
 	if [ ! "${jail}" ]; then
 		echo "===> Could not find any build logs for ${PKGBASE}-${PKGVERSION}" >&2
 		exit 1

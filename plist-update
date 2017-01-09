@@ -87,7 +87,7 @@ BEGIN {
 			    match(line, "@\\(.*\\)")) {
 				plist_split(substr(line, RSTART), p);
 				plist[ no_subs_path(p[2]) ] = line;
-			} else 
+			} else
 				plist[ no_subs_path(line) ] = line;
 		}
 		close(plist_file);
@@ -172,7 +172,7 @@ rm ${tempfile}
 
 if ! cmp -s ${PLIST} ${plist_out}; then
 	diff -u ${PLIST} ${plist_out} | ${PAGER_DIFF}
-	
+
 	while true; do
 		echo -n "Use newly generated plist (y/n)? "
 		read cmd

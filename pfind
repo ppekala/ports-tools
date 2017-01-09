@@ -100,6 +100,6 @@ for portdir in ${portdirs}; do
 	if [ "${string}" ]; then
 		[ -e ${portdir}/Makefile ] || continue
 		[ "$(grep "${string}" ${portdir}/Makefile)" ] || continue
-	fi  
+	fi
 	echo ${portdir} | sed "s|${PORTSDIR}/||"
 done

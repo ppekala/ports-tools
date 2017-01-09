@@ -16,7 +16,7 @@ check_package() {
 	[ "${libs}" ] || return
 
 	local pkg_files="$(pkg-static info -lq ${pkg})"
-	for lib in ${libs}; do 
+	for lib in ${libs}; do
 		case ${pkg_files} in *${lib}*)
 			continue
 		esac
@@ -83,7 +83,7 @@ jobs_finish_wait() {
 
 newer_library_available() {
 	local lib="${1}"
-	
+
 	[ ${bump_ignore} -eq 0 ] || return 1
 
 	local ret="$(ldconfig -r | awk -v so_ver="${lib##*.}" '
@@ -92,12 +92,12 @@ newer_library_available() {
 		/'${lib%.*}'/ {
 			n_path = split($0, path, "/");
 			n_libname = split(path[n_path], libname, ".");
-	
+
 			ret = libname[n_libname] - so_ver;
 			if (ret > so_bump)
 				so_bump=ret;
 		}
-		
+
 		END { print so_bump; }
 	')"
 	return ${ret}
@@ -110,7 +110,6 @@ pkg_is_ignored() {
 	for ignored in ${pkg_ignore}; do
 		case ${pkg} in *${ignored}*) return 0 ;; esac
 	done
-	
 	return 1
 }
 
@@ -188,7 +187,7 @@ for pkg in ${packages}; do
 	job_register ${pkg_curr} ${pkg_all}
 	(
 		trap 'job_free' EXIT
-		
+
 		ret="$(check_package ${pkg})"
 		[ "${ret}" ] || exit
 
@@ -231,7 +230,7 @@ while true; do
 	read answer
 	[ "${answer}" ] || answer="y"
 
-	case ${answer} in	
+	case ${answer} in
 	[Nn])
 		break ;;
 	[Yy]) 

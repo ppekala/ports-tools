@@ -12,7 +12,7 @@ ask_yesno() {
 	[ ${answer_yes} -eq 0 ] || return 0
 	while true; do
 		printf "\n${1} (y/n)? [y] "
-		
+
 		read answer
 		[ "${answer}" ] || answer="y"
 
@@ -387,13 +387,13 @@ if [ ${last_read} -lt ${last_upd} ]; then
 	printf "===> New entries since last upgrade in ${PORTSDIR}/UPDATING file:\n\n"
 	for entry in $(get_entry_dates | sort -u); do
 		[ ${entry} -gt ${last_read} ] || continue
-		
+
 		updating_entry ${entry}
 		updating_commands ${entry} > ${tmpfile}
 
 		old_IFS=${IFS}
 		IFS=$'\n'
-		
+
 		for cmd in $(cat ${tmpfile}); do
 			command_is_valid ${cmd} || continue
 			case ${cmd} in "portmaster "*)
@@ -405,14 +405,14 @@ if [ ${last_read} -lt ${last_upd} ]; then
 				${SUDO} ${cmd}
 				ret=${?}
 				IFS=$'\n'
-				
+
 				if [ ${ret} -ne 0 ]; then
 					echo "===> Upgrade command '${cmd}' failed" >&2
 					upgrade_exit ${ret} ${entry_prev}
 				fi
 			fi
 		done
-		
+
 		IFS=${old_IFS}
 		entry_prev="${entry}"
 	done

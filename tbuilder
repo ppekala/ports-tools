@@ -161,7 +161,7 @@ ldeps)
 		done
 		ports="${ports} ${path}:OPT_UNKNOWN:none"
 	done
-	;;	
+	;;
 match)
 	ports="$(pfind -n ${query})" ;;
 name)
@@ -189,7 +189,7 @@ for port in ${ports}; do
 		fi
 		;;
 	all)
-		for b in $(poudriere_jails | sort -h); do 
+		for b in $(poudriere_jails | sort -h); do
 			poudriere_test_build ${b} ${port}
 			[ ${interrupted} -eq 0 ] || break 2
 		done ;;
