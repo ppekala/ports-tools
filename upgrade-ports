@@ -208,7 +208,7 @@ ports_upgrade_sort() {
 print_list() {
 	[ "${2}" ] || return
 	printf "\n${1}\n"
-	for item in ${2}; do printf "\t${item}\n"; done | sort
+	for item in ${2}; do printf "\t${item}\n" | sed 's|@| |g'; done | sort
 }
 
 rebuild_ports() {
@@ -236,6 +236,21 @@ rebuild_ports() {
 removal_reason() {
 	awk -F '|' -v port="${1}" '
 	!/^#/ && NR = 4 && $1 == port { print $4 }' ${PORTSDIR}/MOVED
+}
+
+to_pkg_str() {
+	local curr new_ver str
+
+	for port in ${1}; do
+		if [ "${2}" = "UPGRADE" ]; then
+			curr=$(pkg-static query "%n:@%v" ${port})
+			new_ver=$(make -C ${PORTSDIR}/${port} -VPKGVERSION)
+			str="${str} ${curr}@->@${new_ver}"
+		else
+			str="${str} $(pkg-static query "%n-%v" ${port})"
+		fi
+	done
+	[ "${str}" ] && echo ${str}
 }
 
 updating_commands() {
@@ -434,9 +449,9 @@ for port in ${need_upgrade} ${need_install}; do
 	done
 done
 
-print_list "Following ports need to be REMOVED:" "${need_remove}"
+print_list "Following packages need to be REMOVED:" "$(to_pkg_str "${need_remove}")"
 print_list "Following ports need to be INSTALLED:" "${need_install}"
-print_list "Following ports will be UPGRADED:" "${need_upgrade}"
+print_list "Following packages will be UPGRADED:" "$(to_pkg_str "${need_upgrade}" UPGRADE)"
 if ask_yesno "Proceed with upgrade"; then
 	[ "${need_remove}" ] &&
 		${SUDO} pkg-static delete --yes ${need_remove} ${conflicts_self}
@@ -478,7 +493,7 @@ END {
 
 if [ "${check_install}" -o "${check_rebuild}" ]; then
 	print_list "Ports need to be INSTALLED:" "${check_install}"
-	print_list "Packages need to be REINSTALLED:" "${check_rebuild}"
+	print_list "Packages need to be REINSTALLED:" "$(to_pkg_str "${check_rebuild}")"
 	if ask_yesno "Continue with changes"; then
 		rebuild_ports ${check_install} ${check_rebuild}
 		[ "${build_failed}" ] || upgrade_exit 1 ${last_upd}
