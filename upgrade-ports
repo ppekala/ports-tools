@@ -65,6 +65,8 @@ cmd_pkg_validate() {
 			continue
 		fi
 		case ${arg} in
+			-f)
+				continue;;
 			-o)
 				check_exists=1
 				continue ;;
@@ -92,7 +94,7 @@ cmd_pm_validate() {
 		-a)
 			echo "===> Skipping upgrade of all packages for now (portmaster ${*})"
 			return 1 ;;
-		-f|-w)
+		-f|-w|-R)
 			continue ;;
 		-o)
 			change_origin=1
@@ -270,7 +272,8 @@ updating_commands() {
 		if (match($0, /^[ \t#]*(pkg|portmaster) /)) {
 			cmd = strip_command($0);
 			if (!in_cmd) {
-				print cmd;
+				if (!match(cmd, "^pkg upgrade"))
+					print cmd;
 				cmd="";
 			}
 		}
