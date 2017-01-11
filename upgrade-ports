@@ -55,71 +55,76 @@ command_is_valid() {
 }
 
 cmd_pkg_validate() {
-	local check_exists=0 command
+	local cmd=${*%% *} exists=0 pkgname
 
-	for arg in ${*}; do
-		if [ ! "${command}" ]; then
-			command=${arg}
-			[ "${command}" = "delete" ] && check_exists=1
-			[ "${command}" = "info" ] && return 1
-			continue
-		fi
-		case ${arg} in
-			-f)
-				continue;;
-			-o)
-				check_exists=1
-				continue ;;
-			-*)
-				echo "===> Pkg unhandled option: ${arg}"
-				return 1
+	[ "${cmd}" = "info" -o "${cmd}" = "query" ] && return 1
+	shift 1
+	while getopts "fgn:o:y" opt; do
+		case ${opt} in
+		f|g|y)
+			;;
+		n|o)
+			pkgname=${OPTARG%:*} ;;
+		\?)
+			echo "===> Pkg unhandled option"
+			return 1
 		esac
-		if [ ${check_exists} -eq 1 ]; then
-			if ! pkg_exists ${arg%:*}; then
-				echo "===> ${arg%:*} is not installed, skipping 'pkg ${*}' command"
-				return 1
-			else
-				check_exists=0
-			fi
-		fi
 	done
+	if [ ! "${cmd}" = "set" ]; then
+		shift $((OPTIND-1))
+		pkgname=${*}
+	fi
+	for pkg in ${pkgname}; do
+		pkg_exists ${pkg} && exists=1
+	done
+	if [ ${exists} -eq 0 ]; then
+		echo "===> ${pkgname} is not installed, skipping command"
+		return 1
+	fi
 	return 0
 }
 
 cmd_pm_validate() {
-	local change_origin=0 check_exists=0
+	local cmd change_origin=0 exists=0 pkgname
 
-	for arg in ${*}; do
-		case ${arg} in
-		-a)
-			echo "===> Skipping upgrade of all packages for now (portmaster ${*})"
+	while getopts "Rafo:r:w" opt; do
+		case ${opt} in
+		a)
+			echo "===> Skipping upgrade of all packages for now"
 			return 1 ;;
-		-f|-w|-R)
-			continue ;;
-		-o)
-			change_origin=1
-			continue ;;
-		-r)
-			check_exists=1
-			continue ;;
-		-*)
-			echo "===> Portmaster unhandled option: ${arg}"
+		f|w|R)
+			;;
+		o)
+			change_origin=1 ;;
+		r)
+			pkgname="${pkgname} ${OPTARG}" ;;
+		\?)
+			echo "===> Portmaster unhandled option, skipping"
 			return 1
 		esac
-		if [ ${change_origin} -eq 1 ]; then
-			change_origin=0
-			check_exists=1
-			continue
-		fi
-		if [ ${check_exists} -eq 1 ]; then
-			if ! pkg_exists ${arg}; then
-				echo "===> ${arg} is not installed, skipping 'portmaster ${*}' command"
-				return 1
-			else
-				check_exists=0
-			fi
-		fi
+
 	done
+	shift $((OPTIND-1))
+	if [ ${change_origin} -eq 1 ]; then
+		pkgname=${*}
+	else
+		case ${*} in
+		'$('*')')
+			cmd=$(echo ${*} | sed 's|^\$(||' | sed 's|)$||') ;;
+		"\`"*"\`")
+			cmd=$(echo ${*} | sed 's|`||g') ;;
+		*)
+			pkgname=${*}
+		esac
+	fi
+	[ "${cmd}" -a "$(${cmd})" ] && return 0 || return 1
+	for pkg in ${pkgname}; do
+		pkg_exists ${pkg} && exists=1
+	done
+	if [ ${exists} -eq 0 ]; then
+		echo "===> ${pkgname} is not installed, skipping command"
+		return 1
+	fi
 	return 0
 }
 
