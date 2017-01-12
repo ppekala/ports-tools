@@ -4,6 +4,8 @@ readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
 export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
+make_args="DISABLE_VULNERABILITIES=yes"
+
 answer_yes=0	# answer yes to all of the questions
 skip_update=0	# don't update ports tree
 wait_for_key=0	# wait for key press after update finish
@@ -226,7 +228,7 @@ rebuild_ports() {
 		cd ${PORTSDIR}/${port}
 		[ -d work ] && ${SUDO} make clean
 		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
-		${SUDO} make ${make_cmd} clean
+		${SUDO} make ${make_args} ${make_cmd} clean
 		if [ ${?} -ne 0 ]; then
 			build_failed="${build_failed} ${port}"
 			consumers=$(pkg-static query %ro ${port})
@@ -508,7 +510,7 @@ if [ "${check_install}" -o "${check_rebuild}" ]; then
 	fi
 fi
 if [ "${build_failed}" ]; then
-	printf "\nNot all ports were upgraded successfully, check your system and try again.\n\n"
+	printf "\nNot all ports were upgraded successfully, check your system and try again.\n"
 	print_list "Following ports failed to be UPGRADED:" "${build_failed}"
 	print_list "Following ports upgrades were SKIPPED:" "${build_skipped}"
 	upgrade_exit 1 ${last_upd}
