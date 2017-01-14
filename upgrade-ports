@@ -4,7 +4,7 @@ readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
 export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
-make_args="DISABLE_VULNERABILITIES=yes"
+make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
 
 answer_yes=0	# answer yes to all of the questions
 skip_update=0	# don't update ports tree
