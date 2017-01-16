@@ -33,11 +33,8 @@ check_for_missing_deps() {
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
 	for dep in ${deps}; do
-		if ! pkg_exists ${dep}; then
-			m_deps="${m_deps} ${dep}"
-			ret=$(check_for_missing_deps ${dep})
-			[ "${ret}" ] && m_deps="${m_deps} ${ret}"
-		fi
+		pkg_exists ${dep} ||
+			list_add m_deps ${dep} $(check_for_missing_deps ${dep})
 	done
 	[ "${m_deps}" ] && echo ${m_deps}
 }
@@ -99,7 +96,7 @@ cmd_pm_validate() {
 		o)
 			change_origin=1 ;;
 		r)
-			pkgname="${pkgname} ${OPTARG}" ;;
+			list_add pkgname ${OPTARG} ;;
 		\?)
 			echo "===> Portmaster unhandled option, skipping"
 			return 1
@@ -115,7 +112,7 @@ cmd_pm_validate() {
 		"\`"*"\`")
 			cmd=$(echo ${*} | sed 's|`||g') ;;
 		*)
-			pkgname=${*}
+			list_add pkgname ${*}
 		esac
 	fi
 	[ "${cmd}" -a "$(${cmd})" ] && return 0 || return 1
@@ -164,6 +161,39 @@ get_removed_ports() {
 	}' ${PORTSDIR}/MOVED
 }
 
+list_add() {
+	local name=${1} list=$(eval echo $"$1")
+
+	shift 1
+	for arg in ${*}; do
+		case ${list} in *${arg}*) continue ;; esac
+		list="${list} ${arg}"
+	done
+	setvar ${name} "${list}"
+}
+
+list_find() {
+	local name=${1} list=$(eval echo $"$1")
+
+	shift 1
+	for arg in ${*}; do
+		case ${list} in *${arg}*) return 0 ;; esac
+	done
+	return 1
+}
+
+list_remove() {
+	local name=${1} list=$(eval echo $"$1")
+
+	shift 1
+	for arg in ${*}; do
+		case ${list} in *${arg}*)
+			list=$(echo ${list} | sed "s|${arg} *||") ;;
+		esac
+	done
+	setvar ${name} "${list}"
+}
+
 pkg_exists() {
 	[ "${1}" ] || return 1
 	pkg-static info --exists ${1} >/dev/null 2>&1
@@ -179,8 +209,8 @@ pm_fake_run() {
 		o)
 			new_origin=${OPTARG} ;;
 		r)
-			need_reinstall="${need_reinstall} $(to_port_str ${OPTARG})
-				$(pkg-static query %ro ${OPTARG})"
+			list_add need_reinstall $(to_port_str ${OPTARG})
+			list_add need_reinstall $(pkg-static query %ro ${OPTARG})
 		esac
 	done
 	shift $((OPTIND-1))
@@ -190,7 +220,7 @@ pm_fake_run() {
 	fi
 	new_origin=$(to_port_str ${*})
 	if [ "${new_origin}" ]; then
-		need_reinstall="${need_reinstall} ${new_origin}"
+		list_add need_reinstall ${new_origin}
 		echo "===> Found packages to reinstall in later stage"
 		return 0
 	else
@@ -251,20 +281,19 @@ print_list() {
 rebuild_ports() {
 	echo "===> Calculating ports upgrade order"
 	for port in $(ports_upgrade_sort ${*}); do
-		case ${build_skipped} in *${port}*) continue ;; esac
+		list_find build_skipped ${port} && continue
 		[ -d ${PORTSDIR}/${port} ] || continue
 		cd ${PORTSDIR}/${port}
 		[ -d work ] && ${SUDO} make clean
 		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
 		${SUDO} make ${make_args} ${make_cmd} clean
 		if [ ${?} -ne 0 ]; then
-			build_failed="${build_failed} ${port}"
+			list_add build_failed ${port}
 			consumers=$(pkg-static query %ro ${port})
 			[ "${consumers}" ] || continue
 			for con in ${consumers}; do
-				case ${need_upgrade} in *${con}*)
-					build_skipped="${build_skipped} ${con}" ;;
-				esac
+				list_find need_upgrade ${con} &&
+					list_add build_skipped ${con}
 			done
 		fi
 	done
@@ -282,9 +311,9 @@ to_pkg_str() {
 		if [ "${2}" = "UPGRADE" ]; then
 			curr=$(pkg-static query "%n:@%v" ${port})
 			new_ver=$(make -C ${PORTSDIR}/${port} -VPKGVERSION)
-			str="${str} ${curr}@->@${new_ver}"
+			list_add str "${curr}@->@${new_ver}"
 		else
-			str="${str} $(pkg-static query "%n-%v" ${port})"
+			list_add str $(pkg-static query "%n-%v" ${port})
 		fi
 	done
 	[ "${str}" ] && echo ${str}
@@ -296,9 +325,9 @@ to_port_str() {
 	for arg in ${*}; do
 		case ${arg} in
 		*/*)
-			[ -d "${PORTSDIR}/${arg}" ] && str="${str} ${arg}" ;;
+			[ -d "${PORTSDIR}/${arg}" ] && list_add str ${arg} ;;
 		*)
-			str="${str} $(pkg-static query -x %o ^${arg})"
+			list_add str $(pkg-static query -x %o ^${arg})
 		esac
 	done
 	[ "${str}" ] && echo ${str}
@@ -470,7 +499,8 @@ fi
 echo "===> Checking for ports needing upgrade"
 for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
 	[ "$(pkg-static info -kq ${port})" = "yes" ] && continue
-	need_upgrade="${need_upgrade} ${port}"
+	list_add need_upgrade ${port}
+	list_remove need_reinstall ${port}
 done
 if [ ! "${need_upgrade}" ]; then
 	echo "===> No ports needing upgrade found"
@@ -479,7 +509,7 @@ fi
 
 need_install=$(for port in ${need_upgrade}; do
 	check_for_missing_deps ${port}
-done | tr ' ' '\n' | sort -u)
+done)
 
 for port in ${need_upgrade} ${need_install}; do
 	conflicts=$(make -C ${PORTSDIR}/${port} -VCONFLICTS -VCONFLICTS_BUILD \
@@ -487,12 +517,11 @@ for port in ${need_upgrade} ${need_install}; do
 	[ "${conflicts}" ] || continue
 	for cnfl in ${conflicts}; do
 		for origin in $(pkg-static query -g %o "${cnfl}"); do
-			r_origins=$(pkg-static query %ro ${origin})
-			[ "${r_origins}" ] && need_remove="${need_remove} ${r_origins}"
+			list_add need_remove $(pkg-static query %ro ${origin})
 			if [ "${port}" = "${origin}" ]; then
-				conflicts_self="${conflicts_self} ${port}"
+				list_add conflicts_self ${port}
 			else
-				need_remove="${need_remove} ${origin}"
+				list_add need_remove ${origin}
 			fi
 		done
 	done
@@ -502,6 +531,7 @@ print_list "Following packages need to be REMOVED:" "$(to_pkg_str "${need_remove
 print_list "Following ports need to be INSTALLED:" "${need_install}"
 print_list "Following packages will be REINSTALLED:" "$(to_pkg_str "${need_reinstall}")"
 print_list "Following packages will be UPGRADED:" "$(to_pkg_str "${need_upgrade}" UPGRADE)"
+
 if ask_yesno "Proceed with upgrade"; then
 	[ "${need_remove}" ] &&
 		${SUDO} pkg-static delete --yes ${need_remove} ${conflicts_self}
@@ -512,7 +542,7 @@ fi
 
 echo "===> Checking packages for missing libraries/dependencies"
 for pkg in ${build_failed} ${build_skipped} $(pkg-static lock -lq); do
-	pkg_ignore="${pkg_ignore} $(pkg-static query %n ${pkg})"
+	list_add pkg_ignore $(pkg-static query %n ${pkg})
 done
 eval $(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${pkg_ignore}" '
 BEGIN {
