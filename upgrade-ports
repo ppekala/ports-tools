@@ -104,7 +104,6 @@ cmd_pm_validate() {
 			echo "===> Portmaster unhandled option, skipping"
 			return 1
 		esac
-
 	done
 	shift $((OPTIND-1))
 	if [ ${change_origin} -eq 1 ]; then
@@ -168,6 +167,35 @@ get_removed_ports() {
 pkg_exists() {
 	[ "${1}" ] || return 1
 	pkg-static info --exists ${1} >/dev/null 2>&1
+}
+
+pm_fake_run() {
+	local new_origin
+
+	while getopts "Rfo:r:w" opt; do
+		case ${opt} in
+		f|w|R)
+			;;
+		o)
+			new_origin=${OPTARG} ;;
+		r)
+			need_reinstall="${need_reinstall} $(to_port_str ${OPTARG})
+				$(pkg-static query %ro ${OPTARG})"
+		esac
+	done
+	shift $((OPTIND-1))
+	if [ "${new_origin}" ]; then
+		${SUDO} pkg-static set -o ${*}:${new_origin} --yes
+		return ${?}
+	fi
+	new_origin=$(to_port_str ${*})
+	if [ "${new_origin}" ]; then
+		need_reinstall="${need_reinstall} ${new_origin}"
+		echo "===> Found packages to reinstall in later stage"
+		return 0
+	else
+		return 1
+	fi
 }
 
 ports_upgrade_sort() {
@@ -262,6 +290,20 @@ to_pkg_str() {
 	[ "${str}" ] && echo ${str}
 }
 
+to_port_str() {
+	local str
+
+	for arg in ${*}; do
+		case ${arg} in
+		*/*)
+			[ -d "${PORTSDIR}/${arg}" ] && str="${str} ${arg}" ;;
+		*)
+			str="${str} $(pkg-static query -x %o ^${arg})"
+		esac
+	done
+	[ "${str}" ] && echo ${str}
+}
+
 updating_commands() {
 	awk -F ':' -v entry="${1}" '
 	function strip_command(str) {
@@ -332,7 +374,6 @@ while getopts "huwy" option; do
 	w)
 		wait_for_key=1 ;;
 	y)
-		portmaster_args="--no-confirm"
 		answer_yes=1 ;;
 	*)
 		display_usage
@@ -351,10 +392,6 @@ if [ $(id -u) -ne 0 ]; then
 		upgrade_exit 1
 	fi
 	SUDO="sudo"
-fi
-if ! which portmaster >/dev/null; then
-	echo "===> portmaster not found" >&2
-	upgrade_exit 1
 fi
 
 if [ -f "${CONFIG}" ]; then
@@ -406,13 +443,15 @@ if [ ${last_read} -lt ${last_upd} ]; then
 
 		for cmd in $(cat ${tmpfile}); do
 			command_is_valid ${cmd} || continue
-			case ${cmd} in "portmaster "*)
-				cmd="${cmd} ${portmaster_args}"
-			esac
 
 			if ask_yesno "Run '${cmd}'"; then
 				IFS=${old_IFS}
-				${SUDO} ${cmd}
+				case ${cmd} in
+				"pkg "*)
+					${SUDO} ${cmd} ;;
+				*)
+					pm_fake_run ${cmd%% *}
+				esac
 				ret=${?}
 				IFS=$'\n'
 
@@ -461,6 +500,7 @@ done
 
 print_list "Following packages need to be REMOVED:" "$(to_pkg_str "${need_remove}")"
 print_list "Following ports need to be INSTALLED:" "${need_install}"
+print_list "Following packages will be REINSTALLED:" "$(to_pkg_str "${need_reinstall}")"
 print_list "Following packages will be UPGRADED:" "$(to_pkg_str "${need_upgrade}" UPGRADE)"
 if ask_yesno "Proceed with upgrade"; then
 	[ "${need_remove}" ] &&
