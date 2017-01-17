@@ -28,15 +28,15 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
-	local m_deps
 	deps=$(make -C ${PORTSDIR}/${1} -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
 	for dep in ${deps}; do
-		pkg_exists ${dep} ||
-			list_add m_deps ${dep} $(check_for_missing_deps ${dep})
+		if ! pkg_exists ${dep}; then
+			list_add need_install ${dep} $(check_for_missing_deps ${dep})
+			list_add $(to_env_str ${dep})_reqby ${1}
+		fi
 	done
-	[ "${m_deps}" ] && echo ${m_deps}
 }
 
 command_is_valid() {
@@ -304,13 +304,27 @@ removal_reason() {
 	!/^#/ && NR = 4 && $1 == port { print $4 }' ${PORTSDIR}/MOVED
 }
 
+to_env_str() {
+	echo "${1}" | sed -E 's,(\/|-),_,g'
+}
+
+to_inst_str() {
+	local reqby str
+
+	for port in ${*}; do
+		reqby=$(eval echo \$$(to_env_str ${port})_reqby | sed 's| |@|g')
+		list_add str "${port}@(required@by@${reqby})"
+	done
+	[ "${str}" ] && echo ${str}
+}
+
 to_pkg_str() {
 	local curr new_ver str
 
 	for port in ${1}; do
 		if [ "${2}" = "UPGRADE" ]; then
 			curr=$(pkg-static query "%n:@%v" ${port})
-			new_ver=$(make -C ${PORTSDIR}/${port} -VPKGVERSION)
+			new_ver=$(eval echo \$$(to_env_str ${port})_version)
 			list_add str "${curr}@->@${new_ver}"
 		else
 			list_add str $(pkg-static query "%n-%v" ${port})
@@ -500,6 +514,8 @@ echo "===> Checking for ports needing upgrade"
 for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
 	[ "$(pkg-static info -kq ${port})" = "yes" ] && continue
 	list_add need_upgrade ${port}
+	setvar $(to_env_str ${port})_version \
+		$(make -C ${PORTSDIR}/${port} -VPKGVERSION)
 	list_remove need_reinstall ${port}
 done
 if [ ! "${need_upgrade}" ]; then
@@ -507,9 +523,9 @@ if [ ! "${need_upgrade}" ]; then
 	upgrade_exit 0 ${last_upd}
 fi
 
-need_install=$(for port in ${need_upgrade}; do
+for port in ${need_reinstall} ${need_upgrade}; do
 	check_for_missing_deps ${port}
-done)
+done
 
 for port in ${need_upgrade} ${need_install}; do
 	conflicts=$(make -C ${PORTSDIR}/${port} -VCONFLICTS -VCONFLICTS_BUILD \
@@ -528,7 +544,7 @@ for port in ${need_upgrade} ${need_install}; do
 done
 
 print_list "Following packages need to be REMOVED:" "$(to_pkg_str "${need_remove}")"
-print_list "Following ports need to be INSTALLED:" "${need_install}"
+print_list "Following ports need to be INSTALLED:" "$(to_inst_str ${need_install})"
 print_list "Following packages will be REINSTALLED:" "$(to_pkg_str "${need_reinstall}")"
 print_list "Following packages will be UPGRADED:" "$(to_pkg_str "${need_upgrade}" UPGRADE)"
 
@@ -572,7 +588,7 @@ END {
 }')
 
 if [ "${check_install}" -o "${check_rebuild}" ]; then
-	print_list "Ports need to be INSTALLED:" "${check_install}"
+	print_list "Ports need to be INSTALLED:" "$(to_inst_str ${check_install})"
 	print_list "Packages need to be REINSTALLED:" "$(to_pkg_str "${check_rebuild}")"
 	if ask_yesno "Continue with changes"; then
 		rebuild_ports ${check_install} ${check_rebuild}
