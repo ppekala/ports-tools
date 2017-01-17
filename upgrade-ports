@@ -4,11 +4,12 @@ readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
 export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
-make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
-
 answer_yes=0	# answer yes to all of the questions
+build_started=0 # ports build has started
+interrupted=0   # build interrupted by ctrl+c
+make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
 skip_update=0	# don't update ports tree
-wait_for_key=0	# wait for key press after update finish
+wait_for_key=0	# wait for key press after upgrade finish
 
 ask_yesno() {
 	[ ${answer_yes} -eq 0 ] || return 0
@@ -281,28 +282,57 @@ print_list() {
 
 rebuild_ports() {
 	echo "===> Calculating ports upgrade order"
+	build_started=1
 	for port in $(ports_upgrade_sort ${*}); do
+		if [ ${interrupted} -eq 1 ]; then
+			list_add build_skipped ${port}
+			continue
+		fi
 		list_find build_skipped ${port} && continue
-		[ -d ${PORTSDIR}/${port} ] || continue
+
 		cd ${PORTSDIR}/${port}
 		[ -d work ] && ${SUDO} make clean
 		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
 		${SUDO} make ${make_args} ${make_cmd} clean
 		if [ ${?} -ne 0 ]; then
+			if [ ${interrupted} -eq 1 ]; then
+				build_interrupted=${port}
+				${SUDO} make clean
+				continue;
+			fi
 			list_add build_failed ${port}
-			consumers=$(pkg-static query %ro ${port})
-			[ "${consumers}" ] || continue
-			for con in ${consumers}; do
-				list_find need_upgrade ${con} &&
-					list_add build_skipped ${con}
+			for consumer in $(pkg-static query %ro ${port}); do
+				list_find need_upgrade ${consumer} &&
+					list_add build_skipped ${consumer}
 			done
+		else
+			list_add build_ok ${port}
 		fi
 	done
+	if [ "${build_failed}" -o "${build_interrupted}" ]; then
+		if [ ${interrupted} -eq 1 ]; then
+			printf "\nUpgrade process was interrupted.\n"
+		else
+			printf "\nNot all ports were upgraded successfully, check your system and try again.\n"
+		fi
+		print_list "Following ports upgrade SUCCEEDED:" ${build_ok}
+		print_list "Upgrade build process INTERRUPTED:" ${build_interrupted}
+		print_list "Following ports upgrade FAILED:" ${build_failed}
+		print_list "Following ports upgrades were SKIPPED:" ${build_skipped}
+		upgrade_exit 1 ${last_upd}
+	fi
 }
 
 removal_reason() {
 	awk -F '|' -v port="${1}" '
 	!/^#/ && NR = 4 && $1 == port { print $4 }' ${PORTSDIR}/MOVED
+}
+
+signal_handler() {
+	printf "\n===> Caught interrupt signal, cleaning up...\n"
+	interrupted=1
+	[ ${build_started} -eq 0 ] || return
+	upgrade_exit 1 ${last_upd}
 }
 
 to_env_str() {
@@ -415,6 +445,8 @@ upgrade_exit() {
 	fi
 	exit ${1}
 }
+
+trap signal_handler INT
 
 while getopts "huwy" option; do
 	case ${option} in
@@ -596,15 +628,7 @@ END {
 if [ "${check_install}" -o "${check_rebuild}" ]; then
 	print_list "Ports need to be INSTALLED:" $(to_inst_str ${check_install})
 	print_list "Packages need to be REINSTALLED:" $(to_pkg_str ${check_rebuild})
-	if ask_yesno "Continue with changes"; then
+	ask_yesno "Continue with changes" &&
 		rebuild_ports ${check_install} ${check_rebuild}
-		[ "${build_failed}" ] || upgrade_exit 1 ${last_upd}
-	fi
-fi
-if [ "${build_failed}" ]; then
-	printf "\nNot all ports were upgraded successfully, check your system and try again.\n"
-	print_list "Following ports failed to be UPGRADED:" ${build_failed}
-	print_list "Following ports upgrades were SKIPPED:" ${build_skipped}
-	upgrade_exit 1 ${last_upd}
 fi
 upgrade_exit 0 ${last_upd}
