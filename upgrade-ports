@@ -275,7 +275,8 @@ ports_upgrade_sort() {
 print_list() {
 	[ "${2}" ] || return
 	printf "\n${1}\n"
-	for item in ${2}; do printf "\t${item}\n" | sed 's|@| |g'; done | sort
+	shift 1
+	for item in ${*}; do printf "\t${item}\n" | sed 's|@| |g'; done | sort
 }
 
 rebuild_ports() {
@@ -319,16 +320,10 @@ to_inst_str() {
 }
 
 to_pkg_str() {
-	local curr new_ver str
+	local str
 
-	for port in ${1}; do
-		if [ "${2}" = "UPGRADE" ]; then
-			curr=$(pkg-static query "%n:@%v" ${port})
-			new_ver=$(eval echo \$$(to_env_str ${port})_version)
-			list_add str "${curr}@->@${new_ver}"
-		else
-			list_add str $(pkg-static query "%n-%v" ${port})
-		fi
+	for port in ${*}; do
+		list_add str $(pkg-static query "%n-%v" ${port})
 	done
 	[ "${str}" ] && echo ${str}
 }
@@ -343,6 +338,17 @@ to_port_str() {
 		*)
 			list_add str $(pkg-static query -x %o ^${arg})
 		esac
+	done
+	[ "${str}" ] && echo ${str}
+}
+
+to_upgrade_str() {
+	local curr new_ver str
+
+	for port in ${*}; do
+		curr=$(pkg-static query "%n:@%v" ${port})
+		new_ver=$(eval echo \$$(to_env_str ${port})_version)
+		list_add str "${curr}@->@${new_ver}"
 	done
 	[ "${str}" ] && echo ${str}
 }
@@ -543,10 +549,10 @@ for port in ${need_upgrade} ${need_install}; do
 	done
 done
 
-print_list "Following packages need to be REMOVED:" "$(to_pkg_str "${need_remove}")"
-print_list "Following ports need to be INSTALLED:" "$(to_inst_str ${need_install})"
-print_list "Following packages will be REINSTALLED:" "$(to_pkg_str "${need_reinstall}")"
-print_list "Following packages will be UPGRADED:" "$(to_pkg_str "${need_upgrade}" UPGRADE)"
+print_list "Following packages need to be REMOVED:" $(to_pkg_str ${need_remove})
+print_list "Following ports need to be INSTALLED:" $(to_inst_str ${need_install})
+print_list "Following packages will be REINSTALLED:" $(to_pkg_str ${need_reinstall})
+print_list "Following packages will be UPGRADED:" $(to_upgrade_str ${need_upgrade})
 
 if ask_yesno "Proceed with upgrade"; then
 	[ "${need_remove}" ] &&
@@ -588,8 +594,8 @@ END {
 }')
 
 if [ "${check_install}" -o "${check_rebuild}" ]; then
-	print_list "Ports need to be INSTALLED:" "$(to_inst_str ${check_install})"
-	print_list "Packages need to be REINSTALLED:" "$(to_pkg_str "${check_rebuild}")"
+	print_list "Ports need to be INSTALLED:" $(to_inst_str ${check_install})
+	print_list "Packages need to be REINSTALLED:" $(to_pkg_str ${check_rebuild})
 	if ask_yesno "Continue with changes"; then
 		rebuild_ports ${check_install} ${check_rebuild}
 		[ "${build_failed}" ] || upgrade_exit 1 ${last_upd}
@@ -597,8 +603,8 @@ if [ "${check_install}" -o "${check_rebuild}" ]; then
 fi
 if [ "${build_failed}" ]; then
 	printf "\nNot all ports were upgraded successfully, check your system and try again.\n"
-	print_list "Following ports failed to be UPGRADED:" "${build_failed}"
-	print_list "Following ports upgrades were SKIPPED:" "${build_skipped}"
+	print_list "Following ports failed to be UPGRADED:" ${build_failed}
+	print_list "Following ports upgrades were SKIPPED:" ${build_skipped}
 	upgrade_exit 1 ${last_upd}
 fi
 upgrade_exit 0 ${last_upd}
