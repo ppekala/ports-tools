@@ -504,12 +504,12 @@ upgrade_exit() {
 }
 
 wait_for_distfiles() {
-	local done=0 f_res=0
+	local done=0 f_res=0 fetched=$(eval echo \$$(to_env_str ${1})_fetch)
+	local msg_shown=0
 
 	[ ${interrupted} -eq 0 ] || return 1
-	[ "$(eval echo \$$(to_env_str ${1})_fetch)" = "0" ] && return 0
+	[ "${fetched}" ] && return ${fetched}
 
-	echo "===> Waiting for ${port} distfiles to fetch"
 	while true; do
 		for res in $(lockf -k ${tmpfile} sh -c "
 			[ -s \"${tmpfile}\" ] || exit
@@ -529,6 +529,10 @@ wait_for_distfiles() {
 			fi
 		done
 		[ ${done} -eq 0 ] || return ${f_res}
+		if [ ${msq_shown} -eq 0 ] ; then
+			echo "===> Waiting for ${port} distfiles to fetch"
+			msg_shown=1
+		fi
 		sleep 5
 	done
 }
