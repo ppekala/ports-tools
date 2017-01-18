@@ -36,6 +36,7 @@ check_for_missing_deps() {
 		if ! pkg_exists ${dep}; then
 			list_add need_install ${dep} $(check_for_missing_deps ${dep})
 			list_add $(to_env_str ${dep})_reqby ${1}
+			list_add $(to_env_str ${1})_mdeps ${dep}
 		fi
 	done
 }
@@ -127,6 +128,25 @@ cmd_pm_validate() {
 	return 0
 }
 
+create_tmpfile() {
+	[ "${tmpfile}" ] && return
+	tmpfile="$(mktemp -t ${0##*/})"
+	if [ ! "${tmpfile}" ]; then
+		echo "===> Failed to create temporary file" >&2
+		upgrade_exit 1
+	fi
+}
+
+desc_pids() {
+	local pids=${1} ret
+
+	for pid in $(pgrep -P ${1}); do
+		ret=$(desc_pids ${pid})
+		[ "${ret}" ] && pids="${pids} ${ret}"
+	done
+	echo ${pids}
+}
+
 display_usage() {
 	<< EOF >&2 cat
 Usage: ${0##*/} [-h|-u|-w|-y]
@@ -138,6 +158,24 @@ Usage: ${0##*/} [-h|-u|-w|-y]
 
 EOF
 	exit 1
+}
+
+fetch_distfiles() {
+	local fetch_queue mdeps
+
+	for port in ${*}; do
+		mdeps=$(eval echo \$$(to_env_str ${port})_mdeps)
+		list_add fetch_queue ${mdeps} ${port}
+	done
+	${SUDO} sh -c "
+		lockf -k ${tmpfile} sh -c \" echo PID:\$\$ >> ${tmpfile}\"
+		for port in ${fetch_queue}; do
+			make -C ${PORTSDIR}/\${port} checksum
+			lockf -k ${tmpfile} sh -c \"echo \${port}:\${?} >> ${tmpfile}\"
+		done
+		lockf -k ${tmpfile} sh -c \" echo PID:0 >> ${tmpfile}\"
+		" >/dev/null 2>&1 &
+	echo ${fetch_queue}
 }
 
 get_entry_dates() {
@@ -281,15 +319,22 @@ print_list() {
 }
 
 rebuild_ports() {
+	create_tmpfile
 	echo "===> Calculating ports upgrade order"
-	build_started=1
-	for port in $(ports_upgrade_sort ${*}); do
+	queue=$(ports_upgrade_sort ${*})
+	queue=$(fetch_distfiles ${queue})
+	for port in ${queue}; do
 		if [ ${interrupted} -eq 1 ]; then
 			list_add build_skipped ${port}
 			continue
 		fi
 		list_find build_skipped ${port} && continue
 
+		if ! wait_for_distfiles ${port}; then
+			skip_reverse_deps ${port}
+			continue;
+		fi
+		[ ${build_started} -eq 1 ] || build_started=1
 		cd ${PORTSDIR}/${port}
 		[ -d work ] && ${SUDO} make clean
 		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
@@ -300,11 +345,7 @@ rebuild_ports() {
 				${SUDO} make clean
 				continue;
 			fi
-			list_add build_failed ${port}
-			for consumer in $(pkg-static query %ro ${port}); do
-				list_find need_upgrade ${consumer} &&
-					list_add build_skipped ${consumer}
-			done
+			skip_reverse_deps ${port}
 		else
 			list_add build_ok ${port}
 		fi
@@ -329,10 +370,26 @@ removal_reason() {
 }
 
 signal_handler() {
-	printf "\n===> Caught interrupt signal, cleaning up...\n"
+	local pids
+
+	printf "\n===> Caught interrupt signal, cleaning up\n"
 	interrupted=1
+	if [ "${fetcher_pid}" -a "${fetcher_pid}" != "0" ]; then
+		pids=$(desc_pids ${fetcher_pid})
+		${SUDO} kill -9 ${pids} >/dev/null 2>&1
+	fi
 	[ ${build_started} -eq 0 ] || return
 	upgrade_exit 1 ${last_upd}
+}
+
+skip_reverse_deps() {
+	local consumer
+
+	list_add build_failed ${1}
+	for consumer in $(pkg-static query %ro ${1}); do
+		list_find need_upgrade ${consumer} &&
+			list_add build_skipped ${consumer}
+	done
 }
 
 to_env_str() {
@@ -446,6 +503,36 @@ upgrade_exit() {
 	exit ${1}
 }
 
+wait_for_distfiles() {
+	local done=0 f_res=0
+
+	[ ${interrupted} -eq 0 ] || return 1
+	[ "$(eval echo \$$(to_env_str ${1})_fetch)" = "0" ] && return 0
+
+	echo "===> Waiting for ${port} distfiles to fetch"
+	while true; do
+		for res in $(lockf -k ${tmpfile} sh -c "
+			[ -s \"${tmpfile}\" ] || exit
+			cat ${tmpfile}
+			echo > ${tmpfile}");
+		do
+			if [ "${res%:*}" = "PID" ]; then
+				fetcher_pid=${res#*:}
+				echo "fetcher PID: ${fetcher_pid}"
+				continue
+			fi
+			echo "===> Distfiles for ${res%:*} fetched, result: ${res#*:}"
+			setvar $(to_env_str ${res%:*})_fetch ${res#*:}
+			if [ "${res%:*}" = "${1}" ]; then
+				done=1
+				f_res=${res#*:}
+			fi
+		done
+		[ ${done} -eq 0 ] || return ${f_res}
+		sleep 5
+	done
+}
+
 trap signal_handler INT
 
 while getopts "huwy" option; do
@@ -506,12 +593,7 @@ done
 last_upd="$(get_entry_dates | head -n 1)"
 
 if [ ${last_read} -lt ${last_upd} ]; then
-	tmpfile="$(mktemp -t ${0##*/})"
-	if [ ! "${tmpfile}" ]; then
-		echo "===> Failed to create temporary file" >&2
-		upgrade_exit 1
-	fi
-
+	create_tmpfile
 	printf "===> New entries since last upgrade in ${PORTSDIR}/UPDATING file:\n\n"
 	for entry in $(get_entry_dates | sort -u); do
 		[ ${entry} -gt ${last_read} ] || continue
