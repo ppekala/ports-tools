@@ -1,7 +1,7 @@
-FreeBSD ports tools
-===================
+Ports Tools
+===========
 
-FreeBSD developer's scripts
+Collection of scripts making things easier when working with FreeBSD ports tree.
 
 
 lib-bump-check
@@ -36,18 +36,12 @@ pcommit
 
 Wrapper for svn commit, removes and adds files, sets props, etc.
 
-pdiff
------
-
-Does clean diff against main ports tree making sure there are no leftover
-files and make clean is done.
-
 pfind
 -----
 
-Simple port's search wrapper 
+Simple port's search wrapper
 
-pkg-cutter
+pkg-deleaf
 ----------
 
 Leaf package remover with nice dialog interface.
