@@ -34,9 +34,10 @@ check_for_missing_deps() {
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
 	for dep in ${deps}; do
 		if ! pkg_exists ${dep}; then
-			list_add need_install ${dep} $(check_for_missing_deps ${dep})
+			list_add need_install ${dep}
 			list_add $(to_env_str ${dep})_reqby ${1}
 			list_add $(to_env_str ${1})_mdeps ${dep}
+			check_for_missing_deps ${dep}
 		fi
 	done
 }
@@ -161,10 +162,11 @@ EOF
 }
 
 fetch_distfiles() {
-	local fetch_queue mdeps
+	local fetch_queue port
 
 	for port in ${*}; do
-		mdeps=$(eval echo \$$(to_env_str ${port})_mdeps)
+		mdeps=""
+		missing_deps_recursive ${port}
 		list_add fetch_queue ${mdeps} ${port}
 	done
 	${SUDO} sh -c "
@@ -201,36 +203,41 @@ get_removed_ports() {
 }
 
 list_add() {
-	local name=${1} list=$(eval echo $"$1")
+	local arg name=${1} list=$(eval echo \$${1})
 
 	shift 1
 	for arg in ${*}; do
-		case ${list} in *${arg}*) continue ;; esac
+		list_find ${name} ${arg} && continue
 		list="${list} ${arg}"
 	done
 	setvar ${name} "${list}"
 }
 
 list_find() {
-	local name=${1} list=$(eval echo $"$1")
+	local elem
 
-	shift 1
-	for arg in ${*}; do
-		case ${list} in *${arg}*) return 0 ;; esac
+	for elem in $(eval echo \$${1}); do
+		[ "${elem}" = "${2}" ] && return 0
 	done
 	return 1
 }
 
 list_remove() {
-	local name=${1} list=$(eval echo $"$1")
+	local elem name=${1} new_list
 
-	shift 1
-	for arg in ${*}; do
-		case ${list} in *${arg}*)
-			list=$(echo ${list} | sed "s|${arg} *||") ;;
-		esac
+	for elem in $(eval echo \$${1}); do
+		[ "${elem}" = "${2}" ] || new_list="${new_list} ${elem}"
 	done
-	setvar ${name} "${list}"
+	setvar ${name} "${new_list}"
+}
+
+missing_deps_recursive() {
+	local port
+
+	for port in $(eval echo \$$(to_env_str ${1})_mdeps); do
+		missing_deps_recursive ${port}
+		list_add mdeps ${port}
+	done
 }
 
 pkg_exists() {
@@ -510,7 +517,6 @@ wait_for_distfiles() {
 	local done=0 f_res=0 fetched=$(eval echo \$$(to_env_str ${1})_fetch)
 	local msg_shown=0
 
-	[ ${interrupted} -eq 0 ] || return 1
 	[ "${fetched}" ] && return ${fetched}
 
 	while true; do
@@ -531,6 +537,7 @@ wait_for_distfiles() {
 				f_res=${res#*:}
 			fi
 		done
+		[ ${interrupted} -eq 0 ] || return 1
 		[ ${done} -eq 0 ] || return ${f_res}
 		if [ ${msg_shown} -eq 0 ] ; then
 			echo "===> Waiting for ${port} distfiles to fetch"
