@@ -303,6 +303,7 @@ ports_upgrade_sort() {
 			port_deps[$0] = port_deps[$0] line;
 			port_ndeps[$0]++;
 		}
+		close("make -C " ENVIRON["PORTSDIR"] "/" $0 " all-depends-list");
 	}
 	END {
 		qsort(ports, 1, n_ports);
@@ -529,7 +530,7 @@ wait_for_distfiles() {
 			fi
 		done
 		[ ${done} -eq 0 ] || return ${f_res}
-		if [ ${msq_shown} -eq 0 ] ; then
+		if [ ${msg_shown} -eq 0 ] ; then
 			echo "===> Waiting for ${port} distfiles to fetch"
 			msg_shown=1
 		fi
