@@ -81,15 +81,27 @@ Checks for files with stale REINPLACE_CMD actions or shows diff's of them.
 tbuilder
 --------
 
-Wrapper that makes easier to queue multiple builds of one port, ports with
-certain names, ports with Makefile containing phrase, etc.
+Poudriere testport wrapper that makes easier to queue multiple builds of:
+- specific port
+- ports linking with certain library
+- ports with certain names
+- ports with Makefile matching regular expression
+- slave ports etc.
 
 upgrade-base
 ------------
 
-Helper script for upgrading FreeBSD base.
+Helper script for upgrading FreeBSD base. Detects and sets number of make
+jobs possible. After upgrade rebuilds ports with kernel modules and offers
+to remove old files using dialog inerface.
 
 upgrade-ports
 -------------
 
-Helper script for updating ports tree and upgrading your ports.
+Helper script for updating ports tree and upgrading your ports. Combining
+information gathered from UPDATING and MOVED files tries to provide upgrade
+process as problem free as possible. This includes showing new UPDATING
+entries since last upgrade, ports origin move tracking, simple conflict
+resolution, removal of obsolete ports and sanity checking afterwards.
+Before any change is made user is presented with summary of changes
+intended similiar to pkg upgrade.
