@@ -283,6 +283,8 @@ ports_upgrade_sort() {
 		}
 	}
 	function ports_cmp(a, b) {
+		if (a == b)
+			return 0;
 		if (match(port_deps[b], a))
 			return -1;
 		if (match(port_deps[a], b))
