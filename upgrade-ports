@@ -707,6 +707,7 @@ BEGIN {
 	if ($6 in install)
 		next;
 	"pkg-static rquery %o " $6 | getline missing;
+	close("pkg-static rquery %o " $6);
 	install[$6] = missing;
 	inst = inst ? inst " " missing : missing;
 }
@@ -714,6 +715,7 @@ BEGIN {
 	if ($1 in rebuild || $1 in ignore || $1 in miss_deps)
 		next;
 	"pkg-static query %o " $1 | getline origin;
+	close("pkg-static query %o " $1);
 	rebuild[$1] = origin;
 	rinst = rinst ? rinst " " origin : origin;
 }
