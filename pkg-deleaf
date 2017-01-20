@@ -63,7 +63,7 @@ number_humanize() {
 update_exclude_list() {
 	count=0
 
-	for pkg in $(pkg query '%n@%v'); do
+	for pkg in $(pkg-static query '%n@%v'); do
 		status="off"
 		case ${pkg_exclude} in *${pkg%@*}*) status="on" ;; esac
 		items="${items} ${pkg%@*} ${pkg#*@} ${status}"
@@ -103,15 +103,18 @@ while getopts "hoxy" option; do
 done
 
 if [ $(id -u) -ne 0 ]; then
-	echo "===> You need root privileges to remove packages" >&2
-	exit 1
+	if ! which sudo >/dev/null; then
+		echo "===> sudo not found" >&2
+		exit 1
+	fi
+	SUDO="sudo"
 fi
 
 [ -f "${EXCLUDE_CONF}" ] && pkg_exclude="$(grep -v '^#' "${EXCLUDE_CONF}")"
 [ ${exclude_opt} -eq 1 ] && update_exclude_list
 
 while true; do
-	pkg_leafs="$(pkg query -e '%#r = 0' %n-%v@%sb)"
+	pkg_leafs="$(pkg-static query -e '%#r = 0' %n-%v@%sb)"
 	count=0
 	items=""
 
@@ -142,13 +145,13 @@ while true; do
 	ret="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
 	[ "${ret}" ] || break
 
-	for bytes in $(pkg query '%sb' ${ret}); do
+	for bytes in $(pkg-static query '%sb' ${ret}); do
 		rm_freed=$((rm_freed+bytes));
 		rm_count=$((rm_count+1));
 	done
 
 	dialog --clear
-	pkg-static delete -y ${ret}
+	${SUDO} pkg-static delete -y ${ret}
 done
 
 if [ "${tmpfile}" ]; then
