@@ -403,7 +403,7 @@ skip_reverse_deps() {
 }
 
 to_env_str() {
-	echo "${1}" | sed -E 's,(\/|-),_,g'
+	echo "${1}" | sed -E 's,(\/|-|\.|\+),_,g'
 }
 
 to_inst_str() {
