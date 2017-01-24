@@ -527,10 +527,8 @@ wait_for_distfiles() {
 		do
 			if [ "${res%:*}" = "PID" ]; then
 				fetcher_pid=${res#*:}
-				echo "fetcher PID: ${fetcher_pid}"
 				continue
 			fi
-			echo "===> Distfiles for ${res%:*} fetched, result: ${res#*:}"
 			setvar $(to_env_str ${res%:*})_fetch ${res#*:}
 			if [ "${res%:*}" = "${1}" ]; then
 				done=1
