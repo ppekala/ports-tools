@@ -649,6 +649,8 @@ for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
 	setvar $(to_env_str ${port})_version \
 		$(make -C ${PORTSDIR}/${port} -VPKGVERSION)
 	list_remove need_reinstall ${port}
+	[ "$(make -C ${PORTSDIR}/${port} -VPKGBASE)" != "$(pkg-static query %n ${port})" ] &&
+		list_add conflicts_self ${port}
 done
 if [ ! "${need_upgrade}" ]; then
 	echo "===> No ports needing upgrade found"
@@ -681,7 +683,7 @@ print_list "Following packages will be REINSTALLED:" $(to_pkg_str ${need_reinsta
 print_list "Following packages will be UPGRADED:" $(to_upgrade_str ${need_upgrade})
 
 if ask_yesno "Proceed with upgrade"; then
-	[ "${need_remove}" ] &&
+	[ "${need_remove}" -o "${conflicts_self}" ] &&
 		${SUDO} pkg-static delete --yes ${need_remove} ${conflicts_self}
 	rebuild_ports ${need_upgrade}
 else
