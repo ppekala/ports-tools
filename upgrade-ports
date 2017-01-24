@@ -627,7 +627,7 @@ if [ ${last_read} -lt ${last_upd} ]; then
 				"pkg "*)
 					${SUDO} ${cmd} ;;
 				*)
-					pm_fake_run ${cmd%% *}
+					pm_fake_run ${cmd#portmaster }
 				esac
 				ret=${?}
 				IFS=$'\n'
