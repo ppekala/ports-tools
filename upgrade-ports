@@ -31,10 +31,10 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
-	deps=$(make -C ${PORTSDIR}/${1} -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
+	for dep in $(make -C ${PORTSDIR}/${1} -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
-	for dep in ${deps}; do
+	do
 		if ! pkg_exists ${dep}; then
 			list_add need_install ${dep}
 			list_add $(to_env_str ${dep})_reqby ${1}
@@ -89,7 +89,7 @@ cmd_pkg_validate() {
 }
 
 cmd_pm_validate() {
-	local cmd change_origin=0 exists=0 pkgname
+	local cmd change_origin=0 exists=0 pkg pkgname
 
 	while getopts "Rafo:r:w" opt; do
 		case ${opt} in
@@ -675,10 +675,9 @@ for port in ${need_reinstall} ${need_upgrade}; do
 done
 
 for port in ${need_upgrade} ${need_install}; do
-	conflicts=$(make -C ${PORTSDIR}/${port} -VCONFLICTS -VCONFLICTS_BUILD \
-		-VCONFLICTS_INSTALL)
-	[ "${conflicts}" ] || continue
-	for cnfl in ${conflicts}; do
+	for cnfl in $(make -C ${PORTSDIR}/${port} -VCONFLICTS \
+		-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
+	do
 		for origin in $(pkg-static query -g %o "${cnfl}"); do
 			list_add need_remove $(pkg-static query %ro ${origin})
 			if [ "${port}" = "${origin}" ]; then
