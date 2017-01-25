@@ -12,6 +12,8 @@ skip_update=0	# don't update ports tree
 wait_for_key=0	# wait for key press after upgrade finish
 
 ask_yesno() {
+	local answer
+
 	[ ${answer_yes} -eq 0 ] || return 0
 	while true; do
 		printf "\n${1} (y/n)? [y] "
@@ -329,6 +331,8 @@ print_list() {
 }
 
 rebuild_ports() {
+	local make_cmd port queue
+
 	create_tmpfile
 	echo "===> Calculating ports upgrade order"
 	queue=$(ports_upgrade_sort ${*})
@@ -407,7 +411,7 @@ to_env_str() {
 }
 
 to_inst_str() {
-	local reqby str
+	local port reqby str
 
 	for port in ${*}; do
 		reqby=$(eval echo \$$(to_env_str ${port})_reqby | sed 's| |@|g')
@@ -416,8 +420,17 @@ to_inst_str() {
 	[ "${str}" ] && echo ${str}
 }
 
+to_obs_str() {
+	local port str
+
+	for port in ${*}; do
+		list_add str "$(to_pkg_str ${port})@($(removal_reason ${port} | sed 's| |@|g'))"
+	done
+	[ "${str}" ] && echo ${str}
+}
+
 to_pkg_str() {
-	local str
+	local port str
 
 	for port in ${*}; do
 		list_add str $(pkg-static query "%n-%v" ${port})
@@ -426,7 +439,7 @@ to_pkg_str() {
 }
 
 to_port_str() {
-	local str
+	local arg str
 
 	for arg in ${*}; do
 		case ${arg} in
@@ -440,7 +453,7 @@ to_port_str() {
 }
 
 to_upgrade_str() {
-	local curr new_ver str
+	local curr new_ver port str
 
 	for port in ${*}; do
 		curr=$(pkg-static query "%n:@%v" ${port})
@@ -515,7 +528,7 @@ upgrade_exit() {
 
 wait_for_distfiles() {
 	local done=0 f_res=0 fetched=$(eval echo \$$(to_env_str ${1})_fetch)
-	local msg_shown=0
+	local msg_shown=0 res
 
 	[ "${fetched}" ] && return ${fetched}
 
@@ -589,12 +602,12 @@ if [ ${skip_update} -eq 0 ]; then
 fi
 
 for port in $(get_removed_ports ${last_read}); do
-	if pkg_exists ${port}; then
-		if ask_yesno "Remove obsolete ${port} ($(removal_reason ${port}))"
-		then
-			${SUDO} pkg-static delete --yes --force ${port}
-		fi
-	fi
+	pkg_exists ${port} && list_add obsolete ${port}
+done
+print_list "Following packages are marked as OBSOLETE:" $(to_obs_str ${obsolete})
+for port in ${obsolete}; do
+	ask_yesno "Remove $(to_pkg_str ${port})" &&
+		${SUDO} pkg-static delete --yes --force ${port}
 done
 for ports in $(get_moved_ports ${last_read}); do
 	pkg_exists ${ports%%:*} &&
