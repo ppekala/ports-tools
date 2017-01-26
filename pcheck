@@ -39,9 +39,9 @@ if [ ! "$(make -V PKGNAME 2>/dev/null)" ]; then
 	exit 1
 fi
 
-descr_file="$(make -V DESCR)"
+descr_file=$(make -V DESCR)
 
-rej_files="$(find -E . -name "*.rej" ! -regex '\./(\.svn|work)/.*')"
+rej_files=$(find -E . -name "*.rej" ! -regex '\./(\.svn|work)/.*')
 if [ "${rej_files}" ]; then
 	echo "===> Found rejected patch file(s)" >&2
 	echo " ${rej_files}" | sed 's|./||g' >&2
@@ -66,12 +66,12 @@ find -E . -type f ! -regex '\./(\.svn|work)/.*' | while read file; do
 	fi
 done
 
-comment="$(make -V COMMENT)"
+comment=$(make -V COMMENT)
 if [ "$(echo ${comment} | grep -E '^(A|An) ')" ]; then
-	new_comment="$(echo ${comment} | awk '{
+	new_comment=$(echo ${comment} | awk '{
 		gsub("^(A|An) ", "", $0);
 		print toupper( substr($0, 1, 1) ) substr($0, 2);
-	}')"
+	}')
 	sed_expr="s|^COMMENT=.*|COMMENT=	${new_comment}|"
 	echo "===> Removed leading article from COMMENT"
 fi
@@ -103,7 +103,7 @@ fi
 bdeps=$(pfind -b `make -V PORTNAME` | awk 'END {print NR}')
 [ ${bdeps} -gt 0 ] && echo "===> Port is build dependency for ${bdeps} port(s)"
 
-slaves="$(pfind -s `make -V CATEGORIES | awk '{print $1}'`"/"`basename $PWD`)"
+slaves=$(pfind -s `make -V CATEGORIES | awk '{print $1}'`"/"`basename $PWD`)
 if [ "${slaves}" ]; then
 	echo "===> Found slave ports:"
 	echo ${slaves} | tr ' ' '\n'

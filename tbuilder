@@ -1,29 +1,29 @@
 #!/bin/sh
 
-readonly POUDRIERE_DIR="${POUDRIERE_DIR:-/usr/local/poudriere}"
-readonly POUDRIERE_PORTS="${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}"
+readonly POUDRIERE_DIR=${POUDRIERE_DIR:-/usr/local/poudriere}
+readonly POUDRIERE_PORTS=${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}
 
-readonly command="${1}"
-query="${2}"
-readonly build="${3:-none}"
+readonly command=${1}
+query=${2}
+readonly build=${3:-none}
 
 interrupted=0 # build interrupted by ctrl+c
 
 check_portname() {
+	local port
+
 	if [ "${1}" = "." ]; then
-		port="$(echo ${PWD} | awk '{
+		port=$(echo ${PWD} | awk '{
 			n = split($0, p ,"/");
 			print p[n-1] "/" p[n];
-		}')"
+		}')
 	else
 		port="${1}"
 	fi
-
 	if [ ! -d "${POUDRIERE_PORTS}/${port}" ]; then
 		printf "===> ${POUDRIERE_PORTS}/${port}: port directory does not exists\n\n" >&2
 		display_usage
 	fi
-
 	echo ${port}
 }
 
@@ -66,7 +66,7 @@ poudriere_jails() {
 }
 
 poudriere_test_build() {
-	local jname="${1}" port="${2%%:*}" option=${2#*:}
+	local jname=${1} port=${2%%:*} option=${2#*:}
 	local port_cfg outcome="success"
 
 	if [ "${port}" != "${option}" ]; then
@@ -116,24 +116,24 @@ trap 'interrupted=1' int
 
 case ${command} in
 bdeps)
-	ports="$(pfind -b ${query})" ;;
+	ports=$(pfind -b ${query}) ;;
 file)
 	if [ ! -f "${query}" ]; then
 		echo "===> File ${query} does not exists" >&2
 		exit 1
 	fi
-	ports="$(cat "${query}" | grep -v '^#')" ;;
+	ports=$(cat "${query}" | grep -v '^#') ;;
 grep)
-	ports="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec \
+	ports=$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec \
 		grep -q "${query}" {} \; -print | grep -v "${query}/Makefile" |
-		sed -E 's;(\./|/Makefile);;g')" ;;
+		sed -E 's;(\./|/Makefile);;g') ;;
 ldeps)
 	query=$(check_portname ${query})
-	tmp="$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec grep -q \
-		"^[^#].*${query}[ \\]*\$" {} \; -print | sed 's|\./||')"
+	tmp=$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec grep -q \
+		"^[^#].*${query}[ \\]*\$" {} \; -print | sed 's|\./||')
 
 	for path in ${tmp}; do
-		path="$(dirname ${path})"
+		path=$(dirname ${path})
 		[ "${query}" != "${path}" ] || continue
 		cd ${POUDRIERE_PORTS}/${path}
 		if is_build_dep ${query}; then
@@ -163,7 +163,7 @@ ldeps)
 	done
 	;;
 match)
-	ports="$(pfind -n ${query})" ;;
+	ports=$(pfind -n ${query}) ;;
 name)
 	ports=$(check_portname ${query}) ;;
 slaves)

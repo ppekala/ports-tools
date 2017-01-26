@@ -27,7 +27,8 @@ EOF
 }
 
 mktmp() {
-	local tmp="$(mktemp -t ${0##*/})"
+	local tmp=$(mktemp -t ${0##*/})
+
 	if [ ! "${tmp}" ]; then
 		echo "===> Failed to create temporary file" >&2
 		exit 1
@@ -61,7 +62,7 @@ number_humanize() {
 }
 
 update_exclude_list() {
-	count=0
+	local count=0 excluded items pkg status
 
 	for pkg in $(pkg-static query '%n@%v'); do
 		status="off"
@@ -70,10 +71,10 @@ update_exclude_list() {
 		count=$((count+1))
 	done
 
-	tmpfile="$(mktmp)"
+	tmpfile=$(mktmp)
 	echo "--checklist \"Select packages to exclude (${count} items):\" \
 		$((tlines-3)) ${dwidth} $((tlines-5)) ${items}" > ${tmpfile}
-	excluded="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
+	excluded=$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')
 	dialog --clear
 	rm ${tmpfile}
 
@@ -110,20 +111,19 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
-[ -f "${EXCLUDE_CONF}" ] && pkg_exclude="$(grep -v '^#' "${EXCLUDE_CONF}")"
+[ -f "${EXCLUDE_CONF}" ] && pkg_exclude=$(grep -v '^#' "${EXCLUDE_CONF}")
 [ ${exclude_opt} -eq 1 ] && update_exclude_list
 
 while true; do
-	pkg_leafs="$(pkg-static query -e '%#r = 0' %n-%v@%sb)"
+	pkg_leafs=$(pkg-static query -e '%#r = 0' %n-%v@%sb)
 	count=0
-	items=""
 
 	for pkg in ${pkg_leafs}; do
 		case ${pkg_seen} in *${pkg%@*}*) continue;; esac
 		case ${pkg_exclude} in *${pkg%-*}*) continue;; esac
 		[ ${pkg%-*} != "pkg" ] || continue
 
-		size="$(number_humanize ${pkg#*@})"
+		size=$(number_humanize ${pkg#*@})
 		pkg_seen="${pkg_seen} ${pkg%@*}"
 		items="${items} ${pkg%@*} \"$(printf '%8s' "${size}")\" ${sel_status}"
 		count=$((count+1))
@@ -138,11 +138,11 @@ while true; do
 
 	[ ${count} -eq 0 ] && break
 
-	[ "${tmpfile}" ] || tmpfile="$(mktmp)"
+	[ "${tmpfile}" ] || tmpfile=$(mktmp)
 	echo "--checklist \"Select packages to delete (${count} items):\" \
 		$((tlines-3)) ${dwidth} $((tlines-5)) ${items}" > ${tmpfile}
 
-	ret="$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')"
+	ret=$(dialog --stdout --file ${tmpfile} | sed 's|\"||g')
 	[ "${ret}" ] || break
 
 	for bytes in $(pkg-static query '%sb' ${ret}); do

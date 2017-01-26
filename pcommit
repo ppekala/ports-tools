@@ -1,9 +1,9 @@
 #!/bin/sh
 
 readonly LANG=C
-readonly PAGER="${PAGER:-less}"
-readonly PAGER_DIFF="${PAGER_DIFF:-$PAGER}"
-readonly PSVN="${PSVN:-svn}"
+readonly PAGER=${PAGER:-less}
+readonly PAGER_DIFF=${PAGER_DIFF:-$PAGER}
+readonly PSVN=${PSVN:-svn}
 
 clean_only=0	# only clean temporary files
 dir_cache=""	# directories to remove
@@ -13,6 +13,8 @@ non_interactive=0 # don't ask user any questions
 removed_dirs=""	# already removed directories
 
 ask_yesno() {
+	local answer
+
 	[ ${non_interactive} -eq 0 ] || return 0
 
 	while true; do
@@ -31,13 +33,14 @@ ask_yesno() {
 }
 
 cache_concat() {
-	local str="$(eval echo $"$1")"
+	local str=$(eval echo $"${1}")
+
 	[ ! "${str}" ] && str="${2}" || str="${str} ${2}"
 	setvar ${1} "${str}"
 }
 
 dir_cache_add() {
-	local dir="${1}"
+	local dir=${1}
 
 	case ${dir_cache} in
 	*${dir}*)
@@ -61,7 +64,8 @@ EOF
 }
 
 file_add() {
-	local file="${1}"
+	local child file=${1}
+
 	case ${file} in *svn-commit*) return 1 ;; esac
 	[ ${ignore_empty} -eq 1 -a ! -s "${file}" ] && return 1
 
@@ -84,8 +88,8 @@ file_add() {
 }
 
 file_remove() {
-	local file="${1}"
-	local n_kind="$(${PSVN} info "${1}"|awk '/^Node Kind/ { print $3 }')"
+	local file=${1}
+	local n_kind=$(${PSVN} info "${1}"|awk '/^Node Kind/ { print $3 }')
 
 	if [ "${n_kind}" = "file" ]; then
 		for dir in ${removed_dirs}; do
@@ -118,7 +122,8 @@ file_remove() {
 }
 
 file_set_props() {
-	local file="${1}"
+	local file=${1}
+
 	[ -d "${file}" -o ! -e "${file}" ] && return 1
 
 	case $(egrep -- '\$FreeBSD\$|\$[BDFSer]+:' "${file}" >/dev/null || echo ${?}) in
@@ -142,6 +147,8 @@ pcommit_exit() {
 }
 
 remove_empty_dirs() {
+	local dir
+
 	for dir in ${dir_cache}; do
 		[ -d ${dir} ] || continue
 		case ${dir_cache_ignore} in *${dir}*) continue ;; esac
@@ -172,7 +179,7 @@ else
 	[ "$(make -V PORTSTOP)" ] && depth=4 || depth=3
 fi
 
-wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
+wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
 if [ "${wrk_dirs}" ]; then
 	for wdir in ${wrk_dirs}; do
 		if [ ${depth} -ne 2 ]; then
@@ -183,7 +190,7 @@ if [ "${wrk_dirs}" ]; then
 			make_args=""
 		fi
 
-		ret="$(make ${make_args} clean 2>/dev/null)"
+		ret=$(make ${make_args} clean 2>/dev/null)
 		if [ "$(echo ${ret} | grep 'not writable')" ]; then
 			if [ ${depth} -ne 2 ]; then
 				echo "===> Failed to 'make clean' in ${wdir%%/work}" >&2
@@ -195,16 +202,16 @@ if [ "${wrk_dirs}" ]; then
 	done
 fi
 
-rej_files="$(find . -name "*.rej" -maxdepth ${depth} | sed 's|^./||g')"
+rej_files=$(find . -name "*.rej" -maxdepth ${depth} | sed 's|^./||g')
 if [ "${rej_files}" ]; then
 	echo "===> Found rejected patch files" >&2
 	echo ${rej_files} | tr ' ' '\n'
 	exit 1
 fi
 
-old_files="$(find -E . \( -name "*.orig" -or -name "svn-commit.*" \) \
+old_files=$(find -E . \( -name "*.orig" -or -name "svn-commit.*" \) \
 	! -regex '.*(\.svn|work)/.*' -delete -print -maxdepth ${depth} |
-	sed 's|^./||g')"
+	sed 's|^./||g')
 if [ "${old_files}" ]; then
 	echo "===> Removed old temporary files"
 	echo ${old_files} | tr ' ' '\n'
@@ -212,8 +219,8 @@ fi
 [ ${clean_only} -eq 0 ] || exit
 
 if [ ${ignore_empty} -eq 0 ]; then
-	empty_files="$(find . -maxdepth ${depth} -type f -size 0 \
-			! -regex '.*\.svn/.*' | sed 's|^./||')"
+	empty_files=$(find . -maxdepth ${depth} -type f -size 0 \
+			! -regex '.*\.svn/.*' | sed 's|^./||')
 	for file in ${empty_files}; do
 		if ${PSVN} info "${file}" >/dev/null 2>&1; then
 			file_remove "${file}"
@@ -224,7 +231,7 @@ if [ ${ignore_empty} -eq 0 ]; then
 	done
 fi
 
-tempfile="$(mktemp -t ${0##*/})"
+tempfile=$(mktemp -t ${0##*/})
 if [ ! "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
@@ -240,7 +247,7 @@ old_IFS=${IFS}
 IFS=$'\n'
 
 for line in $(cat ${tempfile}); do
-	change="$(echo "${line}" | awk '{
+	change=$(echo "${line}" | awk '{
 		if (match($0, "^Status"))
 			next;
 
@@ -253,9 +260,9 @@ for line in $(cat ${tempfile}); do
 			mod="U";
 
 		print mod;
-	}')"
+	}')
 	[ "${change}" = " " -o -z "${change}" ] && continue
-	file="$(echo "${line}" | awk '{ print $NF }')"
+	file=$(echo "${line}" | awk '{ print $NF }')
 	tracked=0
 
 	case ${change} in

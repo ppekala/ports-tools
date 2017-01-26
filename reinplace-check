@@ -1,11 +1,11 @@
 #!/bin/sh
 
-readonly PAGER="${PAGER:-less}"
-readonly PAGER_DIFF="${PAGER_DIFF:-$PAGER}"
+readonly PAGER=${PAGER:-less}
+readonly PAGER_DIFF=${PAGER_DIFF:-$PAGER}
 readonly PATHFIX=$(make -V USES | grep pathfix >/dev/null; echo ${?})
-readonly PATHFILE="$(make -V PATHFIX_MAKEFILEIN)"
-readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
-readonly cmd="${1:-check}"
+readonly PATHFILE=$(make -V PATHFIX_MAKEFILEIN)
+readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
+readonly cmd=${1:-check}
 
 if [ "${cmd}" != "check" -a "${cmd}" != "show" ]; then
 	<< EOF >&2 cat

@@ -1,8 +1,8 @@
 #!/bin/sh
 
-readonly patterns="${@}"
+readonly patterns=${@}
 
-[ -f pkg-descr ] && WRKSRC="$(make -V WRKSRC)" || WRKSRC="."
+[ -f pkg-descr ] && WRKSRC=$(make -V WRKSRC) || WRKSRC="."
 if [ "${WRKSRC}" ]; then
 	if [ ! -d "${WRKSRC}" ]; then
 		while true; do
@@ -21,7 +21,7 @@ if [ "${WRKSRC}" ]; then
 	cd ${WRKSRC}
 fi
 
-p_files="$(find . -name '*.orig' | sed 's#^./##')"
+p_files=$(find . -name '*.orig' | sed 's#^./##')
 if [ ! "${p_files}" ]; then
 	echo "===> No patched files found"
 	exit

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-readonly PSVN="${PSVN:-svn}"
+readonly PSVN=${PSVN:-svn}
 
 echo "===> Removing work dirs..."
 
@@ -10,7 +10,7 @@ else
 	[ "$(make -V PORTSTOP)" ] && depth=4 || depth=3
 fi
 
-wrk_dirs="$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')"
+wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
 if [ "${wrk_dirs}" ]; then
 	for wdir in ${wrk_dirs}; do
 		if [ ${depth} -ne 2 ]; then
@@ -21,7 +21,7 @@ if [ "${wrk_dirs}" ]; then
 			make_args=""
 		fi
 
-		ret="$(make ${make_args} clean 2>/dev/null)"
+		ret=$(make ${make_args} clean 2>/dev/null)
 		if [ "$(echo ${ret} | grep 'not writable')" ]; then
 			if [ ${depth} -ne 2 ]; then
 				echo "  Failed to 'make clean' in ${wdir%%/work}"
@@ -39,8 +39,8 @@ if ${PSVN} info >/dev/null 2>&1; then
 
 	echo "===> Removing leftover files..."
 	${PSVN} status --no-ignore | while read line; do
-		status="$(echo ${line} | awk '{ print $1 }')"
-		file="$(echo ${line} | awk ' { print $2 }')"
+		status=$(echo ${line} | awk '{ print $1 }')
+		file=$(echo ${line} | awk ' { print $2 }')
 
 		[ ! "${status}" -o ! "${file}" ] && continue
 

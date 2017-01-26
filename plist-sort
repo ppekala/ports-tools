@@ -1,9 +1,9 @@
 #!/bin/sh
 
 readonly LANG=C
-readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
-readonly PREFIX="$(make -V PREFIX 2>/dev/null)"
-plist_file="${1}"
+readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
+readonly PREFIX=$(make -V PREFIX 2>/dev/null)
+plist_file=${1}
 
 if [ ! "${PKGNAME}" -o ! "${PREFIX}" ]; then
 	echo "===> This is not port directory" >&2

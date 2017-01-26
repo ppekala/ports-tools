@@ -133,7 +133,7 @@ cmd_pm_validate() {
 
 create_tmpfile() {
 	[ "${tmpfile}" ] && return
-	tmpfile="$(mktemp -t ${0##*/})"
+	tmpfile=$(mktemp -t ${0##*/})
 	if [ ! "${tmpfile}" ]; then
 		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1
@@ -568,11 +568,11 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 if [ -f "${CONFIG}" ]; then
-	last_read="$(cat "${CONFIG}")"
+	last_read=$(cat "${CONFIG}")
 else
 	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
 fi
-[ "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
+[ "${last_read}" ] || last_read=$(get_entry_dates | head -n 1)
 moved_lines=$(cat ${PORTSDIR}/MOVED | wc -l)
 
 if [ ${skip_update} -eq 0 ]; then
@@ -600,7 +600,7 @@ do
 		echo "===> Port ${ports%%:*} moved to ${ports##*:}"
 done
 
-last_upd="$(get_entry_dates | head -n 1)"
+last_upd=$(get_entry_dates | head -n 1)
 
 if [ ${last_read} -lt ${last_upd} ]; then
 	create_tmpfile

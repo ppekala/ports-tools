@@ -1,9 +1,9 @@
 #!/bin/sh
 
-readonly PAGER="${PAGER:-less}"
-readonly PAGER_DIFF="${PAGER_DIFF:-$PAGER}"
-readonly PKGNAME="$(make -V PKGNAME 2>/dev/null)"
-readonly PLIST="$(make -V PLIST 2>/dev/null)"
+readonly PAGER=${PAGER:-less}
+readonly PAGER_DIFF=${PAGER_DIFF:-$PAGER}
+readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
+readonly PLIST=$(make -V PLIST 2>/dev/null)
 
 display_usage() {
 	<< EOF >&2 cat
@@ -37,13 +37,13 @@ if [ ! "${PKGNAME}" ]; then
 	exit 1
 fi
 
-tempfile="$(mktemp -t ${0##*/})"
+tempfile=$(mktemp -t ${0##*/})
 if [ ! "${tempfile}" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi
 if [ -f ${PLIST} ]; then
-	wrkdir="$(make -V WRKDIR)"
+	wrkdir=$(make -V WRKDIR)
 	plist_out="${wrkdir}/.pkg-plist.new"
 else
 	plist_out="${PLIST}"
