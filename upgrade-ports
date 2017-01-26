@@ -186,24 +186,6 @@ get_entry_dates() {
 	egrep "^[0-9]{8}:" ${PORTSDIR}/UPDATING | sed 's/://'
 }
 
-get_moved_ports() {
-	awk -F '|' -v date="${1}" '
-	!/^#/ && NR = 4 && $2 {
-		gsub("-", "", $3);
-		if ($3 > date)
-			print $1 ":" $2;
-	}' ${PORTSDIR}/MOVED
-}
-
-get_removed_ports() {
-	awk -F '|' -v date="${1}" '
-	!/^#/ && NR = 4 && !$2 {
-		gsub("-", "", $3);
-		if ($3 > date)
-			print $1;
-	}' ${PORTSDIR}/MOVED
-}
-
 list_add() {
 	local arg name=${1} list=$(eval echo \$${1})
 
@@ -378,11 +360,6 @@ rebuild_ports() {
 	fi
 }
 
-removal_reason() {
-	awk -F '|' -v port="${1}" '
-	!/^#/ && NR = 4 && $1 == port { print $4 }' ${PORTSDIR}/MOVED
-}
-
 signal_handler() {
 	local pids
 
@@ -421,10 +398,13 @@ to_inst_str() {
 }
 
 to_obs_str() {
-	local port str
+	local port reason str
 
 	for port in ${*}; do
-		list_add str "$(to_pkg_str ${port})@($(removal_reason ${port} | sed 's| |@|g'))"
+		reason=$(awk -F '|' -v line=${moved_lines} -v port="${port}" '
+			NR > line && $1 == port { print $4 }' \
+			${PORTSDIR}/MOVED | sed 's| |@|g')
+		list_add str "$(to_pkg_str ${port})@(${reason})"
 	done
 	[ "${str}" ] && echo ${str}
 }
@@ -593,6 +573,7 @@ else
 	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
 fi
 [ "${last_read}" ] || last_read="$(get_entry_dates | head -n 1)"
+moved_lines=$(cat ${PORTSDIR}/MOVED | wc -l)
 
 if [ ${skip_update} -eq 0 ]; then
 	if ! ${SUDO} portsnap fetch update; then
@@ -601,7 +582,9 @@ if [ ${skip_update} -eq 0 ]; then
 	fi
 fi
 
-for port in $(get_removed_ports ${last_read}); do
+for port in $(awk -F '|' -v line="${moved_lines}" '
+		NR > line && !$2 { print $1 }' ${PORTSDIR}/MOVED)
+do
 	pkg_exists ${port} && list_add obsolete ${port}
 done
 print_list "Following packages are marked as OBSOLETE:" $(to_obs_str ${obsolete})
@@ -609,7 +592,9 @@ for port in ${obsolete}; do
 	ask_yesno "Remove $(to_pkg_str ${port})" &&
 		${SUDO} pkg-static delete --yes --force ${port}
 done
-for ports in $(get_moved_ports ${last_read}); do
+for ports in $(awk -F '|' -v line="${moved_lines}" '
+		NR > line && $2 { print $1 ":" $2 }' ${PORTSDIR}/MOVED)
+do
 	pkg_exists ${ports%%:*} &&
 		${SUDO} pkg-static set --change-origin ${ports} --yes &&
 		echo "===> Port ${ports%%:*} moved to ${ports##*:}"
