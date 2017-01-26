@@ -4,14 +4,6 @@ Ports Tools
 Collection of scripts making things easier when working with FreeBSD ports tree.
 
 
-lib-bump-check
---------------
-
-After major library ABI bumps sometimes there are packages that got omitted
-and have it's PORTREVISION not increased. This script scans your installed
-packages and tries to find those that need to be rebuilt and offers to do
-it for you.
-
 mkpatch
 -------
 
@@ -45,15 +37,6 @@ pkg-deleaf
 ----------
 
 Leaf package remover with nice dialog interface.
-
-pkg-lib-check
--------------
-
-Script for detecting:
-* unregistered library dependencies in your packages
-* linking to non-existent library
-* binaries in package linked to specific library
-* minimal library dependencies.
 
 plist-sort
 ----------
