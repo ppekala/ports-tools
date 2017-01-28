@@ -1,7 +1,7 @@
 #!/bin/sh
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-readonly CONFIG="${XDG_CONFIG_HOME}/upgrade-ports"
+readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
 export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
 answer_yes=0	# answer yes to all of the questions
@@ -14,14 +14,14 @@ wait_for_key=0	# wait for key press after upgrade finish
 ask_yesno() {
 	local answer
 
-	[ ${answer_yes} -eq 0 ] || return 0
+	[ $answer_yes -eq 0 ] || return 0
 	while true; do
-		printf "\n${1} (y/n)? [y] "
+		printf "\n$1 (y/n)? [y] "
 
 		read answer
-		[ "${answer}" ] || answer="y"
+		[ "$answer" ] || answer="y"
 
-		case ${answer} in
+		case $answer in
 		[Nn])
 			return 1 ;;
 		[Yy])
@@ -31,21 +31,21 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
-	for dep in $(make -C ${PORTSDIR}/${1} -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
+	for dep in $(make -C $PORTSDIR/$1 -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
 	do
-		if ! pkg_exists ${dep}; then
-			list_add need_install ${dep}
-			list_add $(to_env_str ${dep})_reqby ${1}
-			list_add $(to_env_str ${1})_mdeps ${dep}
-			check_for_missing_deps ${dep}
+		if ! pkg_exists $dep; then
+			list_add need_install $dep
+			list_add $(to_env_str $dep)_reqby $1
+			list_add $(to_env_str $1)_mdeps $dep
+			check_for_missing_deps $dep
 		fi
 	done
 }
 
 command_is_valid() {
-	local old_IFS=${IFS}
+	local old_IFS=$IFS
 
 	IFS=" "
 	if [ "${*%% *}" = "pkg" ]; then
@@ -53,18 +53,18 @@ command_is_valid() {
 	else
 		cmd_pm_validate ${*#portmaster }
 	fi
-	ret=${?}
-	IFS=${old_IFS}
-	return ${ret}
+	ret=$?
+	IFS=$old_IFS
+	return $ret
 }
 
 cmd_pkg_validate() {
 	local cmd=${*%% *} exists=0 pkgname
 
-	[ "${cmd}" = "info" -o "${cmd}" = "query" ] && return 1
+	[ "$cmd" = "info" -o "$cmd" = "query" ] && return 1
 	shift 1
 	while getopts "fgn:o:y" opt; do
-		case ${opt} in
+		case $opt in
 		f|g|y)
 			;;
 		n|o)
@@ -74,15 +74,15 @@ cmd_pkg_validate() {
 			return 1
 		esac
 	done
-	if [ ! "${cmd}" = "set" ]; then
+	if [ ! "$cmd" = "set" ]; then
 		shift $((OPTIND-1))
-		pkgname=${*}
+		pkgname=$*
 	fi
-	for pkg in ${pkgname}; do
-		pkg_exists ${pkg} && exists=1
+	for pkg in $pkgname; do
+		pkg_exists $pkg && exists=1
 	done
-	if [ ${exists} -eq 0 ]; then
-		echo "===> ${pkgname} is not installed, skipping command"
+	if [ $exists -eq 0 ]; then
+		echo "===> $pkgname is not installed, skipping command"
 		return 1
 	fi
 	return 0
@@ -92,7 +92,7 @@ cmd_pm_validate() {
 	local cmd change_origin=0 exists=0 pkg pkgname
 
 	while getopts "Rafo:r:w" opt; do
-		case ${opt} in
+		case $opt in
 		a)
 			echo "===> Skipping upgrade of all packages for now"
 			return 1 ;;
@@ -101,53 +101,53 @@ cmd_pm_validate() {
 		o)
 			change_origin=1 ;;
 		r)
-			list_add pkgname ${OPTARG} ;;
+			list_add pkgname $OPTARG ;;
 		\?)
 			echo "===> Portmaster unhandled option, skipping"
 			return 1
 		esac
 	done
 	shift $((OPTIND-1))
-	if [ ${change_origin} -eq 1 ]; then
-		pkgname=${*}
+	if [ $change_origin -eq 1 ]; then
+		pkgname=$*
 	else
-		case ${*} in
+		case $* in
 		'$('*')')
-			cmd=$(echo ${*} | sed 's|^\$(||' | sed 's|)$||') ;;
+			cmd=$(echo $* | sed 's|^\$(||' | sed 's|)$||') ;;
 		"\`"*"\`")
-			cmd=$(echo ${*} | sed 's|`||g') ;;
+			cmd=$(echo $* | sed 's|`||g') ;;
 		*)
-			list_add pkgname ${*}
+			list_add pkgname $*
 		esac
 	fi
-	[ "${cmd}" -a "$(${cmd})" ] && return 0 || return 1
-	for pkg in ${pkgname}; do
-		pkg_exists ${pkg} && exists=1
+	[ "$cmd" -a "$($cmd)" ] && return 0 || return 1
+	for pkg in $pkgname; do
+		pkg_exists $pkg && exists=1
 	done
-	if [ ${exists} -eq 0 ]; then
-		echo "===> ${pkgname} is not installed, skipping command"
+	if [ $exists -eq 0 ]; then
+		echo "===> $pkgname is not installed, skipping command"
 		return 1
 	fi
 	return 0
 }
 
 create_tmpfile() {
-	[ "${tmpfile}" ] && return
+	[ "$tmpfile" ] && return
 	tmpfile=$(mktemp -t ${0##*/})
-	if [ ! "${tmpfile}" ]; then
+	if [ ! "$tmpfile" ]; then
 		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1
 	fi
 }
 
 desc_pids() {
-	local pids=${1} ret
+	local pids=$1 ret
 
-	for pid in $(pgrep -P ${1}); do
-		ret=$(desc_pids ${pid})
-		[ "${ret}" ] && pids="${pids} ${ret}"
+	for pid in $(pgrep -P $1); do
+		ret=$(desc_pids $pid)
+		[ "$ret" ] && pids="$pids $ret"
 	done
-	echo ${pids}
+	echo $pids
 }
 
 display_usage() {
@@ -166,91 +166,91 @@ EOF
 fetch_distfiles() {
 	local fetch_queue port
 
-	for port in ${*}; do
+	for port in $*; do
 		mdeps=""
-		missing_deps_recursive ${port}
-		list_add fetch_queue ${mdeps} ${port}
+		missing_deps_recursive $port
+		list_add fetch_queue $mdeps $port
 	done
-	${SUDO} sh -c "
-		lockf -k ${tmpfile} sh -c \" echo PID:\$\$ >> ${tmpfile}\"
-		for port in ${fetch_queue}; do
-			make -C ${PORTSDIR}/\${port} checksum
-			lockf -k ${tmpfile} sh -c \"echo \${port}:\${?} >> ${tmpfile}\"
+	$SUDO sh -c "
+		lockf -k $tmpfile sh -c \" echo PID:\$\$ >> $tmpfile\"
+		for port in $fetch_queue; do
+			make -C $PORTSDIR/\$port checksum
+			lockf -k $tmpfile sh -c \"echo \$port:\$? >> $tmpfile\"
 		done
-		lockf -k ${tmpfile} sh -c \" echo PID:0 >> ${tmpfile}\"
+		lockf -k $tmpfile sh -c \" echo PID:0 >> $tmpfile\"
 		" >/dev/null 2>&1 &
-	echo ${fetch_queue}
+	echo $fetch_queue
 }
 
 get_entry_dates() {
-	egrep "^[0-9]{8}:" ${PORTSDIR}/UPDATING | sed 's/://'
+	egrep "^[0-9]{8}:" $PORTSDIR/UPDATING | sed 's/://'
 }
 
 list_add() {
-	local arg name=${1} list=$(eval echo \$${1})
+	local arg name=$1 list=$(eval echo \$$1)
 
 	shift 1
-	for arg in ${*}; do
-		list_find ${name} ${arg} && continue
-		list="${list} ${arg}"
+	for arg in $*; do
+		list_find $name $arg && continue
+		list="$list $arg"
 	done
-	setvar ${name} "${list}"
+	setvar $name "$list"
 }
 
 list_find() {
 	local elem
 
-	for elem in $(eval echo \$${1}); do
-		[ "${elem}" = "${2}" ] && return 0
+	for elem in $(eval echo \$$1); do
+		[ "$elem" = "$2" ] && return 0
 	done
 	return 1
 }
 
 list_remove() {
-	local elem name=${1} new_list
+	local elem name=$1 new_list
 
-	for elem in $(eval echo \$${1}); do
-		[ "${elem}" = "${2}" ] || new_list="${new_list} ${elem}"
+	for elem in $(eval echo \$$1); do
+		[ "$elem" = "$2" ] || new_list="$new_list $elem"
 	done
-	setvar ${name} "${new_list}"
+	setvar $name "$new_list"
 }
 
 missing_deps_recursive() {
 	local port
 
-	for port in $(eval echo \$$(to_env_str ${1})_mdeps); do
-		missing_deps_recursive ${port}
-		list_add mdeps ${port}
+	for port in $(eval echo \$$(to_env_str $1)_mdeps); do
+		missing_deps_recursive $port
+		list_add mdeps $port
 	done
 }
 
 pkg_exists() {
-	[ "${1}" ] || return 1
-	pkg-static info --exists ${1} >/dev/null 2>&1
+	[ "$1" ] || return 1
+	pkg-static info --exists $1 >/dev/null 2>&1
 }
 
 pm_fake_run() {
 	local new_origin
 
 	while getopts "Rfo:r:w" opt; do
-		case ${opt} in
+		case $opt in
 		f|w|R)
 			;;
 		o)
-			new_origin=${OPTARG} ;;
+			new_origin=$OPTARG ;;
 		r)
-			list_add need_reinstall $(to_port_str ${OPTARG})
-			list_add need_reinstall $(pkg-static query %ro ${OPTARG})
+			list_add need_reinstall $(to_port_str $OPTARG)
+			list_add need_reinstall $(pkg-static query %ro $OPTARG)
 		esac
 	done
 	shift $((OPTIND-1))
-	if [ "${new_origin}" ]; then
-		${SUDO} pkg-static set -o ${*}:${new_origin} --yes
-		return ${?}
+	if [ "$new_origin" ]; then
+		$SUDO pkg-static set -o $*:$new_origin --yes
+		return $?
 	fi
-	new_origin=$(to_port_str ${*})
-	if [ "${new_origin}" ]; then
-		list_add need_reinstall ${new_origin}
+	new_origin=$(to_port_str $*)
+	if [ "$new_origin" ]; then
+		list_add need_reinstall $new_origin
 		echo "===> Found packages to reinstall in later stage"
 		return 0
 	else
@@ -259,7 +259,7 @@ pm_fake_run() {
 }
 
 ports_upgrade_sort() {
-	echo ${*} | tr ' ' '\n' | awk '
+	echo $* | tr ' ' '\n' | awk '
 	function partition(a, s, e) {
 		i = s-1; j = e+1;
 
@@ -306,10 +306,10 @@ ports_upgrade_sort() {
 }
 
 print_list() {
-	[ "${2}" ] || return
-	printf "\n${1}\n"
+	[ "$2" ] || return
+	printf "\n$1\n"
 	shift 1
-	for item in ${*}; do printf "\t${item}\n" | sed 's|@| |g'; done | sort
+	for item in $*; do printf "\t$item\n" | sed 's|@| |g'; done | sort
 }
 
 rebuild_ports() {
@@ -317,46 +317,46 @@ rebuild_ports() {
 
 	create_tmpfile
 	echo "===> Calculating ports upgrade order"
-	queue=$(ports_upgrade_sort ${*})
-	queue=$(fetch_distfiles ${queue})
-	for port in ${queue}; do
-		if [ ${interrupted} -eq 1 ]; then
-			list_add build_skipped ${port}
+	queue=$(ports_upgrade_sort $*)
+	queue=$(fetch_distfiles $queue)
+	for port in $queue; do
+		if [ $interrupted -eq 1 ]; then
+			list_add build_skipped $port
 			continue
 		fi
-		list_find build_skipped ${port} && continue
+		list_find build_skipped $port && continue
 
-		if ! wait_for_distfiles ${port}; then
-			skip_reverse_deps ${port}
+		if ! wait_for_distfiles $port; then
+			skip_reverse_deps $port
 			continue;
 		fi
-		[ ${build_started} -eq 1 ] || build_started=1
-		cd ${PORTSDIR}/${port}
-		[ -d work ] && ${SUDO} make clean
-		pkg_exists ${port} && make_cmd="reinstall" || make_cmd="install"
-		${SUDO} make ${make_args} ${make_cmd} clean
-		if [ ${?} -ne 0 ]; then
-			if [ ${interrupted} -eq 1 ]; then
-				build_interrupted=${port}
-				${SUDO} make clean
+		[ $build_started -eq 1 ] || build_started=1
+		cd $PORTSDIR/$port
+		[ -d work ] && $SUDO make clean
+		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
+		$SUDO make $make_args $make_cmd clean
+		if [ $? -ne 0 ]; then
+			if [ $interrupted -eq 1 ]; then
+				build_interrupted=$port
+				$SUDO make clean
 				continue;
 			fi
-			skip_reverse_deps ${port}
+			skip_reverse_deps $port
 		else
-			list_add build_ok ${port}
+			list_add build_ok $port
 		fi
 	done
-	if [ "${build_failed}" -o "${build_interrupted}" ]; then
-		if [ ${interrupted} -eq 1 ]; then
+	if [ "$build_failed" -o "$build_interrupted" ]; then
+		if [ $interrupted -eq 1 ]; then
 			printf "\nUpgrade process was interrupted.\n"
 		else
 			printf "\nNot all ports were upgraded successfully, check your system and try again.\n"
 		fi
-		print_list "Following ports upgrade SUCCEEDED:" ${build_ok}
-		print_list "Upgrade build process INTERRUPTED:" ${build_interrupted}
-		print_list "Following ports upgrade FAILED:" ${build_failed}
-		print_list "Following ports upgrades were SKIPPED:" ${build_skipped}
-		upgrade_exit 1 ${last_upd}
+		print_list "Following ports upgrade SUCCEEDED:" $build_ok
+		print_list "Upgrade build process INTERRUPTED:" $build_interrupted
+		print_list "Following ports upgrade FAILED:" $build_failed
+		print_list "Following ports upgrades were SKIPPED:" $build_skipped
+		upgrade_exit 1 $last_upd
 	fi
 }
 
@@ -365,86 +365,86 @@ signal_handler() {
 
 	printf "\n===> Caught interrupt signal, cleaning up\n"
 	interrupted=1
-	if [ "${fetcher_pid}" -a "${fetcher_pid}" != "0" ]; then
-		pids=$(desc_pids ${fetcher_pid})
-		${SUDO} kill -9 ${pids} >/dev/null 2>&1
+	if [ "$fetcher_pid" -a "$fetcher_pid" != "0" ]; then
+		pids=$(desc_pids $fetcher_pid)
+		$SUDO kill -9 $pids >/dev/null 2>&1
 	fi
-	[ ${build_started} -eq 0 ] || return
-	upgrade_exit 1 ${entry_prev}
+	[ $build_started -eq 0 ] || return
+	upgrade_exit 1 $entry_prev
 }
 
 skip_reverse_deps() {
 	local consumer
 
-	list_add build_failed ${1}
-	for consumer in $(pkg-static query %ro ${1}); do
-		list_find need_upgrade ${consumer} &&
-			list_add build_skipped ${consumer}
+	list_add build_failed $1
+	for consumer in $(pkg-static query %ro $1); do
+		list_find need_upgrade $consumer &&
+			list_add build_skipped $consumer
 	done
 }
 
 to_env_str() {
-	echo "${1}" | sed -E 's,(\/|-|\.|\+),_,g'
+	echo "$1" | sed -E 's,(\/|-|\.|\+),_,g'
 }
 
 to_inst_str() {
 	local port reqby str
 
-	for port in ${*}; do
-		reqby=$(eval echo \$$(to_env_str ${port})_reqby | sed 's| |@|g')
-		list_add str "${port}@(required@by@${reqby})"
+	for port in $*; do
+		reqby=$(eval echo \$$(to_env_str $port)_reqby | sed 's| |@|g')
+		list_add str "$port@(required@by@$reqby)"
 	done
-	[ "${str}" ] && echo ${str}
+	[ "$str" ] && echo $str
 }
 
 to_obs_str() {
 	local port reason str
 
-	for port in ${*}; do
-		reason=$(awk -F '|' -v line=${moved_lines} -v port="${port}" '
+	for port in $*; do
+		reason=$(awk -F '|' -v line=$moved_lines -v port="$port" '
 			NR > line && $1 == port { print $4 }' \
-			${PORTSDIR}/MOVED | sed 's| |@|g')
-		list_add str "$(to_pkg_str ${port})@(${reason})"
+			$PORTSDIR/MOVED | sed 's| |@|g')
+		list_add str "$(to_pkg_str $port)@($reason)"
 	done
-	[ "${str}" ] && echo ${str}
+	[ "$str" ] && echo $str
 }
 
 to_pkg_str() {
 	local port str
 
-	for port in ${*}; do
-		list_add str $(pkg-static query "%n-%v" ${port})
+	for port in $*; do
+		list_add str $(pkg-static query "%n-%v" $port)
 	done
-	[ "${str}" ] && echo ${str}
+	[ "$str" ] && echo $str
 }
 
 to_port_str() {
 	local arg str
 
-	for arg in ${*}; do
-		case ${arg} in
+	for arg in $*; do
+		case $arg in
 		*/*)
-			[ -d "${PORTSDIR}/${arg}" ] && list_add str ${arg} ;;
+			[ -d "$PORTSDIR/$arg" ] && list_add str $arg ;;
 		*)
-			list_add str $(pkg-static query -x %o ^${arg})
+			list_add str $(pkg-static query -x %o ^$arg)
 		esac
 	done
-	[ "${str}" ] && echo ${str}
+	[ "$str" ] && echo $str
 }
 
 to_upgrade_str() {
 	local curr new_ver port str
 
-	for port in ${*}; do
-		curr=$(pkg-static query "%n:@%v" ${port})
-		new_ver=$(eval echo \$$(to_env_str ${port})_version)
-		list_add str "${curr}@->@${new_ver}"
+	for port in $*; do
+		curr=$(pkg-static query "%n:@%v" $port)
+		new_ver=$(eval echo \$$(to_env_str $port)_version)
+		list_add str "$curr@->@$new_ver"
 	done
-	[ "${str}" ] && echo ${str}
+	[ "$str" ] && echo $str
 }
 
 updating_commands() {
-	awk -F ':' -v entry="${1}" '
+	awk -F ':' -v entry="$1" '
 	function strip_command(str) {
 		sub("^[ \t#]*", "", str);
 		in_cmd = sub(/\\$/, "", str);
@@ -475,63 +475,63 @@ updating_commands() {
 			print cmd line;
 			cmd="";
 		}
-	}' ${PORTSDIR}/UPDATING
+	}' $PORTSDIR/UPDATING
 }
 
 updating_entry() {
-	awk -F ':' -v entry="${1}" '
+	awk -F ':' -v entry="$1" '
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
 		if (entry == $1)
 			in_entry=1;
 		else if (in_entry)
 			exit;
 	}
-	in_entry { print $0 }' ${PORTSDIR}/UPDATING
+	in_entry { print $0 }' $PORTSDIR/UPDATING
 }
 
 # $1 - exit status
 # $2 - last read/executed UPDATING entry
 # $3 - wait for final keypress?
 upgrade_exit() {
-	local keywait=${3}
+	local keywait=$3
 
-	[ "${2}" ] && echo ${2} > ${CONFIG}
-	[ "${keywait}" ] || keywait=${wait_for_key}
-	[ "${tmpfile}" -a -f "${tmpfile}" ] && rm -rf "${tmpfile}"
+	[ "$2" ] && echo $2 > $CONFIG
+	[ "$keywait" ] || keywait=$wait_for_key
+	[ "$tmpfile" -a -f "$tmpfile" ] && rm -rf "$tmpfile"
 
-	if [ ${keywait} -eq 1 ]; then
+	if [ $keywait -eq 1 ]; then
 		printf "\n===> Press Enter key to finish.\n\n"
 		read key
 	fi
-	exit ${1}
+	exit $1
 }
 
 wait_for_distfiles() {
-	local done=0 f_res=0 fetched=$(eval echo \$$(to_env_str ${1})_fetch)
+	local done=0 f_res=0 fetched=$(eval echo \$$(to_env_str $1)_fetch)
 	local msg_shown=0 res
 
-	[ "${fetched}" ] && return ${fetched}
+	[ "$fetched" ] && return $fetched
 
 	while true; do
-		for res in $(lockf -k ${tmpfile} sh -c "
-			[ -s \"${tmpfile}\" ] || exit
-			cat ${tmpfile}
-			echo > ${tmpfile}");
+		for res in $(lockf -k $tmpfile sh -c "
+			[ -s \"$tmpfile\" ] || exit
+			cat $tmpfile
+			echo > $tmpfile");
 		do
 			if [ "${res%:*}" = "PID" ]; then
 				fetcher_pid=${res#*:}
 				continue
 			fi
 			setvar $(to_env_str ${res%:*})_fetch ${res#*:}
-			if [ "${res%:*}" = "${1}" ]; then
+			if [ "${res%:*}" = "$1" ]; then
 				done=1
 				f_res=${res#*:}
 			fi
 		done
-		[ ${interrupted} -eq 0 ] || return 1
-		[ ${done} -eq 0 ] || return ${f_res}
-		if [ ${msg_shown} -eq 0 ] ; then
-			echo "===> Waiting for ${port} distfiles to fetch"
+		[ $interrupted -eq 0 ] || return 1
+		[ $done -eq 0 ] || return $f_res
+		if [ $msg_shown -eq 0 ] ; then
+			echo "===> Waiting for $port distfiles to fetch"
 			msg_shown=1
 		fi
 		sleep 5
@@ -541,7 +541,7 @@ wait_for_distfiles() {
 trap signal_handler INT
 
 while getopts "huwy" option; do
-	case ${option} in
+	case $option in
 	u)
 		skip_update=1 ;;
 	w)
@@ -553,8 +553,8 @@ while getopts "huwy" option; do
 	esac
 done
 
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "===> Ports directory not found: ${PORTSDIR}" >&2
+if [ ! -d "$PORTSDIR" ]; then
+	echo "===> Ports directory not found: $PORTSDIR" >&2
 	echo "===> Try setting PORTSDIR enviroment variable" >&2
 	exit 1
 fi
@@ -567,131 +567,131 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
-if [ -f "${CONFIG}" ]; then
-	last_read=$(cat "${CONFIG}")
+if [ -f "$CONFIG" ]; then
+	last_read=$(cat "$CONFIG")
 else
-	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
+	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 fi
-[ "${last_read}" ] || last_read=$(get_entry_dates | head -n 1)
-moved_lines=$(cat ${PORTSDIR}/MOVED | wc -l)
+[ "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
+moved_lines=$(cat $PORTSDIR/MOVED | wc -l)
 
-if [ ${skip_update} -eq 0 ]; then
-	if ! ${SUDO} portsnap fetch update; then
+if [ $skip_update -eq 0 ]; then
+	if ! $SUDO portsnap fetch update; then
 		echo "===> Ports tree update failed" >&2
 		upgrade_exit 1
 	fi
 fi
 
-for port in $(awk -F '|' -v line="${moved_lines}" '
-		NR > line && !$2 { print $1 }' ${PORTSDIR}/MOVED)
+for port in $(awk -F '|' -v line="$moved_lines" '
+		NR > line && !$2 { print $1 }' $PORTSDIR/MOVED)
 do
-	pkg_exists ${port} && list_add obsolete ${port}
+	pkg_exists $port && list_add obsolete $port
 done
-print_list "Following packages are marked as OBSOLETE:" $(to_obs_str ${obsolete})
-for port in ${obsolete}; do
-	ask_yesno "Remove $(to_pkg_str ${port})" &&
-		${SUDO} pkg-static delete --yes --force ${port}
+print_list "Following packages are marked as OBSOLETE:" $(to_obs_str $obsolete)
+for port in $obsolete; do
+	ask_yesno "Remove $(to_pkg_str $port)" &&
+		$SUDO pkg-static delete --yes --force $port
 done
-for ports in $(awk -F '|' -v line="${moved_lines}" '
-		NR > line && $2 { print $1 ":" $2 }' ${PORTSDIR}/MOVED)
+for ports in $(awk -F '|' -v line="$moved_lines" '
+		NR > line && $2 { print $1 ":" $2 }' $PORTSDIR/MOVED)
 do
 	pkg_exists ${ports%%:*} &&
-		${SUDO} pkg-static set --change-origin ${ports} --yes &&
+		$SUDO pkg-static set --change-origin $ports --yes &&
 		echo "===> Port ${ports%%:*} moved to ${ports##*:}"
 done
 
 last_upd=$(get_entry_dates | head -n 1)
 
-if [ ${last_read} -lt ${last_upd} ]; then
+if [ $last_read -lt $last_upd ]; then
 	create_tmpfile
-	printf "===> New entries since last upgrade in ${PORTSDIR}/UPDATING file:\n\n"
+	printf "===> New entries since last upgrade in $PORTSDIR/UPDATING file:\n\n"
 	for entry in $(get_entry_dates | sort -u); do
-		[ ${entry} -gt ${last_read} ] || continue
+		[ $entry -gt $last_read ] || continue
 
-		updating_entry ${entry}
-		updating_commands ${entry} > ${tmpfile}
+		updating_entry $entry
+		updating_commands $entry > $tmpfile
 
-		old_IFS=${IFS}
+		old_IFS=$IFS
 		IFS=$'\n'
 
-		for cmd in $(cat ${tmpfile}); do
-			command_is_valid ${cmd} || continue
+		for cmd in $(cat $tmpfile); do
+			command_is_valid $cmd || continue
 
-			if ask_yesno "Run '${cmd}'"; then
-				IFS=${old_IFS}
-				case ${cmd} in
+			if ask_yesno "Run '$cmd'"; then
+				IFS=$old_IFS
+				case $cmd in
 				"pkg "*)
-					${SUDO} ${cmd} ;;
+					$SUDO $cmd ;;
 				*)
 					pm_fake_run ${cmd#portmaster }
 				esac
-				ret=${?}
+				ret=$?
 				IFS=$'\n'
 
-				if [ ${ret} -ne 0 ]; then
-					echo "===> Upgrade command '${cmd}' failed" >&2
-					upgrade_exit ${ret} ${entry_prev}
+				if [ $ret -ne 0 ]; then
+					echo "===> Upgrade command '$cmd' failed" >&2
+					upgrade_exit $ret $entry_prev
 				fi
 			fi
 		done
 
-		IFS=${old_IFS}
-		entry_prev="${entry}"
+		IFS=$old_IFS
+		entry_prev=$entry
 	done
 fi
 
 echo "===> Checking for ports needing upgrade"
 for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
-	[ "$(pkg-static info -kq ${port})" = "yes" ] && continue
-	list_add need_upgrade ${port}
-	setvar $(to_env_str ${port})_version \
-		$(make -C ${PORTSDIR}/${port} -VPKGVERSION)
-	list_remove need_reinstall ${port}
-	[ "$(make -C ${PORTSDIR}/${port} -VPKGBASE)" != "$(pkg-static query %n ${port})" ] &&
-		list_add conflicts_self ${port}
+	[ "$(pkg-static info -kq $port)" = "yes" ] && continue
+	list_add need_upgrade $port
+	setvar $(to_env_str $port)_version \
+		$(make -C $PORTSDIR/$port -VPKGVERSION)
+	list_remove need_reinstall $port
+	[ "$(make -C $PORTSDIR/$port -VPKGBASE)" != "$(pkg-static query %n $port)" ] &&
+		list_add conflicts_self $port
 done
-if [ ! "${need_upgrade}" ]; then
+if [ ! "$need_upgrade" ]; then
 	echo "===> No ports needing upgrade found"
-	upgrade_exit 0 ${last_upd}
+	upgrade_exit 0 $last_upd
 fi
 
-for port in ${need_reinstall} ${need_upgrade}; do
-	check_for_missing_deps ${port}
+for port in $need_reinstall $need_upgrade; do
+	check_for_missing_deps $port
 done
 
-for port in ${need_upgrade} ${need_install}; do
-	for cnfl in $(make -C ${PORTSDIR}/${port} -VCONFLICTS \
+for port in $need_upgrade $need_install; do
+	for cnfl in $(make -C $PORTSDIR/$port -VCONFLICTS \
 		-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
 	do
-		for origin in $(pkg-static query -g %o "${cnfl}"); do
-			list_add need_remove $(pkg-static query %ro ${origin})
-			if [ "${port}" = "${origin}" ]; then
-				list_add conflicts_self ${port}
+		for origin in $(pkg-static query -g %o "$cnfl"); do
+			list_add need_remove $(pkg-static query %ro $origin)
+			if [ "$port" = "$origin" ]; then
+				list_add conflicts_self $port
 			else
-				list_add need_remove ${origin}
+				list_add need_remove $origin
 			fi
 		done
 	done
 done
 
-print_list "Following packages need to be REMOVED:" $(to_pkg_str ${need_remove})
-print_list "Following ports need to be INSTALLED:" $(to_inst_str ${need_install})
-print_list "Following packages will be REINSTALLED:" $(to_pkg_str ${need_reinstall})
-print_list "Following packages will be UPGRADED:" $(to_upgrade_str ${need_upgrade})
+print_list "Following packages need to be REMOVED:" $(to_pkg_str $need_remove)
+print_list "Following ports need to be INSTALLED:" $(to_inst_str $need_install)
+print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstall)
+print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
 
 if ask_yesno "Proceed with upgrade"; then
-	[ "${need_remove}" -o "${conflicts_self}" ] &&
-		${SUDO} pkg-static delete --yes ${need_remove} ${conflicts_self}
-	rebuild_ports ${need_upgrade}
+	[ "$need_remove" -o "$conflicts_self" ] &&
+		$SUDO pkg-static delete --yes $need_remove $conflicts_self
+	rebuild_ports $need_upgrade
 else
-	upgrade_exit 0 ${last_upd}
+	upgrade_exit 0 $last_upd
 fi
 
 echo "===> Checking packages for missing libraries/dependencies"
-for pkg in ${build_failed} ${build_skipped} $(pkg-static lock -lq); do
-	list_add pkg_ignore $(pkg-static query %n ${pkg})
+for pkg in $build_failed $build_skipped $(pkg-static lock -lq); do
+	list_add pkg_ignore $(pkg-static query %n $pkg)
 done
-eval $(${SUDO} pkg-static check -dan | awk -v pkg_ignore="${pkg_ignore}" '
+eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
 BEGIN {
 	if ((n = split(pkg_ignore, array, " ")))
 		for (i=1; i<=n; i++)
@@ -720,10 +720,10 @@ END {
 	print "check_install=\"" inst "\" check_rebuild=\"" rinst "\""
 }')
 
-if [ "${check_install}" -o "${check_rebuild}" ]; then
-	print_list "Ports need to be INSTALLED:" $(to_inst_str ${check_install})
-	print_list "Packages need to be REINSTALLED:" $(to_pkg_str ${check_rebuild})
+if [ "$check_install" -o "$check_rebuild" ]; then
+	print_list "Ports need to be INSTALLED:" $(to_inst_str $check_install)
+	print_list "Packages need to be REINSTALLED:" $(to_pkg_str $check_rebuild)
 	ask_yesno "Continue with changes" &&
-		rebuild_ports ${check_install} ${check_rebuild}
+		rebuild_ports $check_install $check_rebuild
 fi
-upgrade_exit 0 ${last_upd}
+upgrade_exit 0 $last_upd

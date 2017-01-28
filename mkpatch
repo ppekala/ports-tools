@@ -1,15 +1,15 @@
 #!/bin/sh
 
-readonly patterns=${@}
+readonly patterns=$@
 
 [ -f pkg-descr ] && WRKSRC=$(make -V WRKSRC) || WRKSRC="."
-if [ "${WRKSRC}" ]; then
-	if [ ! -d "${WRKSRC}" ]; then
+if [ "$WRKSRC" ]; then
+	if [ ! -d "$WRKSRC" ]; then
 		while true; do
 			echo -n "WRKSRC does not exist, run 'make configure' (y/n)? " >/dev/stderr
 			read answer
 
-			case ${answer} in
+			case $answer in
 			[Yy])
 				make configure >/dev/null 2>&1
 				break ;;
@@ -18,25 +18,25 @@ if [ "${WRKSRC}" ]; then
 			esac
 		done
 	fi
-	cd ${WRKSRC}
+	cd $WRKSRC
 fi
 
 p_files=$(find . -name '*.orig' | sed 's#^./##')
-if [ ! "${p_files}" ]; then
+if [ ! "$p_files" ]; then
 	echo "===> No patched files found"
 	exit
 fi
 
-for f in ${p_files}; do
-	if [ "${patterns}" ]; then
+for f in $p_files; do
+	if [ "$patterns" ]; then
 		matched=0
-		for p in ${patterns}; do
-			case ${f} in *${p}*)
+		for p in $patterns; do
+			case $f in *$p*)
 				matched=1
 				break
 			esac
 		done
-		[ ${matched} -eq 1 ] || continue
+		[ $matched -eq 1 ] || continue
 	fi
-	diff -u "${f}" "${f%%.orig}"
+	diff -u "$f" "${f%%.orig}"
 done

@@ -5,9 +5,9 @@ readonly PAGER=${PAGER:-less}
 readonly POUDRIERE_DIR=${POUDRIERE_DIR:-/usr/local/poudriere}
 readonly POUDRIERE_PORTS=${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}
 
-cmd=${1}
-port=${2}
-jail=${3}
+cmd=$1
+port=$2
+jail=$3
 
 display_usage() {
 	<< EOF >&2 cat
@@ -24,64 +24,64 @@ poudriere_jails() {
 	poudriere jail -lq | cut -d " " -f1
 }
 
-[ "${cmd}" != "send" -a "${cmd}" != "show" ] && display_usage
+[ "$cmd" != "send" -a "$cmd" != "show" ] && display_usage
 
-if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "===> Ports directory not found: ${POUDRIERE_PORTS}, try setting POUDRIERE_PORTS variable" >&2
+if [ ! -d "$POUDRIERE_PORTS" ]; then
+	echo "===> Ports directory not found: $POUDRIERE_PORTS, try setting POUDRIERE_PORTS variable" >&2
 	exit 1
 fi
 
-[ "${port}" ] || port="."
-if [ "${port}" != "." -a ! -d "${POUDRIERE_PORTS}/${port}" ]; then
-	printf "===> ${POUDRIERE_PORTS}/${port}: no such port found\n\n" >&2
+[ "$port" ] || port="."
+if [ "$port" != "." -a ! -d "$POUDRIERE_PORTS/$port" ]; then
+	printf "===> $POUDRIERE_PORTS/$port: no such port found\n\n" >&2
 	display_usage
 fi
 
-if [ "${jail}" ]; then
-	if [ ! "$(poudriere_jails | grep ${jail})" ]; then
-		printf "===> ${jail}: no such poudriere jail\n\n" >&2
+if [ "$jail" ]; then
+	if [ ! "$(poudriere_jails | grep $jail)" ]; then
+		printf "===> $jail: no such poudriere jail\n\n" >&2
 		display_usage
 	fi
 fi
 
-[ "${port}" = "." ] || cd "${POUDRIERE_PORTS}/${port}"
+[ "$port" = "." ] || cd "$POUDRIERE_PORTS/$port"
 
 readonly PKGBASE=$(make -V PKGBASE 2>/dev/null)
 readonly PKGVERSION=$(make -V PKGVERSION 2>/dev/null)
 
-if [ ! "${PKGBASE}" ]; then
+if [ ! "$PKGBASE" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
-logdir="${POUDRIERE_DIR}/data/logs/bulk/latest-per-pkg/${PKGBASE}/${PKGVERSION}"
-ports_tree=$(basename "${POUDRIERE_PORTS}")
+logdir="$POUDRIERE_DIR/data/logs/bulk/latest-per-pkg/$PKGBASE/$PKGVERSION"
+ports_tree=$(basename "$POUDRIERE_PORTS")
 
-if [ ! "${jail}" ]; then
+if [ ! "$jail" ]; then
 	for j in $(poudriere_jails | sort -h); do
-		if [ -f "${logdir}/${j}-${ports_tree}.log" ]; then
-			jail="${j}"
+		if [ -f "$logdir/$j-$ports_tree.log" ]; then
+			jail=$j
 			break
 		fi
 	done
 
-	if [ ! "${jail}" ]; then
-		echo "===> Could not find any build logs for ${PKGBASE}-${PKGVERSION}" >&2
+	if [ ! "$jail" ]; then
+		echo "===> Could not find any build logs for $PKGBASE-$PKGVERSION" >&2
 		exit 1
 	fi
 fi
 
-logfile="${logdir}/${jail}-${ports_tree}.log"
-if [ ! -f "${logfile}" ]; then
-	echo "===> Logfile ${logfile} does not exist" >&2
+logfile="$logdir/$jail-$ports_tree.log"
+if [ ! -f "$logfile" ]; then
+	echo "===> Logfile $logfile does not exist" >&2
 	exit 1
 fi
 
-if [ "${cmd}" = "send" ]; then
-	logname="${PKGBASE}-${PKGVERSION}-${jail}.log"
-	echo "===> Uploading to http://people.freebsd.org/~${FREEBSD_LOGIN}/buildlogs/${logname}"
-	scp "${logfile}" ${FREEBSD_LOGIN}@freefall.freebsd.org:public_html/buildlogs/${logname}
+if [ "$cmd" = "send" ]; then
+	logname="$PKGBASE-$PKGVERSION-$jail.log"
+	echo "===> Uploading to http://people.freebsd.org/~$FREEBSD_LOGIN/buildlogs/$logname"
+	scp "$logfile" $FREEBSD_LOGIN@freefall.freebsd.org:public_html/buildlogs/$logname
 else
-	${PAGER} ${logfile}
+	$PAGER $logfile
 fi
 

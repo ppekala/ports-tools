@@ -11,9 +11,9 @@ else
 fi
 
 wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
-if [ "${wrk_dirs}" ]; then
-	for wdir in ${wrk_dirs}; do
-		if [ ${depth} -ne 2 ]; then
+if [ "$wrk_dirs" ]; then
+	for wdir in $wrk_dirs; do
+		if [ $depth -ne 2 ]; then
 			echo "===> Running 'make clean' in ${wdir%%/work}"
 			make_args="-C ${wdir%%/work}"
 		else
@@ -21,9 +21,9 @@ if [ "${wrk_dirs}" ]; then
 			make_args=""
 		fi
 
-		ret=$(make ${make_args} clean 2>/dev/null)
-		if [ "$(echo ${ret} | grep 'not writable')" ]; then
-			if [ ${depth} -ne 2 ]; then
+		ret=$(make $make_args clean 2>/dev/null)
+		if [ "$(echo $ret | grep 'not writable')" ]; then
+			if [ $depth -ne 2 ]; then
 				echo "  Failed to 'make clean' in ${wdir%%/work}"
 			else
 				echo "  Failed to 'make clean'"
@@ -32,24 +32,24 @@ if [ "${wrk_dirs}" ]; then
 	done
 fi
 
-which ${PSVN} >/dev/null || exit
-if ${PSVN} info >/dev/null 2>&1; then
-	echo "===> Running '${PSVN} revert'..."
-	${PSVN} revert --depth infinity .
+which $PSVN >/dev/null || exit
+if $PSVN info >/dev/null 2>&1; then
+	echo "===> Running '$PSVN revert'..."
+	$PSVN revert --depth infinity .
 
 	echo "===> Removing leftover files..."
-	${PSVN} status --no-ignore | while read line; do
-		status=$(echo ${line} | awk '{ print $1 }')
-		file=$(echo ${line} | awk ' { print $2 }')
+	$PSVN status --no-ignore | while read line; do
+		status=$(echo $line | awk '{ print $1 }')
+		file=$(echo $line | awk ' { print $2 }')
 
-		[ ! "${status}" -o ! "${file}" ] && continue
+		[ ! "$status" -o ! "$file" ] && continue
 
-		if [ "${status}" = "?" -o "${status}" = "I" ]; then
-			[ "${file}" != "distfiles" ] || continue
-			echo "  ${file}"
-			rm -rf "${file}"
+		if [ "$status" = "?" -o "$status" = "I" ]; then
+			[ "$file" != "distfiles" ] || continue
+			echo "  $file"
+			rm -rf "$file"
 		else
-			echo "file=${file} status=${status}"
+			echo "file=$file status=$status"
 		fi
 	done
 fi

@@ -2,12 +2,12 @@
 
 readonly PAGER=${PAGER:-less}
 readonly PAGER_DIFF=${PAGER_DIFF:-$PAGER}
-readonly PATHFIX=$(make -V USES | grep pathfix >/dev/null; echo ${?})
+readonly PATHFIX=$(make -V USES | grep pathfix >/dev/null; echo $?)
 readonly PATHFILE=$(make -V PATHFIX_MAKEFILEIN)
 readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
 readonly cmd=${1:-check}
 
-if [ "${cmd}" != "check" -a "${cmd}" != "show" ]; then
+if [ "$cmd" != "check" -a "$cmd" != "show" ]; then
 	<< EOF >&2 cat
 Usage: ${0##*/} [check]
        ${0##*/} [show] [patterns]
@@ -20,7 +20,7 @@ EOF
 	exit 1
 fi
 
-if [ ! "${PKGNAME}" ]; then
+if [ ! "$PKGNAME" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
@@ -30,10 +30,10 @@ if [ ! -f "$(make -V CONFIGURE_COOKIE)" ]; then
 	exit 1
 fi
 
-if [ "${cmd}" = "show" ]; then
+if [ "$cmd" = "show" ]; then
 	shift
-	patterns="${@}"
-	viewer="${PAGER_DIFF}"
+	patterns=$@
+	viewer=$PAGER_DIFF
 fi
 
 find work -name "*.bak" -print | while read file; do
@@ -41,23 +41,23 @@ find work -name "*.bak" -print | while read file; do
 #	[ ${PATHFIX} -eq 0 -a \
 #		"$(basename ${file%.bak})" = "${PATHFILE}" ] && continue
 
-	case ${file} in *.libtool.bak) continue ;; esac
+	case $file in *.libtool.bak) continue ;; esac
 
-	case ${cmd} in
+	case $cmd in
 	check)
-		[ "$(diff "${file}" "${file%.bak}")" ] ||
+		[ "$(diff "$file" "${file%.bak}")" ] ||
 			echo "File ${file%.bak} not modified" ;;
 	show)
-		if [ "${patterns}" ]; then
+		if [ "$patterns" ]; then
 			matched=0
-			for p in ${patterns}; do
-				case ${file%.bak} in *${p}*)
+			for p in $patterns; do
+				case ${file%.bak} in *$p*)
 					matched=1
 					break
 				esac
 			done
-			[ ${matched} -eq 1 ] || continue
+			[ $matched -eq 1 ] || continue
 		fi
-		diff -u "${file}" "${file%.bak}"
+		diff -u "$file" "${file%.bak}"
 	esac
-done | ${viewer}
+done | $viewer

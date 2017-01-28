@@ -3,8 +3,8 @@
 readonly POUDRIERE_DIR=${POUDRIERE_DIR:-/usr/local/poudriere}
 readonly POUDRIERE_PORTS=${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}
 
-readonly command=${1}
-query=${2}
+readonly command=$1
+query=$2
 readonly build=${3:-none}
 
 interrupted=0 # build interrupted by ctrl+c
@@ -12,19 +12,19 @@ interrupted=0 # build interrupted by ctrl+c
 check_portname() {
 	local port
 
-	if [ "${1}" = "." ]; then
-		port=$(echo ${PWD} | awk '{
+	if [ "$1" = "." ]; then
+		port=$(echo $PWD | awk '{
 			n = split($0, p ,"/");
 			print p[n-1] "/" p[n];
 		}')
 	else
-		port="${1}"
+		port=$1
 	fi
-	if [ ! -d "${POUDRIERE_PORTS}/${port}" ]; then
-		printf "===> ${POUDRIERE_PORTS}/${port}: port directory does not exists\n\n" >&2
+	if [ ! -d "$POUDRIERE_PORTS/$port" ]; then
+		printf "===> $POUDRIERE_PORTS/$port: port directory does not exists\n\n" >&2
 		display_usage
 	fi
-	echo ${port}
+	echo $port
 }
 
 display_usage() {
@@ -51,13 +51,13 @@ EOF
 }
 
 is_build_dep() {
-	[ "$(make -V BUILD_DEPENDS -V LIB_DEPENDS ${2} \
-		| grep ${1})" ] && return 0 || return 1
+	[ "$(make -V BUILD_DEPENDS -V LIB_DEPENDS $2 \
+		| grep $1)" ] && return 0 || return 1
 }
 
 is_other_dep() {
 	[ "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
-		-V RUN_DEPENDS -V TEST_DEPENDS ${2} | grep ${1})" ] &&
+		-V RUN_DEPENDS -V TEST_DEPENDS $2 | grep $1)" ] &&
 		return 0 || return 1
 }
 
@@ -66,40 +66,40 @@ poudriere_jails() {
 }
 
 poudriere_test_build() {
-	local jname=${1} port=${2%%:*} option=${2#*:}
+	local jname=$1 port=${2%%:*} option=${2#*:}
 	local port_cfg outcome="success"
 
-	if [ "${port}" != "${option}" ]; then
+	if [ "$port" != "$option" ]; then
 		if [ "${option%:*}" != "OPT_UNKNOWN"  ]; then
-			echo "*** port ${port} needs ${option%:*} set to ${option#*:} ***"
+			echo "*** port $port needs ${option%:*} set to ${option#*:} ***"
 		else
-			echo "*** port ${port} unknown option needed ***"
+			echo "*** port $port unknown option needed ***"
 		fi
 		port_cfg="-c"
 	fi
 
-	${SUDO} poudriere testport -j ${jname} -o ${port} ${poudriere_args} ${port_cfg}
-	[ ${?} -eq 0 ] || outcome="failed"
-	[ ${interrupted} -eq 0 ] || outcome="interrupted"
-	BUILD_RESULTS="${BUILD_RESULTS} ${port}:${jname}:${outcome}"
+	$SUDO poudriere testport -j $jname -o $port $poudriere_args $port_cfg
+	[ $? -eq 0 ] || outcome="failed"
+	[ $interrupted -eq 0 ] || outcome="interrupted"
+	BUILD_RESULTS="$BUILD_RESULTS $port:$jname:$outcome"
 }
 
-[ "${query}" ] || display_usage
+[ "$query" ] || display_usage
 
-if [ "${build}" != "none" -a "${build}" != "all" \
-	-a -z "$(poudriere_jails | grep ${build})" ]
+if [ "$build" != "none" -a "$build" != "all" \
+	-a -z "$(poudriere_jails | grep $build)" ]
 then
-	printf "===> ${build}: no such poudriere jail\n\n" >&2
+	printf "===> $build: no such poudriere jail\n\n" >&2
 	display_usage
 fi
 
-if [ "${4}" ]; then
+if [ "$4" ]; then
 	shift 3;
-	poudriere_args="${*}";
+	poudriere_args="$*";
 fi
 
-if [ ! -d "${POUDRIERE_PORTS}" ]; then
-	echo "===> Poudriere ports directory not found: ${POUDRIERE_PORTS}" >&2
+if [ ! -d "$POUDRIERE_PORTS" ]; then
+	echo "===> Poudriere ports directory not found: $POUDRIERE_PORTS" >&2
 	echo "===> Try setting POUDRIERE_PORTS enviroment variable" >&2
 	exit 1
 fi
@@ -114,70 +114,70 @@ fi
 
 trap 'interrupted=1' int
 
-case ${command} in
+case $command in
 bdeps)
-	ports=$(pfind -b ${query}) ;;
+	ports=$(pfind -b $query) ;;
 file)
-	if [ ! -f "${query}" ]; then
-		echo "===> File ${query} does not exists" >&2
+	if [ ! -f "$query" ]; then
+		echo "===> File $query does not exists" >&2
 		exit 1
 	fi
-	ports=$(cat "${query}" | grep -v '^#') ;;
+	ports=$(cat "$query" | grep -v '^#') ;;
 grep)
-	ports=$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec \
-		grep -q "${query}" {} \; -print | grep -v "${query}/Makefile" |
+	ports=$(cd $POUDRIERE_PORTS && find . -name "Makefile*" -exec \
+		grep -q "$query" {} \; -print | grep -v "$query/Makefile" |
 		sed -E 's;(\./|/Makefile);;g') ;;
 ldeps)
-	query=$(check_portname ${query})
-	tmp=$(cd ${POUDRIERE_PORTS} && find . -name "Makefile*" -exec grep -q \
-		"^[^#].*${query}[ \\]*\$" {} \; -print | sed 's|\./||')
+	query=$(check_portname $query)
+	tmp=$(cd $POUDRIERE_PORTS && find . -name "Makefile*" -exec grep -q \
+		"^[^#].*$query[ \\]*\$" {} \; -print | sed 's|\./||')
 
-	for path in ${tmp}; do
-		path=$(dirname ${path})
-		[ "${query}" != "${path}" ] || continue
-		cd ${POUDRIERE_PORTS}/${path}
-		if is_build_dep ${query}; then
-			ports="${ports} ${path}"
+	for path in $tmp; do
+		path=$(dirname $path)
+		[ "$query" != "$path" ] || continue
+		cd $POUDRIERE_PORTS/$path
+		if is_build_dep $query; then
+			ports="$ports $path"
 			continue
 		fi
-		is_other_dep ${query} && continue
+		is_other_dep $query && continue
 
 		for option in $(make pretty-print-config); do
-			case ${option} in -*)
-				if is_build_dep ${query} OPTIONS_DEFAULT=${option#-}; then
-					ports="${ports} ${path}:${option#-}:on"
+			case $option in -*)
+				if is_build_dep $query OPTIONS_DEFAULT=${option#-}; then
+					ports="$ports $path:${option#-}:on"
 					continue 2
 				fi
-				is_other_dep ${query} OPTIONS_DEFAULT=${option#-} && continue 2
+				is_other_dep $query OPTIONS_DEFAULT=${option#-} && continue 2
 			esac
 		done
 		for option in $(make pretty-print-config); do
-			case ${option} in +*)
-				if is_build_dep ${query} OPTIONS_UNSET=${option#+}; then
-					ports="${ports} ${path}:${option#+}:off"
+			case $option in +*)
+				if is_build_dep $query OPTIONS_UNSET=${option#+}; then
+					ports="$ports $path:${option#+}:off"
 					continue 2
 				fi
 			esac
 		done
-		ports="${ports} ${path}:OPT_UNKNOWN:none"
+		ports="$ports $path:OPT_UNKNOWN:none"
 	done
 	;;
 match)
-	ports=$(pfind -n ${query}) ;;
+	ports=$(pfind -n $query) ;;
 name)
-	ports=$(check_portname ${query}) ;;
+	ports=$(check_portname $query) ;;
 slaves)
-	master=$(check_portname ${query})
-	ports=$(pfind -s ${master}) ;;
+	master=$(check_portname $query)
+	ports=$(pfind -s $master) ;;
 *)
 	display_usage
 esac
 
-for port in ${ports}; do
-	case ${build} in
+for port in $ports; do
+	case $build in
 	none)
 		option=${port#*:}
-		if [ "${command}" != "name" ]; then
+		if [ "$command" != "name" ]; then
 			case ${option%:*} in
 			"${port%%:*}")
 				echo "Found match: ${port%%:*}" ;;
@@ -190,20 +190,20 @@ for port in ${ports}; do
 		;;
 	all)
 		for b in $(poudriere_jails | sort -h); do
-			poudriere_test_build ${b} ${port}
-			[ ${interrupted} -eq 0 ] || break 2
+			poudriere_test_build $b $port
+			[ $interrupted -eq 0 ] || break 2
 		done ;;
 	*)
-		poudriere_test_build ${build} ${port}
-		[ ${interrupted} -eq 0 ] || break
+		poudriere_test_build $build $port
+		[ $interrupted -eq 0 ] || break
 	esac
 done
 
-if [ "${BUILD_RESULTS}" ]; then
+if [ "$BUILD_RESULTS" ]; then
 	printf "\n===> Following build(s) were performed:\n"
 	printf "%-40s %-15s %s\n" "PORTNAME" "JAIL" "RESULT"
 
-	for result in ${BUILD_RESULTS}; do
+	for result in $BUILD_RESULTS; do
 		params=${result#*:}
 		printf "%-40s %-15s %s\n" "${result%%:*}" \
 			${params%:*} ${params#*:}

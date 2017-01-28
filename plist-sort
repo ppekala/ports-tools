@@ -3,29 +3,29 @@
 readonly LANG=C
 readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
 readonly PREFIX=$(make -V PREFIX 2>/dev/null)
-plist_file=${1}
+plist_file=$1
 
-if [ ! "${PKGNAME}" -o ! "${PREFIX}" ]; then
+if [ ! "$PKGNAME" -o ! "$PREFIX" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
-[ "${plist_file}" ] || plist_file=$(make -V PLIST)
-if [ ! -f "${plist_file}" ]; then
-	echo "===> Plist file was not found: ${plist_file}" >&2
+[ "$plist_file" ] || plist_file=$(make -V PLIST)
+if [ ! -f "$plist_file" ]; then
+	echo "===> Plist file was not found: $plist_file" >&2
 	exit 1
 fi
 
 options_subs="PORTDOCS PORTEXAMPLES"
 for sub in $(make -V PLIST_SUB); do
-	case ${sub} in *@comment*)
-		case ${sub} in NO_*) sub=${sub##NO_}; esac
-		options_subs="${options_subs} ${sub%%=*}"
+	case $sub in *@comment*)
+		case $sub in NO_*) sub=${sub##NO_}; esac
+		options_subs="$options_subs ${sub%%=*}"
 	esac
 done
 
-awk -v prefix="${PREFIX}/" -v plist_subs="$(make -V PLIST_SUB)" \
-	-v options_subs="${options_subs}" '
+awk -v prefix="$PREFIX/" -v plist_subs="$(make -V PLIST_SUB)" \
+	-v options_subs="$options_subs" '
 BEGIN {
 	separator="###";
 
@@ -227,4 +227,4 @@ END {
 
 	for (i in cmds)
 		print cmds[i];
-}' ${plist_file}
+}' $plist_file

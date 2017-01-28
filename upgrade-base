@@ -4,7 +4,7 @@ readonly MAKE=${MAKE:-make}
 readonly PSVN=${PSVN:-svn}
 readonly SRCDIR=${SRCDIR:-/usr/src}
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
-readonly CONF_FILE="${XDG_CONFIG_HOME}/upgrade-base"
+readonly CONF_FILE="$XDG_CONFIG_HOME/upgrade-base"
 
 readonly tcols=$(stty size | cut -d" " -f2)
 readonly tlines=$(stty size | cut -d" " -f1)
@@ -17,12 +17,12 @@ ask_yesno() {
 	local answer
 
 	while true; do
-		echo -n "${1} (y/n)? [y] "
+		echo -n "$1 (y/n)? [y] "
 
 		read answer
-		[ "${answer}" ] || answer="y"
+		[ "$answer" ] || answer="y"
 
-		case ${answer} in
+		case $answer in
 		[Nn])
 			return 1 ;;
 		[Yy])
@@ -34,26 +34,26 @@ ask_yesno() {
 delete_old_files() {
 	local file items tmpfile=$(mktemp -t ${0##*/}) to_remove tstr type
 
-	[ "${tmpfile}" ] || return
+	[ "$tmpfile" ] || return
 
 	for type in libs files dirs; do
-		${MAKE} check-old-${type} | grep '^/' > ${tmpfile}
+		$MAKE check-old-$type | grep '^/' > $tmpfile
 		tstr=$(echo $type | cut -b1)
-		for file in $(cat ${tmpfile}); do
-			items="${items} \"${file}\" ${tstr} on"
+		for file in $(cat $tmpfile); do
+			items="$items \"$file\" $tstr on"
 		done
 	done
-	if [ "${items}" ]; then
+	if [ "$items" ]; then
 		echo "--stdout --checklist \"Choose old files to delete\" \
-			$((tlines-3)) ${dwidth} $((tlines-5)) \
-			${items}" > ${tmpfile}
-		to_remove=$(dialog --file ${tmpfile})
+			$((tlines-3)) $dwidth $((tlines-5)) \
+			$items" > $tmpfile
+		to_remove=$(dialog --file $tmpfile)
 		dialog --clear
-		for file in ${to_remove}; do
-			rm -rf ${file}
+		for file in $to_remove; do
+			rm -rf $file
 		done
 	fi
-	rm ${tmpfile}
+	rm $tmpfile
 }
 
 display_usage() {
@@ -70,44 +70,44 @@ EOF
 # $1 make target
 # $2 state status afterwards
 exec_cmd() {
-	if ! ${1}; then
-		echo "===> '${1}' failed" >&2
+	if ! $1; then
+		echo "===> '$1' failed" >&2
 		exit 1
 	fi
-	save_state "${2}"
+	save_state "$2"
 }
 
 last_updating_entry() {
-	if [ -f "${SRCDIR}/UPDATING" ]; then
-		egrep -m 1 '^[0-9]{8}\:' ${SRCDIR}/UPDATING | sed 's|:||'
+	if [ -f "$SRCDIR/UPDATING" ]; then
+		egrep -m 1 '^[0-9]{8}\:' $SRCDIR/UPDATING | sed 's|:||'
 	else
 		echo "0"
 	fi
 }
 
 main_loop() {
-	local l_entry n_entry state=$(cat ${CONF_FILE} 2>/dev/null)
+	local l_entry n_entry state=$(cat $CONF_FILE 2>/dev/null)
 
-	case ${state} in
+	case $state in
 	"")
-		if [ ${skip_tree_update} -eq 0 ]; then
+		if [ $skip_tree_update -eq 0 ]; then
 			l_entry=$(last_updating_entry)
-			if ! ${PSVN} update; then
+			if ! $PSVN update; then
 				echo "===> Updating of source tree failed" >&2
 				exit 1
 			fi
 
 			n_entry=$(last_updating_entry)
-			if [ ${n_entry} -gt ${l_entry} ]; then
-				printf "===> New entries since last upgrade in ${SRCDIR}/UPDATING file:\n\n"
-				awk -F ':' -v entry="${l_entry}" '
+			if [ $n_entry -gt $l_entry ]; then
+				printf "===> New entries since last upgrade in $SRCDIR/UPDATING file:\n\n"
+				awk -F ':' -v entry="$l_entry" '
 				/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
 					if (entry == $1)
 						exit;
 					else
 						new_entry=1;
 				}
-				new_entry { print $0 }' ${SRCDIR}/UPDATING
+				new_entry { print $0 }' $SRCDIR/UPDATING
 
 				if ! ask_yesno "Continue with upgrade"; then
 					save_state "REPO_UPDATED"
@@ -118,17 +118,17 @@ main_loop() {
 
 		save_state "REPO_UPDATED" ;;
 	"REPO_UPDATED")
-		exec_cmd "${MAKE} buildworld ${make_args}" "WORLD_BUILT" ;;
+		exec_cmd "$MAKE buildworld $make_args" "WORLD_BUILT" ;;
 	"WORLD_BUILT")
-		exec_cmd "${MAKE} buildkernel ${make_args}" "KERNEL_BUILT" ;;
+		exec_cmd "$MAKE buildkernel $make_args" "KERNEL_BUILT" ;;
 	"KERNEL_BUILT")
-		exec_cmd "${MAKE} installkernel ${make_args}" "KERNEL_INSTALLED"
+		exec_cmd "$MAKE installkernel $make_args" "KERNEL_INSTALLED"
 		printf "\n===> You need to restart computer now.\n\n"
 		exit 0 ;;
 	"KERNEL_INSTALLED")
 		exec_cmd "mergemaster -p" "MERGEMASTER_INIT"  ;;
 	"MERGEMASTER_INIT")
-		exec_cmd "${MAKE} installworld ${make_args}" "WORLD_INSTALLED" ;;
+		exec_cmd "$MAKE installworld $make_args" "WORLD_INSTALLED" ;;
 	"WORLD_INSTALLED")
 		exec_cmd "mergemaster -Fui" "MERGEMASTER_DONE" ;;
 	"MERGEMASTER_DONE")
@@ -140,7 +140,7 @@ main_loop() {
 		printf "\n===> You need to restart computer again.\n\n"
 		exit 0 ;;
 	*)
-		echo "===> Garbage in ${CONF_FILE}, try upgrade-base -s" >&2
+		echo "===> Garbage in $CONF_FILE, try upgrade-base -s" >&2
 		exit 1
 	esac
 	main_loop
@@ -148,14 +148,14 @@ main_loop() {
 
 # $1 state
 save_state() {
-	[ -d "${XDG_CONFIG_HOME}" ] || mkdir "${XDG_CONFIG_HOME}"
-	echo "${1}" > ${CONF_FILE}
+	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
+	echo "$1" > $CONF_FILE
 }
 
 while getopts "hsu" option; do
-	case ${option} in
+	case $option in
 	s)
-		echo > "${CONF_FILE}" ;;
+		echo > "$CONF_FILE" ;;
 	u)
 		skip_tree_update=1 ;;
 	*)
@@ -169,18 +169,18 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 jobs=$(sysctl -n hw.ncpu)
-[ "${jobs}" ] && make_args="${make_args} -j${jobs}"
+[ "$jobs" ] && make_args="$make_args -j$jobs"
 
 ports_modules=$(pkg which -qo /boot/modules/* | sort -u | tr '\n' ' ')
-if [ "${ports_modules}" ]; then
+if [ "$ports_modules" ]; then
 	readonly PORTSDIR=${PORTSDIR:-/usr/ports}
-	if [ ! -d "${PORTSDIR}" ]; then
-		echo "===> Ports directory not found: ${PORTSDIR}" >&2
+	if [ ! -d "$PORTSDIR" ]; then
+		echo "===> Ports directory not found: $PORTSDIR" >&2
 		echo "===> Try setting PORTSDIR enviroment variable" >&2
 		exit 1
 	fi
-	make_args="${make_args} PORTSDIR=${PORTSDIR}"
-	export PORTS_MODULES="${ports_modules}"
+	make_args="$make_args PORTSDIR=$PORTSDIR"
+	export PORTS_MODULES="$ports_modules"
 fi
-cd ${SRCDIR}
+cd $SRCDIR
 main_loop

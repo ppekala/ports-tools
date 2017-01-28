@@ -16,12 +16,12 @@ EOF
 	exit 1
 }
 
-awk_args="-v plist_file=${PLIST}"
+awk_args="-v plist_file=$PLIST"
 
 while getopts "hs:" option; do
-	case ${option} in
+	case $option in
 	s)
-		awk_args="${awk_args} -v subname=${OPTARG}" ;;
+		awk_args="$awk_args -v subname=$OPTARG" ;;
 	*)
 		display_usage
 	esac
@@ -32,32 +32,32 @@ if ! which plist-sort >/dev/null; then
 	exit 1
 fi
 
-if [ ! "${PKGNAME}" ]; then
+if [ ! "$PKGNAME" ]; then
 	echo "===> This is not port directory" >&2
 	exit 1
 fi
 
 tempfile=$(mktemp -t ${0##*/})
-if [ ! "${tempfile}" ]; then
+if [ ! "$tempfile" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi
-if [ -f ${PLIST} ]; then
+if [ -f $PLIST ]; then
 	wrkdir=$(make -V WRKDIR)
-	plist_out="${wrkdir}/.pkg-plist.new"
+	plist_out="$wrkdir/.pkg-plist.new"
 else
-	plist_out="${PLIST}"
+	plist_out="$PLIST"
 fi
 
 options_subs="PORTDOCS PORTEXAMPLES"
 for sub in $(make -V PLIST_SUB); do
-	case ${sub} in *@comment*)
-		case ${sub} in NO_*) sub=${sub##NO_}; esac
-		options_subs="${options_subs} ${sub%%=*}"
+	case $sub in *@comment*)
+		case $sub in NO_*) sub=${sub##NO_}; esac
+		options_subs="$options_subs ${sub%%=*}"
 	esac
 done
 
-make check-plist 2>&1 | awk ${awk_args} -v options_subs="${options_subs}" \
+make check-plist 2>&1 | awk $awk_args -v options_subs="$options_subs" \
 	-v plist_subs="$(make -V PLIST_SUB)" '
 BEGIN {
 	# blacklisted plist subs that should
@@ -164,21 +164,21 @@ function remove_blacklisted_subs(path) {
 END {
 	for (file in plist)
 		print plist[file];
-}' > ${tempfile}
+}' > $tempfile
 
-plist-sort ${tempfile} > ${plist_out}
-rm ${tempfile}
-[ "${plist_out}" = "pkg-plist" ] && exit
+plist-sort $tempfile > $plist_out
+rm $tempfile
+[ "$plist_out" = "pkg-plist" ] && exit
 
-if ! cmp -s ${PLIST} ${plist_out}; then
-	diff -u ${PLIST} ${plist_out} | ${PAGER_DIFF}
+if ! cmp -s $PLIST $plist_out; then
+	diff -u $PLIST $plist_out | $PAGER_DIFF
 
 	while true; do
 		echo -n "Use newly generated plist (y/n)? "
 		read cmd
-		case ${cmd} in
+		case $cmd in
 		[Yy])
-			mv ${plist_out} ${PLIST}
+			mv $plist_out $PLIST
 			exit ;;
 		[Nn])
 			break

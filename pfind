@@ -19,87 +19,87 @@ EOF
 }
 
 grep_files() {
-	find . -name ${1} -depth ${2} -exec grep -l "${3}" {} \; \
+	find . -name $1 -depth $2 -exec grep -l "$3" {} \; \
 		2>/dev/null | sed 's|^.\/||'
 }
 
 while getopts "b:c:g:hm:n:s:" option; do
-	case ${option} in
+	case $option in
 	b)
-		bdeps="${OPTARG}" ;;
+		bdeps="$OPTARG" ;;
 	c)
-		category="${OPTARG}" ;;
+		category="$OPTARG" ;;
 	g)
-		string="${OPTARG}" ;;
+		string="$OPTARG" ;;
 	m)
-		maintainer="${OPTARG}" ;;
+		maintainer="$OPTARG" ;;
 	n)
-		name="${OPTARG}" ;;
+		name="$OPTARG" ;;
 	s)
-		master="${OPTARG}" ;;
+		master="$OPTARG" ;;
 	*)
 		display_usage
 	esac
 done
 
-[ ! "${bdeps}" -a ! "${category}" -a ! "${maintainer}" -a ! "${name}" \
-	-a ! "${string}" -a ! "${master}" ] && display_usage
+[ ! "$bdeps" -a ! "$category" -a ! "$maintainer" -a ! "$name" \
+	-a ! "$string" -a ! "$master" ] && display_usage
 
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
-if [ ! -d "${PORTSDIR}" ]; then
-	echo "===> Ports directory not found: ${PORTSDIR}" >&2
+if [ ! -d "$PORTSDIR" ]; then
+	echo "===> Ports directory not found: $PORTSDIR" >&2
 	echo "===> Try setting PORTSDIR enviroment variable" >&2
 	exit 1
 fi
 
-if [ "${category}" -a ! -d ${PORTSDIR}/${category} ]; then
-	echo "===> No such category: ${category}" >&2
+if [ "$category" -a ! -d $PORTSDIR/$category ]; then
+	echo "===> No such category: $category" >&2
 	exit 1
 fi
 
-if [ "${master}" -a ! -d ${PORTSDIR}/${master} ]; then
-	echo "===> No such port: ${PORTSDIR}/${master}" >&2
+if [ "$master" -a ! -d $PORTSDIR/$master ]; then
+	echo "===> No such port: $PORTSDIR/$master" >&2
 	exit 1
 fi
 
-[ ! "${bdeps}" ] || search_args="bdeps=${bdeps}"
-[ ! "${category}" ] || search_args="${search_args} path=${PORTSDIR}/${category}/"
-[ ! "${maintainer}" ] || search_args="${search_args} maint=${maintainer}"
-[ ! "${name}" ] || search_args="${search_args} name=${name}"
-[ "${master}" -a "${search_args}" ] && display_usage
+[ ! "$bdeps" ] || search_args="bdeps=$bdeps"
+[ ! "$category" ] || search_args="$search_args path=$PORTSDIR/$category/"
+[ ! "$maintainer" ] || search_args="$search_args maint=$maintainer"
+[ ! "$name" ] || search_args="$search_args name=$name"
+[ "$master" -a "$search_args" ] && display_usage
 
-cd ${PORTSDIR}
+cd $PORTSDIR
 if [ ! -f "$(make -VINDEXFILE)" ]; then
 	echo "===> Fetching missing index file"
 	make fetchindex || exit 1
 fi
 
-if [ ! "${search_args}" -a ! "${master}" ]; then
-	grep_files Makefile 3 "${string}" | sed 's|\/Makefile$||' | sort
+if [ ! "$search_args" -a ! "$master" ]; then
+	grep_files Makefile 3 "$string" | sed 's|\/Makefile$||' | sort
 	exit
 fi
 
-if [ "${master}" ]; then
-	portdir=$(realpath ${PORTSDIR}/${master})
+if [ "$master" ]; then
+	portdir=$(realpath $PORTSDIR/$master)
 	# search for slaves only in the same category for performance reasons
 	cd ${portdir%/*}
 	candidates=$(for match in $(grep_files "Makefile*" 2 ${portdir##*/}); do
 		[ -d "${match%%/*}" ] || continue
 		[ "${portdir##*/}" = "${match%%/*}" ] || echo ${match%%/*}
 	done | sort -u)
-	portdirs=$(for candidate in ${candidates}; do
+	portdirs=$(for candidate in $candidates; do
 		masterdir=$(realpath `make -C ${candidate%%/*} -V MASTERDIR`)
-		[ "${portdir}" = "${masterdir}" ] && \
-			echo ${PORTSDIR}/${master%/*}/${candidate}
+		[ "$portdir" = "$masterdir" ] && \
+			echo $PORTSDIR/${master%/*}/$candidate
 	done)
 else
-	portdirs=$(make quicksearch ${search_args} | awk '/^Path:/ { print $2 }')
+	portdirs=$(make quicksearch $search_args | awk '/^Path:/ { print $2 }')
 fi
 
-for portdir in ${portdirs}; do
-	if [ "${string}" ]; then
-		[ -e ${portdir}/Makefile ] || continue
-		[ "$(grep "${string}" ${portdir}/Makefile)" ] || continue
+for portdir in $portdirs; do
+	if [ "$string" ]; then
+		[ -e $portdir/Makefile ] || continue
+		[ "$(grep "$string" $portdir/Makefile)" ] || continue
 	fi
-	echo ${portdir} | sed "s|${PORTSDIR}/||"
+	echo $portdir | sed "s|$PORTSDIR/||"
 done
