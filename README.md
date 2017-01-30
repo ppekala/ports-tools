@@ -21,7 +21,8 @@ Check for various errors that portlint don't catch:
 pclean
 ------
 
-Keeps your ports svn repo tidy.
+Keeps your ports svn repo tidy, removes work directories, leftover files
+and reverts any changes made.
 
 pcommit
 -------
@@ -31,7 +32,8 @@ Wrapper for svn commit, removes and adds files, sets props, etc.
 pfind
 -----
 
-Simple port's search wrapper
+Simple port's search wrapper. Search parameters include build dependency,
+category, name, maintainer, regexp pattern and slave ports.
 
 pkg-deleaf
 ----------
@@ -48,7 +50,8 @@ plist-update
 ---------------
 
 Script utilizing check-plist port's framework target output for updating
-outdated pkg-plist.
+outdated pkg-plist, understands PLIST_SUB substitutions and sorts
+final files list.
 
 plog
 --------

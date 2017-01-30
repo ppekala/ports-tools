@@ -155,7 +155,7 @@ display_usage() {
 Usage: ${0##*/} [-h|-u|-w|-y]
 
     -h - show this help
-    -u - don't update ports tree
+    -u - skip ports tree update
     -w - wait for key press after finish
     -y - answer yes to all questions
 
