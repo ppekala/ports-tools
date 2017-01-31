@@ -264,8 +264,8 @@ ports_upgrade_sort() {
 		i = s-1; j = e+1;
 
 		while(1) {
-			do i++; while (ports_cmp(a[i], a[s]) < 0)
-			do j--; while (ports_cmp(a[j], a[s]) > 0)
+			do i++; while (i < n_ports+1 && ports_cmp(a[i], a[s]) < 0)
+			do j--; while (j > -1 && ports_cmp(a[j], a[s]) > 0)
 
 			if (i >= j)
 				return j;
