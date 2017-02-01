@@ -117,6 +117,7 @@ fi
 while true; do
 	pkg_leafs=$(pkg-static query -e '%#r = 0' %n-%v@%sb)
 	count=0
+	items=""
 
 	for pkg in $pkg_leafs; do
 		case $pkg_seen in *${pkg%@*}*) continue;; esac
