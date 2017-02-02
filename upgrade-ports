@@ -31,7 +31,7 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
-	for dep in $(make -C $PORTSDIR/$1 -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
+	for dep in $(make -C "$PORTSDIR/$1" -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
 	do
@@ -174,7 +174,7 @@ fetch_distfiles() {
 	$SUDO sh -c "
 		lockf -k $tmpfile sh -c \" echo PID:\$\$ >> $tmpfile\"
 		for port in $fetch_queue; do
-			make -C $PORTSDIR/\$port checksum
+			make -C \"$PORTSDIR/\$port\" checksum
 			lockf -k $tmpfile sh -c \"echo \$port:\$? >> $tmpfile\"
 		done
 		lockf -k $tmpfile sh -c \" echo PID:0 >> $tmpfile\"
@@ -183,7 +183,7 @@ fetch_distfiles() {
 }
 
 get_entry_dates() {
-	egrep "^[0-9]{8}:" $PORTSDIR/UPDATING | sed 's/://'
+	egrep "^[0-9]{8}:" "$PORTSDIR/UPDATING" | sed 's/://'
 }
 
 list_add() {
@@ -331,7 +331,7 @@ rebuild_ports() {
 			continue;
 		fi
 		[ $build_started -eq 1 ] || build_started=1
-		cd $PORTSDIR/$port
+		cd "$PORTSDIR/$port"
 		[ -d work ] && $SUDO make clean
 		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
 		$SUDO make $make_args $make_cmd clean
@@ -403,7 +403,7 @@ to_obs_str() {
 	for port in $*; do
 		reason=$(awk -F '|' -v line="$moved_lines" -v port="$port" '
 			NR > line && $1 == port { print $4 }' \
-			$PORTSDIR/MOVED | sed 's| |@|g')
+			"$PORTSDIR/MOVED" | sed 's| |@|g')
 		list_add str "$(to_pkg_str $port)@($reason)"
 	done
 	[ "$str" ] && echo $str
@@ -475,7 +475,7 @@ updating_commands() {
 			print cmd line;
 			cmd="";
 		}
-	}' $PORTSDIR/UPDATING
+	}' "$PORTSDIR/UPDATING"
 }
 
 updating_entry() {
@@ -486,7 +486,7 @@ updating_entry() {
 		else if (in_entry)
 			exit;
 	}
-	in_entry { print $0 }' $PORTSDIR/UPDATING
+	in_entry { print $0 }' "$PORTSDIR/UPDATING"
 }
 
 # $1 - exit status
@@ -495,7 +495,7 @@ updating_entry() {
 upgrade_exit() {
 	local keywait=$3
 
-	[ "$2" ] && echo $2 > $CONFIG
+	[ "$2" ] && echo $2 > "$CONFIG"
 	[ "$keywait" ] || keywait=$wait_for_key
 	[ "$tmpfile" -a -f "$tmpfile" ] && rm -rf "$tmpfile"
 
@@ -573,7 +573,7 @@ else
 	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 fi
 [ "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
-moved_lines=$(wc -l $PORTSDIR/MOVED | awk '{ print $1 }')
+moved_lines=$(wc -l "$PORTSDIR/MOVED" | awk '{ print $1 }')
 
 if [ $skip_update -eq 0 ]; then
 	if ! $SUDO portsnap fetch update; then
@@ -583,7 +583,7 @@ if [ $skip_update -eq 0 ]; then
 fi
 
 for port in $(awk -F '|' -v line="$moved_lines" '
-		NR > line && !$2 { print $1 }' $PORTSDIR/MOVED)
+		NR > line && !$2 { print $1 }' "$PORTSDIR/MOVED")
 do
 	pkg_exists $port && list_add obsolete $port
 done
@@ -593,7 +593,7 @@ for port in $obsolete; do
 		$SUDO pkg-static delete --yes --force $port
 done
 for ports in $(awk -F '|' -v line="$moved_lines" '
-		NR > line && $2 { print $1 ":" $2 }' $PORTSDIR/MOVED)
+		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
 do
 	pkg_exists ${ports%%:*} &&
 		$SUDO pkg-static set --change-origin $ports --yes &&
@@ -645,9 +645,9 @@ for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
 	[ "$(pkg-static info -kq $port)" = "yes" ] && continue
 	list_add need_upgrade $port
 	setvar $(to_env_str $port)_version \
-		$(make -C $PORTSDIR/$port -VPKGVERSION)
+		$(make -C "$PORTSDIR/$port" -VPKGVERSION)
 	list_remove need_reinstall $port
-	[ "$(make -C $PORTSDIR/$port -VPKGBASE)" != "$(pkg-static query %n $port)" ] &&
+	[ "$(make -C "$PORTSDIR/$port" -VPKGBASE)" != "$(pkg-static query %n $port)" ] &&
 		list_add conflicts_self $port
 done
 if [ ! "$need_upgrade" ]; then
@@ -660,7 +660,7 @@ for port in $need_reinstall $need_upgrade; do
 done
 
 for port in $need_upgrade $need_install; do
-	for cnfl in $(make -C $PORTSDIR/$port -VCONFLICTS \
+	for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
 		-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
 	do
 		for origin in $(pkg-static query -g %o "$cnfl"); do

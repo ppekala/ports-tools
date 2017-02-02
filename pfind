@@ -52,23 +52,23 @@ if [ ! -d "$PORTSDIR" ]; then
 	exit 1
 fi
 
-if [ "$category" -a ! -d $PORTSDIR/$category ]; then
+if [ "$category" -a ! -d "$PORTSDIR/$category" ]; then
 	echo "===> No such category: $category" >&2
 	exit 1
 fi
 
-if [ "$master" -a ! -d $PORTSDIR/$master ]; then
+if [ "$master" -a ! -d "$PORTSDIR/$master" ]; then
 	echo "===> No such port: $PORTSDIR/$master" >&2
 	exit 1
 fi
 
 [ ! "$bdeps" ] || search_args="bdeps=$bdeps"
-[ ! "$category" ] || search_args="$search_args path=$PORTSDIR/$category/"
+[ ! "$category" ] || search_args="$search_args path=$category/"
 [ ! "$maintainer" ] || search_args="$search_args maint=$maintainer"
 [ ! "$name" ] || search_args="$search_args name=$name"
 [ "$master" -a "$search_args" ] && display_usage
 
-cd $PORTSDIR
+cd "$PORTSDIR"
 if [ ! -f "$(make -VINDEXFILE)" ]; then
 	echo "===> Fetching missing index file"
 	make fetchindex || exit 1
@@ -80,7 +80,7 @@ if [ ! "$search_args" -a ! "$master" ]; then
 fi
 
 if [ "$master" ]; then
-	portdir=$(realpath $PORTSDIR/$master)
+	portdir=$(realpath "$PORTSDIR/$master")
 	# search for slaves only in the same category for performance reasons
 	cd ${portdir%/*}
 	candidates=$(for match in $(grep_files "Makefile*" 2 ${portdir##*/}); do

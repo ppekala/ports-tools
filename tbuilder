@@ -124,18 +124,18 @@ file)
 	fi
 	ports=$(grep -v '^#' "$query") ;;
 grep)
-	ports=$(cd $POUDRIERE_PORTS && find . -name "Makefile*" -exec \
+	ports=$(cd "$POUDRIERE_PORTS" && find . -name "Makefile*" -exec \
 		grep -q "$query" {} \; -print | grep -v "$query/Makefile" |
 		sed -E 's;(\./|/Makefile);;g') ;;
 ldeps)
 	query=$(check_portname $query)
-	tmp=$(cd $POUDRIERE_PORTS && find . -name "Makefile*" -exec grep -q \
+	tmp=$(cd "$POUDRIERE_PORTS" && find . -name "Makefile*" -exec grep -q \
 		"^[^#].*$query[ \\]*\$" {} \; -print | sed 's|\./||')
 
 	for path in $tmp; do
 		path=$(dirname $path)
 		[ "$query" != "$path" ] || continue
-		cd $POUDRIERE_PORTS/$path
+		cd "$POUDRIERE_PORTS/$path"
 		if is_build_dep $query; then
 			ports="$ports $path"
 			continue

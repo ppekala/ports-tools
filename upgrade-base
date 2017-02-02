@@ -79,14 +79,14 @@ exec_cmd() {
 
 last_updating_entry() {
 	if [ -f "$SRCDIR/UPDATING" ]; then
-		egrep -m 1 '^[0-9]{8}\:' $SRCDIR/UPDATING | sed 's|:||'
+		egrep -m 1 '^[0-9]{8}\:' "$SRCDIR/UPDATING" | sed 's|:||'
 	else
 		echo "0"
 	fi
 }
 
 main_loop() {
-	local l_entry n_entry state=$(cat $CONF_FILE 2>/dev/null)
+	local l_entry n_entry state=$(cat "$CONF_FILE" 2>/dev/null)
 
 	case $state in
 	"")
@@ -107,7 +107,7 @@ main_loop() {
 					else
 						new_entry=1;
 				}
-				new_entry { print $0 }' $SRCDIR/UPDATING
+				new_entry { print $0 }' "$SRCDIR/UPDATING"
 
 				if ! ask_yesno "Continue with upgrade"; then
 					save_state "REPO_UPDATED"
@@ -149,7 +149,7 @@ main_loop() {
 # $1 state
 save_state() {
 	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
-	echo "$1" > $CONF_FILE
+	echo "$1" > "$CONF_FILE"
 }
 
 while getopts "hsu" option; do
@@ -173,14 +173,13 @@ jobs=$(sysctl -n hw.ncpu)
 
 ports_modules=$(pkg which -qo /boot/modules/* | sort -u | tr '\n' ' ')
 if [ "$ports_modules" ]; then
-	readonly PORTSDIR=${PORTSDIR:-/usr/ports}
+	export PORTSDIR=${PORTSDIR:-/usr/ports}
 	if [ ! -d "$PORTSDIR" ]; then
 		echo "===> Ports directory not found: $PORTSDIR" >&2
 		echo "===> Try setting PORTSDIR enviroment variable" >&2
 		exit 1
 	fi
-	make_args="$make_args PORTSDIR=$PORTSDIR"
 	export PORTS_MODULES="$ports_modules"
 fi
-cd $SRCDIR
+cd "$SRCDIR"
 main_loop
