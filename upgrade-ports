@@ -573,7 +573,7 @@ else
 	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 fi
 [ "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
-moved_lines=$(cat $PORTSDIR/MOVED | wc -l)
+moved_lines=$(wc -l $PORTSDIR/MOVED | awk '{ print $1 }')
 
 if [ $skip_update -eq 0 ]; then
 	if ! $SUDO portsnap fetch update; then
