@@ -50,7 +50,7 @@ delete_old_files() {
 		to_remove=$(dialog --file $tmpfile)
 		dialog --clear
 		for file in $to_remove; do
-			rm -rf $file
+			$SUDO rm -rf $file
 		done
 	fi
 	rm $tmpfile
@@ -70,7 +70,7 @@ EOF
 # $1 make target
 # $2 state status afterwards
 exec_cmd() {
-	if ! $1; then
+	if ! $SUDO $1; then
 		echo "===> '$1' failed" >&2
 		exit 1
 	fi
@@ -92,7 +92,7 @@ main_loop() {
 	"")
 		if [ $skip_tree_update -eq 0 ]; then
 			l_entry=$(last_updating_entry)
-			if ! $PSVN update; then
+			if ! $SUDO $PSVN update; then
 				echo "===> Updating of source tree failed" >&2
 				exit 1
 			fi
@@ -164,8 +164,11 @@ while getopts "hsu" option; do
 done
 
 if [ $(id -u) -ne 0 ]; then
-	echo "===> You need root privileges to upgrade base system" >&2
-	exit 1
+	if ! which sudo >/dev/null; then
+		echo "===> sudo not found" >&2
+		exit 1
+	fi
+	SUDO="sudo"
 fi
 
 jobs=$(sysctl -n hw.ncpu)
