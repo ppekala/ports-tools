@@ -397,6 +397,17 @@ to_inst_str() {
 	[ "$str" ] && echo $str
 }
 
+to_mlibs_str() {
+	local mlibs pkg port str
+
+	for port in $*; do
+		mlibs=$(eval echo \$$(to_env_str $port)_mlibs | sed 's| |@|g')
+		pkg=$(to_pkg_str $port)
+		list_add str "$pkg@(misses@libraries:@$mlibs)"
+	done
+	[ "$str" ] && echo $str
+}
+
 to_obs_str() {
 	local port reason str
 
@@ -694,6 +705,11 @@ for pkg in $build_failed $build_skipped $(pkg-static lock -lq); do
 	list_add pkg_ignore $(pkg-static query %n $pkg)
 done
 eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
+function pkg_origin(pkg) {
+	"pkg-static rquery %o " pkg | getline port
+	close("pkg-static rquery %o " pkg);
+	return port;
+}
 BEGIN {
 	if ((n = split(pkg_ignore, array, " ")))
 		for (i=1; i<=n; i++)
@@ -703,28 +719,42 @@ BEGIN {
 	if ($6 in ignore)
 		next;
 	miss_deps[$1] = $1;
-	if ($6 in install)
+	if ($6 in install) {
+		install[$6] = install[$6] " " $1;
 		next;
-	"pkg-static rquery %o " $6 | getline missing;
-	close("pkg-static rquery %o " $6);
-	install[$6] = missing;
+	}
+	install[$6] = $1;
+	missing = pkg_origin($6);
 	inst = inst ? inst " " missing : missing;
 }
 /is missing a required shared library:/ {
-	if ($1 in rebuild || $1 in ignore || $1 in miss_deps)
+	if ($1 in ignore || $1 in miss_deps)
 		next;
-	"pkg-static query %o " $1 | getline origin;
-	close("pkg-static query %o " $1);
-	rebuild[$1] = origin;
+	if ($1 in rebuild) {
+		rebuild[$1] = rebuild[$1] " " $8;
+		next;
+	}
+	rebuild[$1] = $8;
+	origin = pkg_origin($1);
 	rinst = rinst ? rinst " " origin : origin;
 }
 END {
-	print "check_install=\"" inst "\" check_rebuild=\"" rinst "\""
+	print "check_install=\"" inst "\" check_rebuild=\"" rinst "\"";
+	for (pkg in install) {
+		origin = pkg_origin(pkg);
+		gsub(/(\/|-|\.|\+)/, "_", origin);
+		print origin "_reqby=\"" install[pkg] "\"";
+	}
+	for (pkg in rebuild) {
+		origin = pkg_origin(pkg);
+		gsub(/(\/|-|\.|\+)/, "_", origin);
+		print origin "_mlibs=\"" rebuild[pkg] "\"";
+	}
 }')
 
 if [ "$check_install" -o "$check_rebuild" ]; then
 	print_list "Ports need to be INSTALLED:" $(to_inst_str $check_install)
-	print_list "Packages need to be REINSTALLED:" $(to_pkg_str $check_rebuild)
+	print_list "Packages need to be REINSTALLED:" $(to_mlibs_str $check_rebuild)
 	ask_yesno "Continue with changes" &&
 		rebuild_ports $check_install $check_rebuild
 fi
