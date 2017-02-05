@@ -166,6 +166,7 @@ done
 if [ $(id -u) -ne 0 ]; then
 	if ! which sudo >/dev/null; then
 		echo "===> sudo not found" >&2
+		echo "===> This script requires root privileges or properly configured sudo." >&2
 		exit 1
 	fi
 	SUDO="sudo"
