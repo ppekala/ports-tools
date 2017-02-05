@@ -89,7 +89,7 @@ cmd_pkg_validate() {
 }
 
 cmd_pm_validate() {
-	local cmd change_origin=0 exists=0 pkg pkgname
+	local cmdline change_origin=0 exists=0 pkg pkgname
 
 	while getopts "Rafo:r:w" opt; do
 		case $opt in
@@ -113,14 +113,16 @@ cmd_pm_validate() {
 	else
 		case $* in
 		'$('*')')
-			cmd=$(echo $* | sed 's|^\$(||' | sed 's|)$||') ;;
+			cmdline=$(echo $* | sed 's|^\$(||' | sed 's|)$||') ;;
 		"\`"*"\`")
-			cmd=$(echo $* | sed 's|`||g') ;;
+			cmdline=$(echo $* | sed 's|`||g') ;;
 		*)
 			list_add pkgname $*
 		esac
 	fi
-	[ "$cmd" -a "$($cmd)" ] && return 0 || return 1
+	if [ "$cmdline" ]; then
+		[ "$($cmdline)" ] && return 0 || return 1
+	fi
 	for pkg in $pkgname; do
 		pkg_exists $pkg && exists=1
 	done
@@ -230,7 +232,7 @@ pkg_exists() {
 }
 
 pm_fake_run() {
-	local new_origin
+	local new_origin port rports=""
 
 	while getopts "Rfo:r:w" opt; do
 		case $opt in
@@ -239,8 +241,8 @@ pm_fake_run() {
 		o)
 			new_origin=$OPTARG ;;
 		r)
-			list_add need_reinstall $(to_port_str $OPTARG)
-			list_add need_reinstall $(pkg-static query %ro $OPTARG)
+			list_add rports $(to_port_str $OPTARG)
+			list_add rports $(pkg-static query %ro $OPTARG)
 		esac
 	done
 	shift $((OPTIND-1))
@@ -248,13 +250,11 @@ pm_fake_run() {
 		$SUDO pkg-static set -o $*:$new_origin --yes
 		return $?
 	fi
-	new_origin=$(to_port_str $*)
-	if [ "$new_origin" ]; then
-		list_add need_reinstall $new_origin
-		echo "===> Found packages to reinstall in later stage"
-		return 0
-	else
-		return 1
+	list_add rports $(to_port_str $*)
+	if [ "$rports" ]; then
+		echo "===> Found packages to reinstall in later stage:"
+		echo $rports
+		list_add need_reinstall $rports
 	fi
 }
 
