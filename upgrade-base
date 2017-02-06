@@ -123,8 +123,8 @@ main_loop() {
 		exec_cmd "$MAKE buildkernel $make_args" "KERNEL_BUILT" ;;
 	"KERNEL_BUILT")
 		exec_cmd "$MAKE installkernel $make_args" "KERNEL_INSTALLED"
-		printf "\n===> You need to restart computer now.\n\n"
-		exit 0 ;;
+		printf "\n===> You need to reboot and run ${0##*/} again to finish instalattion.\n\n"
+		reboot_ask ;;
 	"KERNEL_INSTALLED")
 		exec_cmd "mergemaster -p" "MERGEMASTER_INIT"  ;;
 	"MERGEMASTER_INIT")
@@ -137,13 +137,18 @@ main_loop() {
 			delete_old_files
 		fi
 		save_state ""
-		printf "\n===> You need to restart computer again.\n\n"
-		exit 0 ;;
+		printf "\n===> You need to reboot to complete upgrade.\n\n"
+		reboot_ask ;;
 	*)
 		echo "===> Garbage in $CONF_FILE, try upgrade-base -s" >&2
 		exit 1
 	esac
 	main_loop
+}
+
+reboot_ask() {
+	ask_yesno "Reboot now" && $SUDO reboot
+	exit 0
 }
 
 # $1 state
