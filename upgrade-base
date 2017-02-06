@@ -123,7 +123,7 @@ main_loop() {
 		exec_cmd "$MAKE buildkernel $make_args" "KERNEL_BUILT" ;;
 	"KERNEL_BUILT")
 		exec_cmd "$MAKE installkernel $make_args" "KERNEL_INSTALLED"
-		printf "\n===> You need to reboot and run ${0##*/} again to finish instalattion.\n\n"
+		printf "\n===> You need to reboot and run ${0##*/} again to finish installation.\n\n"
 		reboot_ask ;;
 	"KERNEL_INSTALLED")
 		exec_cmd "mergemaster -p" "MERGEMASTER_INIT"  ;;
