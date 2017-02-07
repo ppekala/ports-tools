@@ -226,6 +226,11 @@ missing_deps_recursive() {
 	done
 }
 
+moved_reason() {
+	awk -F '|' -v line="$moved_lines" -v port="$1" '
+		NR > line && $1 == port { print $4 }' "$PORTSDIR/MOVED"
+}
+
 pkg_exists() {
 	[ "$1" ] || return 1
 	pkg-static info --exists $1 >/dev/null 2>&1
@@ -412,9 +417,7 @@ to_obs_str() {
 	local port reason str
 
 	for port in $*; do
-		reason=$(awk -F '|' -v line="$moved_lines" -v port="$port" '
-			NR > line && $1 == port { print $4 }' \
-			"$PORTSDIR/MOVED" | sed 's| |@|g')
+		reason=$(moved_reason $port | sed 's| |@|g')
 		list_add str "$(to_pkg_str $port)@($reason)"
 	done
 	[ "$str" ] && echo $str
@@ -607,9 +610,10 @@ done
 for ports in $(awk -F '|' -v line="$moved_lines" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
 do
-	pkg_exists ${ports%%:*} &&
-		$SUDO pkg-static set --change-origin $ports --yes &&
-		echo "===> Port ${ports%%:*} moved to ${ports##*:}"
+	if pkg_exists ${ports%%:*}; then
+		$SUDO pkg-static set --change-origin $ports --yes
+		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
+	fi
 done
 
 last_upd=$(get_entry_dates | head -n 1)
