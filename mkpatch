@@ -18,7 +18,7 @@ if [ "$WRKSRC" ]; then
 			esac
 		done
 	fi
-	cd $WRKSRC
+	cd "$WRKSRC"
 fi
 
 p_files=$(find . -name '*.orig' | sed 's#^./##')

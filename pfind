@@ -82,8 +82,8 @@ fi
 if [ "$master" ]; then
 	portdir=$(realpath "$PORTSDIR/$master")
 	# search for slaves only in the same category for performance reasons
-	cd ${portdir%/*}
-	candidates=$(for match in $(grep_files "Makefile*" 2 ${portdir##*/}); do
+	cd "${portdir%/*}"
+	candidates=$(for match in $(grep_files "Makefile*" 2 "${portdir##*/}"); do
 		[ -d "${match%%/*}" ] || continue
 		[ "${portdir##*/}" = "${match%%/*}" ] || echo ${match%%/*}
 	done | sort -u)

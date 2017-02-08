@@ -296,12 +296,12 @@ ports_upgrade_sort() {
 	}
 	{
 		ports[++n_ports] = $0;
-		while ("make -C " ENVIRON["PORTSDIR"] "/" $0 " all-depends-list" | getline line) {
+		while ("make -C \"" ENVIRON["PORTSDIR"] "/" $0 "\" all-depends-list" | getline line) {
 			sub(ENVIRON["PORTSDIR"] "/", " ", line);
 			port_deps[$0] = port_deps[$0] line;
 			port_ndeps[$0]++;
 		}
-		close("make -C " ENVIRON["PORTSDIR"] "/" $0 " all-depends-list");
+		close("make -C \"" ENVIRON["PORTSDIR"] "/" $0 "\" all-depends-list");
 	}
 	END {
 		qsort(ports, 1, n_ports);
