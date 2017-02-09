@@ -321,8 +321,12 @@ rebuild_ports() {
 	local make_cmd port queue
 
 	create_tmpfile
-	echo "===> Calculating ports upgrade order"
-	queue=$(ports_upgrade_sort $*)
+	if [ $# -gt 1 ]; then
+		echo "===> Calculating ports upgrade order"
+		queue=$(ports_upgrade_sort $*)
+	else
+		queue=$*
+	fi
 	queue=$(fetch_distfiles $queue)
 	for port in $queue; do
 		if [ $interrupted -eq 1 ]; then
