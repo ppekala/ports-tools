@@ -671,20 +671,18 @@ if [ ! "$need_upgrade" ]; then
 	upgrade_exit 0 $last_upd
 fi
 
-for port in $need_reinstall $need_upgrade; do
+for port in $need_upgrade $need_install $need_reinstall; do
 	check_for_missing_deps $port
-done
 
-for port in $need_upgrade $need_install; do
 	for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
 		-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
 	do
 		for origin in $(pkg-static query -g %o "$cnfl"); do
-			list_add need_remove $(pkg-static query %ro $origin)
 			if [ "$port" = "$origin" ]; then
 				list_add conflicts_self $port
 			else
 				list_add need_remove $origin
+				list_add need_remove $(pkg-static query %ro $origin)
 			fi
 		done
 	done
