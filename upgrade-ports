@@ -322,7 +322,7 @@ rebuild_ports() {
 
 	create_tmpfile
 	if [ $# -gt 1 ]; then
-		echo "===> Calculating ports upgrade order"
+		echo "===> Calculating ports upgrade order..."
 		queue=$(ports_upgrade_sort $*)
 	else
 		queue=$*
@@ -549,7 +549,7 @@ wait_for_distfiles() {
 		[ $interrupted -eq 0 ] || return 1
 		[ $done -eq 0 ] || return $f_res
 		if [ $msg_shown -eq 0 ] ; then
-			echo "===> Waiting for $port distfiles to fetch"
+			echo "===> Waiting for $port distfiles to fetch..."
 			msg_shown=1
 		fi
 		sleep 5
@@ -660,7 +660,7 @@ if [ $last_read -lt $last_upd ]; then
 	done
 fi
 
-echo "===> Checking for ports needing upgrade"
+echo "===> Checking for ports needing upgrade..."
 for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
 	[ "$(pkg-static info -kq $port)" = "yes" ] && continue
 	list_add need_upgrade $port
@@ -707,7 +707,7 @@ else
 	upgrade_exit 0 $last_upd
 fi
 
-echo "===> Checking packages for missing libraries/dependencies"
+echo "===> Checking packages for missing libraries/dependencies..."
 for pkg in $build_failed $build_skipped $(pkg-static lock -lq); do
 	list_add pkg_ignore $(pkg-static query %n $pkg)
 done

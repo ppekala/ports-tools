@@ -14,10 +14,10 @@ wrk_dirs=$(find . -name work -type d -depth $((depth-1)) | sed 's|^./||g')
 if [ "$wrk_dirs" ]; then
 	for wdir in $wrk_dirs; do
 		if [ $depth -ne 2 ]; then
-			echo "===> Running 'make clean' in ${wdir%%/work}"
+			echo "===> Running 'make clean' in ${wdir%%/work}..."
 			make_args="-C ${wdir%%/work}"
 		else
-			echo "===> Running 'make clean'"
+			echo "===> Running 'make clean'..."
 			make_args=""
 		fi
 

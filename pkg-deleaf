@@ -115,6 +115,7 @@ fi
 [ -f "$EXCLUDE_CONF" ] && pkg_exclude=$(grep -v '^#' "$EXCLUDE_CONF")
 [ $exclude_opt -eq 1 ] && update_exclude_list
 
+echo "===> Checking for leaf packages..."
 while true; do
 	pkg_leafs=$(pkg-static query -e '%#r = 0' %n-%v@%sb)
 	count=0

@@ -70,7 +70,7 @@ fi
 
 cd "$PORTSDIR"
 if [ ! -f "$(make -VINDEXFILE)" ]; then
-	echo "===> Fetching missing index file"
+	echo "===> Fetching missing index file..."
 	make fetchindex || exit 1
 fi
 
