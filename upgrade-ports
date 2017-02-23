@@ -609,7 +609,7 @@ done
 print_list "Following packages are marked as OBSOLETE:" $(to_obs_str $obsolete)
 for port in $obsolete; do
 	ask_yesno "Remove $(to_pkg_str $port)" &&
-		$SUDO pkg-static delete --yes --force $port
+		$SUDO pkg-static delete --quiet --yes --force $port
 done
 for ports in $(awk -F '|' -v line="$moved_lines" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
@@ -699,9 +699,9 @@ print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade
 
 if ask_yesno "Proceed with upgrade"; then
 	[ "$need_remove" ] &&
-		$SUDO pkg-static delete --yes $need_remove
+		$SUDO pkg-static delete --quiet --yes $need_remove
 	[ "$conflicts_self" ] &&
-		$SUDO pkg-static delete --yes --force $conflicts_self
+		$SUDO pkg-static delete --quiet --yes --force $conflicts_self
 	rebuild_ports $need_upgrade
 else
 	upgrade_exit 0 $last_upd
