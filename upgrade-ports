@@ -166,22 +166,15 @@ EOF
 }
 
 fetch_distfiles() {
-	local fetch_queue port
 
-	for port in $*; do
-		mdeps=""
-		missing_deps_recursive $port
-		list_add fetch_queue $mdeps $port
-	done
 	$SUDO sh -c "
 		lockf -k $tmpfile sh -c \" echo PID:\$\$ >> $tmpfile\"
-		for port in $fetch_queue; do
+		for port in $*; do
 			make -C \"$PORTSDIR/\$port\" checksum
 			lockf -k $tmpfile sh -c \"echo \$port:\$? >> $tmpfile\"
 		done
 		lockf -k $tmpfile sh -c \" echo PID:0 >> $tmpfile\"
 		" >/dev/null 2>&1 &
-	echo $fetch_queue
 }
 
 get_entry_dates() {
@@ -318,7 +311,7 @@ print_list() {
 }
 
 rebuild_ports() {
-	local make_cmd port queue
+	local full_queue make_cmd port queue
 
 	create_tmpfile
 	if [ $# -gt 1 ]; then
@@ -327,8 +320,23 @@ rebuild_ports() {
 	else
 		queue=$*
 	fi
-	queue=$(fetch_distfiles $queue)
 	for port in $queue; do
+		mdeps=""
+		missing_deps_recursive $port
+		list_add full_queue $mdeps $port
+	done
+	if [ "$conflicts_self" ]; then
+		echo "===> Backuping and removing self-conflicting packages..."
+		for port in $conflicts_self; do
+			$SUDO pkg-static create --quiet \
+				--out-dir "$PORTSDIR/packages/All" $port
+			setvar $(to_env_str $port)_backup \
+				"${PORTSDIR}/packages/All/$(to_pkg_str $port).txz"
+		done
+		$SUDO pkg-static delete --quiet --yes --force $conflicts_self
+	fi
+	fetch_distfiles $full_queue
+	for port in $full_queue; do
 		if [ $interrupted -eq 1 ]; then
 			list_add build_skipped $port
 			continue
@@ -345,6 +353,11 @@ rebuild_ports() {
 		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
 		$SUDO make $make_args $make_cmd clean
 		if [ $? -ne 0 ]; then
+			if list_find conflicts_self $port; then
+				echo "===> Restoring previous version from backup..."
+				$SUDO pkg-static add --quiet \
+					"$(eval echo \$$(to_env_str $port)_backup)"
+			fi
 			if [ $interrupted -eq 1 ]; then
 				build_interrupted=$port
 				$SUDO make clean
@@ -549,7 +562,7 @@ wait_for_distfiles() {
 		[ $interrupted -eq 0 ] || return 1
 		[ $done -eq 0 ] || return $f_res
 		if [ $msg_shown -eq 0 ] ; then
-			echo "===> Waiting for $port distfiles to fetch..."
+			echo "===> Waiting for $1 distfiles to fetch..."
 			msg_shown=1
 		fi
 		sleep 5
@@ -700,8 +713,6 @@ print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade
 if ask_yesno "Proceed with upgrade"; then
 	[ "$need_remove" ] &&
 		$SUDO pkg-static delete --quiet --yes $need_remove
-	[ "$conflicts_self" ] &&
-		$SUDO pkg-static delete --quiet --yes --force $conflicts_self
 	rebuild_ports $need_upgrade
 else
 	upgrade_exit 0 $last_upd
