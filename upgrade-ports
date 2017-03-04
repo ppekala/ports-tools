@@ -311,7 +311,7 @@ print_list() {
 }
 
 rebuild_ports() {
-	local full_queue make_cmd port queue
+	local errlog full_queue make_cmd port queue ret
 
 	create_tmpfile
 	if [ $# -gt 1 ]; then
@@ -336,6 +336,7 @@ rebuild_ports() {
 		$SUDO pkg-static delete --quiet --yes --force $conflicts_self
 	fi
 	fetch_distfiles $full_queue
+	errlog=$(mktemp -t ${0##*/}-errlog)
 	for port in $full_queue; do
 		if [ $interrupted -eq 1 ]; then
 			list_add build_skipped $port
@@ -350,9 +351,34 @@ rebuild_ports() {
 		[ $build_started -eq 1 ] || build_started=1
 		cd "$PORTSDIR/$port"
 		[ -d work ] && $SUDO make clean
-		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
-		$SUDO make $make_args $make_cmd clean
-		if [ $? -ne 0 ]; then
+		$SUDO make $make_args build
+		ret=$?
+		if [ $ret -eq 0 ]; then
+			pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
+			while true; do
+				$SUDO make $make_args $make_cmd clean 2>$errlog
+				if [ $? -eq 0 ]; then
+					ret=0
+					break
+				fi
+				eval $(cat $errlog | awk '
+					/conflicts with/ { print "CONFLICT=" $5 }')
+				if [ "$CONFLICT" ]; then
+					if ask_yesno "$port install conflicts with $CONFLICT. Remove it"; then
+						$SUDO pkg-static create --quiet \
+							--out-dir "$PORTSDIR/packages/All" $CONFLICT
+						${SUDO} pkg-static delete --quiet \
+							--yes --force $CONFLICT
+						unset CONFLICT
+						continue
+					else
+						ret=1
+					fi
+				fi
+				break
+			done
+		fi
+		if [ $ret -ne 0 ]; then
 			if list_find conflicts_self $port; then
 				echo "===> Restoring previous version from backup..."
 				$SUDO pkg-static add --quiet \
@@ -368,6 +394,7 @@ rebuild_ports() {
 			list_add build_ok $port
 		fi
 	done
+	rm $errlog
 	if [ "$build_failed" -o "$build_interrupted" ]; then
 		if [ $interrupted -eq 1 ]; then
 			printf "\nUpgrade process was interrupted.\n"
@@ -380,6 +407,7 @@ rebuild_ports() {
 		print_list "Following ports upgrades were SKIPPED:" $build_skipped
 		upgrade_exit 1 $last_upd
 	fi
+	unset conflicts_self
 }
 
 signal_handler() {
