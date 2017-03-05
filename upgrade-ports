@@ -345,39 +345,44 @@ rebuild_ports() {
 		list_find build_skipped $port && continue
 
 		if ! wait_for_distfiles $port; then
-			skip_reverse_deps $port
+			skip_reverse_deps $port "failed to fetch"
 			continue;
 		fi
 		[ $build_started -eq 1 ] || build_started=1
 		cd "$PORTSDIR/$port"
 		[ -d work ] && $SUDO make clean
-		$SUDO make $make_args build
-		ret=$?
-		if [ $ret -eq 0 ]; then
-			pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
-			while true; do
-				$SUDO make $make_args $make_cmd clean 2>$errlog
-				if [ $? -eq 0 ]; then
-					ret=0
-					break
-				fi
-				eval $(cat $errlog | awk '
-					/conflicts with/ { print "CONFLICT=" $5 }')
-				if [ "$CONFLICT" ]; then
-					if ask_yesno "$port install conflicts with $CONFLICT. Remove it"; then
-						$SUDO pkg-static create --quiet \
-							--out-dir "$PORTSDIR/packages/All" $CONFLICT
-						${SUDO} pkg-static delete --quiet \
-							--yes --force $CONFLICT
-						unset CONFLICT
-						continue
-					else
-						ret=1
-					fi
-				fi
-				break
-			done
+		if ! $SUDO make $make_args build; then
+			if [ $interrupted -eq 1 ]; then
+				build_interrupted=$port
+				$SUDO make clean
+			else
+				skip_reverse_deps $port "build error"
+			fi
+			continue;
 		fi
+		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
+		while true; do
+			$SUDO make $make_args $make_cmd clean 2>$errlog
+			if [ $? -eq 0 ]; then
+				ret=0
+				break
+			fi
+			eval $(cat $errlog | awk '
+				/conflicts with/ { print "CONFLICT=" $5 }')
+			if [ "$CONFLICT" ]; then
+				if ask_yesno "$port install conflicts with $CONFLICT. Remove it"; then
+					$SUDO pkg-static create --quiet \
+						--out-dir "$PORTSDIR/packages/All" $CONFLICT
+					${SUDO} pkg-static delete --quiet \
+						--yes --force $CONFLICT
+					unset CONFLICT
+					continue
+				else
+					ret=1
+				fi
+			fi
+			break
+		done
 		if [ $ret -ne 0 ]; then
 			if list_find conflicts_self $port; then
 				echo "===> Restoring previous version from backup..."
@@ -387,9 +392,9 @@ rebuild_ports() {
 			if [ $interrupted -eq 1 ]; then
 				build_interrupted=$port
 				$SUDO make clean
-				continue;
+			else
+				skip_reverse_deps $port "install error"
 			fi
-			skip_reverse_deps $port
 		else
 			list_add build_ok $port
 		fi
@@ -403,8 +408,8 @@ rebuild_ports() {
 		fi
 		print_list "Following ports upgrade SUCCEEDED:" $build_ok
 		print_list "Upgrade build process INTERRUPTED:" $build_interrupted
-		print_list "Following ports upgrade FAILED:" $build_failed
-		print_list "Following ports upgrades were SKIPPED:" $build_skipped
+		print_list "Following ports upgrade FAILED:" $(to_fail_str $build_failed)
+		print_list "Following ports upgrades were SKIPPED:" $(to_fail_str $build_skipped)
 		upgrade_exit 1 $last_upd
 	fi
 	unset conflicts_self
@@ -427,14 +432,28 @@ skip_reverse_deps() {
 	local consumer
 
 	list_add build_failed $1
+	setvar $(to_env_str $1)_fail "$2"
 	for consumer in $(pkg-static query %ro $1); do
-		list_find need_upgrade $consumer &&
+		if list_find need_upgrade $consumer; then
 			list_add build_skipped $consumer
+			setvar $(to_env_str $consumer)_fail "$1: $2"
+		fi
 	done
 }
 
 to_env_str() {
 	echo "$1" | sed -E 's,(\/|-|\.|\+),_,g'
+}
+
+to_fail_str() {
+	local failure port str
+
+	for port in $*; do
+		failure=$(eval echo \$$(to_env_str $port)_fail | sed 's| |@|g')
+		[ "$failure" ] && list_add str "$port@($failure)" ||
+			list_add str $port
+	done
+	[ "$str" ] && echo $str
 }
 
 to_inst_str() {
