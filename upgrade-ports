@@ -675,8 +675,8 @@ for ports in $(awk -F '|' -v line="$moved_lines" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
 do
 	if pkg_exists ${ports%%:*}; then
-		$SUDO pkg-static set --change-origin $ports --yes
 		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
+		$SUDO pkg-static set --change-origin $ports --yes
 	fi
 done
 
