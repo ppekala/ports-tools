@@ -134,12 +134,13 @@ cmd_pm_validate() {
 }
 
 create_tmpfile() {
-	[ "$tmpfile" ] && return
-	tmpfile=$(mktemp -t ${0##*/})
-	if [ ! "$tmpfile" ]; then
+	local temp=$(mktemp -t ${0##*/}$1)
+
+	if [ ! "$temp" ]; then
 		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1
 	fi
+	echo $temp
 }
 
 desc_pids() {
@@ -166,7 +167,6 @@ EOF
 }
 
 fetch_distfiles() {
-
 	$SUDO sh -c "
 		lockf -k $tmpfile sh -c \" echo PID:\$\$ >> $tmpfile\"
 		for port in $*; do
@@ -313,7 +313,7 @@ print_list() {
 rebuild_ports() {
 	local errlog full_queue make_cmd port queue ret
 
-	create_tmpfile
+	[ "$tmpfile" ] || tmpfile=$(create_tmpfile)
 	if [ $# -gt 1 ]; then
 		echo "===> Calculating ports upgrade order..."
 		queue=$(ports_upgrade_sort $*)
@@ -336,7 +336,7 @@ rebuild_ports() {
 		$SUDO pkg-static delete --quiet --yes --force $conflicts_self
 	fi
 	fetch_distfiles $full_queue
-	errlog=$(mktemp -t ${0##*/}-errlog)
+	errlog=$(create_tmpfile "-errlog")
 	for port in $full_queue; do
 		if [ $interrupted -eq 1 ]; then
 			list_add build_skipped $port
@@ -683,7 +683,7 @@ done
 last_upd=$(get_entry_dates | head -n 1)
 
 if [ $last_read -lt $last_upd ]; then
-	create_tmpfile
+	tmpfile=$(create_tmpfile)
 	printf "===> New entries since last upgrade in $PORTSDIR/UPDATING file:\n\n"
 	for entry in $(get_entry_dates | sort -u); do
 		[ $entry -gt $last_read ] || continue
