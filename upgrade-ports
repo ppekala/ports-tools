@@ -321,7 +321,7 @@ print_list() {
 }
 
 rebuild_ports() {
-	local errlog full_queue make_cmd port queue ret
+	local errlog error full_queue make_cmd port queue ret t
 
 	[ "$tmpfile" ] || tmpfile=$(create_tmpfile)
 	if [ $# -gt 1 ]; then
@@ -354,12 +354,20 @@ rebuild_ports() {
 		fi
 		list_find build_skipped $port && continue
 
+		cd "$PORTSDIR/$port"
+		for t in BROKEN IGNORE; do
+			error=$(make $make_args -V$t)
+			if [ "$error" ]; then
+				skip_reverse_deps $port "$t: $error"
+				continue 2
+			fi
+		done
+
 		if ! wait_for_distfiles $port; then
 			skip_reverse_deps $port "failed to fetch"
-			continue;
+			continue
 		fi
 		[ $build_started -eq 1 ] || build_started=1
-		cd "$PORTSDIR/$port"
 		[ -d work ] && $SUDO make clean
 		if ! $SUDO make $make_args build; then
 			if [ $interrupted -eq 1 ]; then
@@ -368,7 +376,7 @@ rebuild_ports() {
 			else
 				skip_reverse_deps $port "build error"
 			fi
-			continue;
+			continue
 		fi
 		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
 		while true; do
