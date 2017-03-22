@@ -439,11 +439,17 @@ signal_handler() {
 }
 
 skip_reverse_deps() {
-	local consumer
+	local consumer rev_deps
 
 	list_add build_failed $1
 	setvar $(to_env_str $1)_fail "$2"
-	for consumer in $(pkg-static query %ro $1); do
+
+	if pkg_exists $1; then
+		rev_deps=$(pkg-static query %ro $1)
+	else
+		rev_deps=$(eval echo \$$(to_env_str $1)_reqby)
+	fi
+	for consumer in $rev_deps; do
 		if list_find need_upgrade $consumer; then
 			list_add build_skipped $consumer
 			setvar $(to_env_str $consumer)_fail "$1: $2"
