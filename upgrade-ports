@@ -210,6 +210,16 @@ list_remove() {
 	setvar $name "$new_list"
 }
 
+mark_for_removal() {
+	local port
+
+	list_add need_remove $1
+	setvar $(to_env_str $1)_conflicts "$2"
+	for port in $(pkg-static query %ro $1); do
+		mark_for_removal $port "depends on $(to_pkg_str $1)"
+	done
+}
+
 missing_deps_recursive() {
 	local port
 
@@ -488,10 +498,12 @@ to_obs_str() {
 }
 
 to_pkg_str() {
-	local port str
+	local pkg port str
 
 	for port in $*; do
-		list_add str $(pkg-static query "%n-%v" $port)
+		pkg=$(pkg-static query "%n-%v" $port)
+		[ "$pkg" ] || pkg=$port
+		list_add str $pkg
 	done
 	[ "$str" ] && echo $str
 }
@@ -506,6 +518,16 @@ to_port_str() {
 		*)
 			list_add str $(pkg-static query -x %o ^$arg)
 		esac
+	done
+	[ "$str" ] && echo $str
+}
+
+to_rm_str() {
+	local port reason str
+
+	for port in $*; do
+		reason=$(eval echo \$$(to_env_str $port)_conflicts | sed 's| |@|g')
+		list_add str "$(to_pkg_str $port)@($reason)"
 	done
 	[ "$str" ] && echo $str
 }
@@ -737,7 +759,9 @@ fi
 
 for port in $need_upgrade $need_install $need_reinstall; do
 	check_for_missing_deps $port
+done
 
+for port in $need_upgrade $need_install $need_reinstall; do
 	for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
 		-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
 	do
@@ -745,14 +769,13 @@ for port in $need_upgrade $need_install $need_reinstall; do
 			if [ "$port" = "$origin" ]; then
 				list_add conflicts_self $port
 			else
-				list_add need_remove $origin
-				list_add need_remove $(pkg-static query %ro $origin)
+				mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
 			fi
 		done
 	done
 done
 
-print_list "Following packages need to be REMOVED:" $(to_pkg_str $need_remove)
+print_list "Following packages need to be REMOVED:" $(to_rm_str $need_remove)
 print_list "Following ports need to be INSTALLED:" $(to_inst_str $need_install)
 print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstall)
 print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
