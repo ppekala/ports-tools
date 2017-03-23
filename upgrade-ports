@@ -239,6 +239,19 @@ pkg_exists() {
 	pkg-static info --exists $1 >/dev/null 2>&1
 }
 
+pkg_remove() {
+	local port
+
+	[ "$*" ] || return
+	for port in $*; do
+		$SUDO pkg-static create --quiet \
+			--out-dir "$PORTSDIR/packages/All" $port
+		setvar $(to_env_str $port)_backup \
+			"${PORTSDIR}/packages/All/$(to_pkg_str $port).txz"
+	done
+	$SUDO pkg-static delete --quiet --yes --force $*
+}
+
 pm_fake_run() {
 	local new_origin port rports=""
 
@@ -320,6 +333,20 @@ print_list() {
 	for item in $*; do printf "\t$item\n" | sed 's|@| |g'; done | sort
 }
 
+rebuild_error_clean() {
+	if list_find conflicts_self $1; then
+		echo "===> Restoring previous version from backup..."
+		$SUDO pkg-static add --quiet \
+			"$(eval echo \$$(to_env_str $1)_backup)"
+	fi
+	if [ $interrupted -eq 1 ]; then
+		build_interrupted=$1
+		$SUDO make clean
+	else
+		skip_reverse_deps $1 "$2 error"
+	fi
+}
+
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret t
 
@@ -337,13 +364,7 @@ rebuild_ports() {
 	done
 	if [ "$conflicts_self" ]; then
 		echo "===> Backuping and removing self-conflicting packages..."
-		for port in $conflicts_self; do
-			$SUDO pkg-static create --quiet \
-				--out-dir "$PORTSDIR/packages/All" $port
-			setvar $(to_env_str $port)_backup \
-				"${PORTSDIR}/packages/All/$(to_pkg_str $port).txz"
-		done
-		$SUDO pkg-static delete --quiet --yes --force $conflicts_self
+		pkg_remove $conflicts_self
 	fi
 	fetch_distfiles $full_queue
 	errlog=$(create_tmpfile "-errlog")
@@ -370,12 +391,7 @@ rebuild_ports() {
 		[ $build_started -eq 1 ] || build_started=1
 		[ -d work ] && $SUDO make clean
 		if ! $SUDO make $make_args build; then
-			if [ $interrupted -eq 1 ]; then
-				build_interrupted=$port
-				$SUDO make clean
-			else
-				skip_reverse_deps $port "build error"
-			fi
+			rebuild_error_clean $port build
 			continue
 		fi
 		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
@@ -389,10 +405,7 @@ rebuild_ports() {
 				/conflicts with/ { print "CONFLICT=" $5 }')
 			if [ "$CONFLICT" ]; then
 				if ask_yesno "$port install conflicts with $CONFLICT. Remove it"; then
-					$SUDO pkg-static create --quiet \
-						--out-dir "$PORTSDIR/packages/All" $CONFLICT
-					${SUDO} pkg-static delete --quiet \
-						--yes --force $CONFLICT
+					pkg_remove $CONFLICT
 					unset CONFLICT
 					continue
 				else
@@ -402,17 +415,7 @@ rebuild_ports() {
 			break
 		done
 		if [ $ret -ne 0 ]; then
-			if list_find conflicts_self $port; then
-				echo "===> Restoring previous version from backup..."
-				$SUDO pkg-static add --quiet \
-					"$(eval echo \$$(to_env_str $port)_backup)"
-			fi
-			if [ $interrupted -eq 1 ]; then
-				build_interrupted=$port
-				$SUDO make clean
-			else
-				skip_reverse_deps $port "install error"
-			fi
+			rebuild_error_clean $port install
 		else
 			list_add build_ok $port
 		fi
@@ -795,9 +798,8 @@ print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstal
 print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
 
 if ask_yesno "Proceed with upgrade"; then
-	[ "$need_remove" ] &&
-		$SUDO pkg-static delete --quiet --yes $need_remove
-	rebuild_ports $need_upgrade
+	pkg_remove $need_remove
+	rebuild_ports $need_reinstall $need_upgrade
 else
 	upgrade_exit 0 $last_upd
 fi
