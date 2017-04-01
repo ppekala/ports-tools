@@ -51,14 +51,45 @@ EOF
 }
 
 is_build_dep() {
-	[ "$(make -V BUILD_DEPENDS -V LIB_DEPENDS $2 \
-		| grep $1)" ] && return 0 || return 1
+	local dep hname oname test_str=$(opt_test_string $2)
+
+	[ "$(make -V BUILD_DEPENDS -V LIB_DEPENDS $test_str \
+		| grep $1)" ] && return 0
+
+	[ "$2" ] || return 1
+	hname=$(grep $1 Makefile | cut -f1 -d=)
+	oname=$(echo $2 | sed -E 's,(\+|\-),,')
+	for dep in BUILD LIB; do
+		[ "$oname" = "${hname%_${dep}_DEPENDS}" ] && return 0
+	done
+
+	return 1
 }
 
 is_other_dep() {
+	local dep hname oname test_str=$(opt_test_string $2)
+
 	[ "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
-		-V RUN_DEPENDS -V TEST_DEPENDS $2 | grep $1)" ] &&
-		return 0 || return 1
+		-V RUN_DEPENDS -V TEST_DEPENDS $test_str | grep $1)" ] &&
+		return 0
+
+	[ "$2" ] || return 1
+	hname=$(grep $1 Makefile | cut -f1 -d=)
+	oname=$(echo $2 | sed -E 's,(\+|\-),,')
+	for dep in FETCH EXTRACT PATCH RUN TEST; do
+		[ "$oname" = "${hname%_${dep}_DEPENDS}" ] && return 0
+	done
+
+	return 1
+}
+
+opt_test_string() {
+	case $1 in
+	-*)
+		echo "OPTIONS_DEFAULT=${1#-}" ;;
+	+*)
+		echo "OPTIONS_UNSET=${1#+}" ;;
+	esac
 }
 
 poudriere_jails() {
@@ -145,16 +176,16 @@ ldeps)
 
 		for option in $(make pretty-print-config); do
 			case $option in -*)
-				if is_build_dep $query OPTIONS_DEFAULT=${option#-}; then
+				if is_build_dep $query $option; then
 					ports="$ports $path:${option#-}:on"
 					continue 2
 				fi
-				is_other_dep $query OPTIONS_DEFAULT=${option#-} && continue 2
+				is_other_dep $query $option && continue 2
 			esac
 		done
 		for option in $(make pretty-print-config); do
 			case $option in +*)
-				if is_build_dep $query OPTIONS_UNSET=${option#+}; then
+				if is_build_dep $query $option; then
 					ports="$ports $path:${option#+}:off"
 					continue 2
 				fi
