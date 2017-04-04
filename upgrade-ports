@@ -714,9 +714,10 @@ for ports in $(awk -F '|' -v line="$moved_lines" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
 do
 	if pkg_exists ${ports%%:*}; then
-		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
 		oldname=$(pkg-static query %n ${ports%%:*})
 		newname=$(make -C "$PORTSDIR/${ports##*:}" -VPKGBASE)
+		[ "$newname" ] || continue
+		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
 		[ "$oldname" != "$newname" ] &&
 			$SUDO pkg-static set --change-name $oldname:$newname
 		$SUDO pkg-static set --change-origin $ports --yes
