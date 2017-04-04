@@ -405,7 +405,7 @@ rebuild_ports() {
 				/conflicts with/ { print "CONFLICT=" $5 }')
 			if [ "$CONFLICT" ]; then
 				if ask_yesno "$port install conflicts with $CONFLICT. Remove it"; then
-					pkg_remove $CONFLICT
+					pkg_remove $(pkg-static info -qo $CONFLICT)
 					unset CONFLICT
 					continue
 				else
