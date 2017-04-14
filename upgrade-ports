@@ -8,6 +8,7 @@ answer_yes=0	# answer yes to all of the questions
 build_started=0 # ports build has started
 interrupted=0   # build interrupted by ctrl+c
 make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
+run_mode="upgrade" # script operation mode
 skip_update=0	# don't update ports tree
 wait_for_key=0	# wait for key press after upgrade finish
 
@@ -31,6 +32,8 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
+	local dep
+
 	for dep in $(make -C "$PORTSDIR/$1" -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
@@ -42,6 +45,70 @@ check_for_missing_deps() {
 			check_for_missing_deps $dep
 		fi
 	done
+}
+
+check_packages() {
+	local pkg pkg_ignore
+
+	echo "===> Checking packages for missing libraries/dependencies..."
+	for pkg in $(pkg-static lock -lq); do
+		list_add pkg_ignore $(pkg-static query %n $pkg)
+	done
+	eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
+	function pkg_origin(pkg) {
+		"pkg-static rquery %o " pkg | getline port
+		close("pkg-static rquery %o " pkg);
+		return port;
+	}
+	BEGIN {
+		if ((n = split(pkg_ignore, array, " ")))
+			for (i=1; i<=n; i++)
+				ignore[array[i]] = array[i];
+	}
+	/has a missing dependency:/ {
+		if ($6 in ignore)
+			next;
+		miss_deps[$1] = $1;
+		if ($6 in install) {
+			install[$6] = install[$6] " " $1;
+			next;
+		}
+		install[$6] = $1;
+		missing = pkg_origin($6);
+		inst = inst ? inst " " missing : missing;
+	}
+	/is missing a required shared library:/ {
+		if ($1 in ignore || $1 in miss_deps)
+			next;
+		if ($1 in rebuild) {
+			rebuild[$1] = rebuild[$1] " " $8;
+			next;
+		}
+		rebuild[$1] = $8;
+		origin = pkg_origin($1);
+		rinst = rinst ? rinst " " origin : origin;
+	}
+	END {
+		print "check_install=\"" inst "\" check_rebuild=\"" rinst "\"";
+		for (pkg in install) {
+			origin = pkg_origin(pkg);
+			gsub(/(\/|-|\.|\+)/, "_", origin);
+			print origin "_reqby=\"" install[pkg] "\"";
+		}
+		for (pkg in rebuild) {
+			origin = pkg_origin(pkg);
+			gsub(/(\/|-|\.|\+)/, "_", origin);
+			print origin "_mlibs=\"" rebuild[pkg] "\"";
+		}
+	}')
+
+	if [ "$check_install" -o "$check_rebuild" ]; then
+		print_list "Ports need to be INSTALLED:" $(to_inst_str $check_install)
+		print_list "Packages need to be REINSTALLED:" $(to_mlibs_str $check_rebuild)
+		ask_yesno "Continue with changes" &&
+			rebuild_ports $check_install $check_rebuild
+	fi
+	upgrade_exit 0
 }
 
 command_is_valid() {
@@ -155,8 +222,9 @@ desc_pids() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-h|-u|-w|-y]
+Usage: ${0##*/} [-c|-h|-u|-w|-y]
 
+    -c - only check packages database for errors
     -h - show this help
     -u - skip ports tree update
     -w - wait for key press after finish
@@ -560,6 +628,41 @@ to_upgrade_str() {
 	[ "$str" ] && echo $str
 }
 
+update_ports_tree() {
+	local newname oldname port ports
+
+	[ $skip_update -eq 0 ] || return
+
+	if ! $SUDO portsnap fetch update; then
+		echo "===> Ports tree update failed" >&2
+		upgrade_exit 1
+	fi
+
+	for port in $(awk -F '|' -v line="$moved_lines" '
+		NR > line && !$2 { print $1 }' "$PORTSDIR/MOVED")
+	do
+		pkg_exists $port && list_add obsolete $port
+	done
+	print_list "Following packages are marked as OBSOLETE:" $(to_obs_str $obsolete)
+	for port in $obsolete; do
+		ask_yesno "Remove $(to_pkg_str $port)" &&
+			$SUDO pkg-static delete --quiet --yes --force $port
+	done
+	for ports in $(awk -F '|' -v line="$moved_lines" '
+		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
+	do
+		if pkg_exists ${ports%%:*}; then
+			oldname=$(pkg-static query %n ${ports%%:*})
+			newname=$(make -C "$PORTSDIR/${ports##*:}" -VPKGBASE)
+			[ "$newname" ] || continue
+			echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
+			[ "$oldname" != "$newname" ] &&
+				$SUDO pkg-static set --change-name $oldname:$newname --yes
+			$SUDO pkg-static set --change-origin $ports --yes
+		fi
+	done
+}
+
 updating_commands() {
 	awk -F ':' -v entry="$1" '
 	function strip_command(str) {
@@ -623,6 +726,93 @@ upgrade_exit() {
 	exit $1
 }
 
+upgrade_ports() {
+	last_upd=$(get_entry_dates | head -n 1)
+
+	if [ $last_read -lt $last_upd ]; then
+		tmpfile=$(create_tmpfile)
+		printf "===> New entries since last upgrade in $PORTSDIR/UPDATING file:\n\n"
+		for entry in $(get_entry_dates | sort -u); do
+			[ $entry -gt $last_read ] || continue
+
+			updating_entry $entry
+			updating_commands $entry > $tmpfile
+
+			old_IFS=$IFS
+			IFS=$'\n'
+
+			for cmd in $(cat $tmpfile); do
+				command_is_valid $cmd || continue
+
+				if ask_yesno "Run '$cmd'"; then
+					IFS=$old_IFS
+					case $cmd in
+					"pkg "*)
+						$SUDO $cmd ;;
+					*)
+						pm_fake_run ${cmd#portmaster }
+					esac
+					ret=$?
+					IFS=$'\n'
+
+					if [ $ret -ne 0 ]; then
+						echo "===> Upgrade command '$cmd' failed" >&2
+						upgrade_exit $ret $entry_prev
+					fi
+				fi
+			done
+
+			IFS=$old_IFS
+			entry_prev=$entry
+		done
+	fi
+
+	echo "===> Checking for ports needing upgrade..."
+	for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
+		[ "$(pkg-static info -kq $port)" = "yes" ] && continue
+		list_add need_upgrade $port
+		setvar $(to_env_str $port)_version \
+			$(make -C "$PORTSDIR/$port" -VPKGVERSION)
+		list_remove need_reinstall $port
+		[ "$(make -C "$PORTSDIR/$port" -VPKGBASE)" != "$(pkg-static query %n $port)" ] &&
+			list_add conflicts_self $port
+	done
+	if [ ! "$need_upgrade" ]; then
+		echo "===> No ports needing upgrade found"
+		upgrade_exit 0 $last_upd
+	fi
+
+	for port in $need_upgrade $need_install $need_reinstall; do
+		check_for_missing_deps $port
+	done
+
+	for port in $need_upgrade $need_install $need_reinstall; do
+		for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
+			-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
+		do
+			for origin in $(pkg-static query -g %o "$cnfl"); do
+				if [ "$port" = "$origin" ]; then
+					list_add conflicts_self $port
+				else
+					mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
+				fi
+			done
+		done
+	done
+
+	print_list "Following packages need to be REMOVED:" $(to_rm_str $need_remove)
+	print_list "Following ports need to be INSTALLED:" $(to_inst_str $need_install)
+	print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstall)
+	print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
+
+	if ask_yesno "Proceed with upgrade"; then
+		pkg_remove $need_remove
+		rebuild_ports $need_reinstall $need_upgrade
+	else
+		upgrade_exit 0 $last_upd
+	fi
+}
+
 wait_for_distfiles() {
 	local done=0 f_res=0 fetched=$(eval echo \$$(to_env_str $1)_fetch)
 	local msg_shown=0 res
@@ -657,8 +847,10 @@ wait_for_distfiles() {
 
 trap signal_handler INT
 
-while getopts "huwy" option; do
+while getopts "chuwy" option; do
 	case $option in
+	c)
+		run_mode="check" ;;
 	u)
 		skip_update=1 ;;
 	w)
@@ -685,186 +877,19 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
-if [ -f "$CONFIG" ]; then
-	last_read=$(cat "$CONFIG")
-else
-	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
-fi
-[ "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
-moved_lines=$(wc -l "$PORTSDIR/MOVED" | awk '{ print $1 }')
-
-if [ $skip_update -eq 0 ]; then
-	if ! $SUDO portsnap fetch update; then
-		echo "===> Ports tree update failed" >&2
-		upgrade_exit 1
+case $run_mode in
+check)
+	check_packages ;;
+upgrade)
+	if [ -f "$CONFIG" ]; then
+		last_read=$(cat "$CONFIG")
+	else
+		[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 	fi
-fi
+	[ "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
+	moved_lines=$(wc -l "$PORTSDIR/MOVED" | awk '{ print $1 }')
 
-for port in $(awk -F '|' -v line="$moved_lines" '
-		NR > line && !$2 { print $1 }' "$PORTSDIR/MOVED")
-do
-	pkg_exists $port && list_add obsolete $port
-done
-print_list "Following packages are marked as OBSOLETE:" $(to_obs_str $obsolete)
-for port in $obsolete; do
-	ask_yesno "Remove $(to_pkg_str $port)" &&
-		$SUDO pkg-static delete --quiet --yes --force $port
-done
-for ports in $(awk -F '|' -v line="$moved_lines" '
-		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
-do
-	if pkg_exists ${ports%%:*}; then
-		oldname=$(pkg-static query %n ${ports%%:*})
-		newname=$(make -C "$PORTSDIR/${ports##*:}" -VPKGBASE)
-		[ "$newname" ] || continue
-		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
-		[ "$oldname" != "$newname" ] &&
-			$SUDO pkg-static set --change-name $oldname:$newname --yes
-		$SUDO pkg-static set --change-origin $ports --yes
-	fi
-done
-
-last_upd=$(get_entry_dates | head -n 1)
-
-if [ $last_read -lt $last_upd ]; then
-	tmpfile=$(create_tmpfile)
-	printf "===> New entries since last upgrade in $PORTSDIR/UPDATING file:\n\n"
-	for entry in $(get_entry_dates | sort -u); do
-		[ $entry -gt $last_read ] || continue
-
-		updating_entry $entry
-		updating_commands $entry > $tmpfile
-
-		old_IFS=$IFS
-		IFS=$'\n'
-
-		for cmd in $(cat $tmpfile); do
-			command_is_valid $cmd || continue
-
-			if ask_yesno "Run '$cmd'"; then
-				IFS=$old_IFS
-				case $cmd in
-				"pkg "*)
-					$SUDO $cmd ;;
-				*)
-					pm_fake_run ${cmd#portmaster }
-				esac
-				ret=$?
-				IFS=$'\n'
-
-				if [ $ret -ne 0 ]; then
-					echo "===> Upgrade command '$cmd' failed" >&2
-					upgrade_exit $ret $entry_prev
-				fi
-			fi
-		done
-
-		IFS=$old_IFS
-		entry_prev=$entry
-	done
-fi
-
-echo "===> Checking for ports needing upgrade..."
-for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
-	[ "$(pkg-static info -kq $port)" = "yes" ] && continue
-	list_add need_upgrade $port
-	setvar $(to_env_str $port)_version \
-		$(make -C "$PORTSDIR/$port" -VPKGVERSION)
-	list_remove need_reinstall $port
-	[ "$(make -C "$PORTSDIR/$port" -VPKGBASE)" != "$(pkg-static query %n $port)" ] &&
-		list_add conflicts_self $port
-done
-if [ ! "$need_upgrade" ]; then
-	echo "===> No ports needing upgrade found"
-	upgrade_exit 0 $last_upd
-fi
-
-for port in $need_upgrade $need_install $need_reinstall; do
-	check_for_missing_deps $port
-done
-
-for port in $need_upgrade $need_install $need_reinstall; do
-	for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
-		-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
-	do
-		for origin in $(pkg-static query -g %o "$cnfl"); do
-			if [ "$port" = "$origin" ]; then
-				list_add conflicts_self $port
-			else
-				mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
-			fi
-		done
-	done
-done
-
-print_list "Following packages need to be REMOVED:" $(to_rm_str $need_remove)
-print_list "Following ports need to be INSTALLED:" $(to_inst_str $need_install)
-print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstall)
-print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
-
-if ask_yesno "Proceed with upgrade"; then
-	pkg_remove $need_remove
-	rebuild_ports $need_reinstall $need_upgrade
-else
-	upgrade_exit 0 $last_upd
-fi
-
-echo "===> Checking packages for missing libraries/dependencies..."
-for pkg in $build_failed $build_skipped $(pkg-static lock -lq); do
-	list_add pkg_ignore $(pkg-static query %n $pkg)
-done
-eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
-function pkg_origin(pkg) {
-	"pkg-static rquery %o " pkg | getline port
-	close("pkg-static rquery %o " pkg);
-	return port;
-}
-BEGIN {
-	if ((n = split(pkg_ignore, array, " ")))
-		for (i=1; i<=n; i++)
-			ignore[array[i]] = array[i];
-}
-/has a missing dependency:/ {
-	if ($6 in ignore)
-		next;
-	miss_deps[$1] = $1;
-	if ($6 in install) {
-		install[$6] = install[$6] " " $1;
-		next;
-	}
-	install[$6] = $1;
-	missing = pkg_origin($6);
-	inst = inst ? inst " " missing : missing;
-}
-/is missing a required shared library:/ {
-	if ($1 in ignore || $1 in miss_deps)
-		next;
-	if ($1 in rebuild) {
-		rebuild[$1] = rebuild[$1] " " $8;
-		next;
-	}
-	rebuild[$1] = $8;
-	origin = pkg_origin($1);
-	rinst = rinst ? rinst " " origin : origin;
-}
-END {
-	print "check_install=\"" inst "\" check_rebuild=\"" rinst "\"";
-	for (pkg in install) {
-		origin = pkg_origin(pkg);
-		gsub(/(\/|-|\.|\+)/, "_", origin);
-		print origin "_reqby=\"" install[pkg] "\"";
-	}
-	for (pkg in rebuild) {
-		origin = pkg_origin(pkg);
-		gsub(/(\/|-|\.|\+)/, "_", origin);
-		print origin "_mlibs=\"" rebuild[pkg] "\"";
-	}
-}')
-
-if [ "$check_install" -o "$check_rebuild" ]; then
-	print_list "Ports need to be INSTALLED:" $(to_inst_str $check_install)
-	print_list "Packages need to be REINSTALLED:" $(to_mlibs_str $check_rebuild)
-	ask_yesno "Continue with changes" &&
-		rebuild_ports $check_install $check_rebuild
-fi
-upgrade_exit 0 $last_upd
+	update_ports_tree
+	upgrade_ports
+	check_packages
+esac
