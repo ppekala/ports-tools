@@ -719,7 +719,7 @@ do
 		[ "$newname" ] || continue
 		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
 		[ "$oldname" != "$newname" ] &&
-			$SUDO pkg-static set --change-name $oldname:$newname
+			$SUDO pkg-static set --change-name $oldname:$newname --yes
 		$SUDO pkg-static set --change-origin $ports --yes
 	fi
 done
