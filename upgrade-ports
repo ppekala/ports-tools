@@ -426,6 +426,7 @@ rebuild_ports() {
 		queue=$*
 	fi
 	for port in $queue; do
+		[ -d "$PORTSDIR/$port" ] || continue
 		mdeps=""
 		missing_deps_recursive $port
 		list_add full_queue $mdeps $port
