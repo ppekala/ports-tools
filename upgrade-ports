@@ -298,7 +298,7 @@ missing_deps_recursive() {
 }
 
 moved_reason() {
-	awk -F '|' -v line="$moved_lines" -v port="$1" '
+	awk -F '|' -v line="$moved_last" -v port="$1" '
 		NR > line && $1 == port { print $4 }' "$PORTSDIR/MOVED"
 }
 
@@ -629,7 +629,9 @@ to_upgrade_str() {
 }
 
 update_ports_tree() {
-	local newname oldname port ports
+	local last_entry=$(tail -n 1 "$PORTSDIR/MOVED")
+	local moved_lines=$(wc -l "$PORTSDIR/MOVED" | awk '{ print $1 }')
+	local line_n newname oldname port ports
 
 	[ $skip_update -eq 0 ] || return
 
@@ -637,8 +639,10 @@ update_ports_tree() {
 		echo "===> Ports tree update failed" >&2
 		upgrade_exit 1
 	fi
+	line_n=$(grep -n "$last_entry" "$PORTSDIR/MOVED" | cut -d: -f1)
+	[ "line_n" ] && moved_last=$line_n || moved_last=$moved_lines
 
-	for port in $(awk -F '|' -v line="$moved_lines" '
+	for port in $(awk -F '|' -v line="$moved_last" '
 		NR > line && !$2 { print $1 }' "$PORTSDIR/MOVED")
 	do
 		pkg_exists $port && list_add obsolete $port
@@ -648,7 +652,7 @@ update_ports_tree() {
 		ask_yesno "Remove $(to_pkg_str $port)" &&
 			$SUDO pkg-static delete --quiet --yes --force $port
 	done
-	for ports in $(awk -F '|' -v line="$moved_lines" '
+	for ports in $(awk -F '|' -v line="$moved_last" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
 	do
 		if pkg_exists ${ports%%:*}; then
@@ -887,7 +891,6 @@ upgrade)
 		[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 	fi
 	[ "$last_read" ] || last_read=$(get_entry_dates | head -n 1)
-	moved_lines=$(wc -l "$PORTSDIR/MOVED" | awk '{ print $1 }')
 
 	update_ports_tree
 	upgrade_ports
