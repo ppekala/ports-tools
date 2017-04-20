@@ -64,6 +64,14 @@ check_packages() {
 		if ((n = split(pkg_ignore, array, " ")))
 			for (i=1; i<=n; i++)
 				ignore[array[i]] = array[i];
+		while ("ldconfig -r" | getline line) {
+			split(line, array);
+			if (array[2] != "=>")
+				continue;
+			n = split(array[3], path, "/");
+			libname = substr(path[n], 1, index(path[n], ".so") + 2);
+			syslibs[libname] = array[3];
+		}
 	}
 	/has a missing dependency:/ {
 		if ($6 in ignore)
@@ -80,6 +88,11 @@ check_packages() {
 	/is missing a required shared library:/ {
 		if ($1 in ignore || $1 in miss_deps)
 			next;
+		libname = substr($8, 1, index($8, ".so") + 2);
+		if (libname in syslibs == 0) {
+			print "===> " $1 " linked to " $8 ", not found on the system" > "/dev/stderr"
+			next;
+		}
 		if ($1 in rebuild) {
 			rebuild[$1] = rebuild[$1] " " $8;
 			next;
