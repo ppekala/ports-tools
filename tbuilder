@@ -15,6 +15,10 @@ check_portname() {
 	local port
 
 	if [ "$1" = "." ]; then
+		if [ ! "$(make -V PORTNAME)" ]; then
+		       printf "===> $PWD: not a portdir\n\n" >&2
+		       display_usage
+		fi
 		port=$(echo $PWD | awk '{
 			n = split($0, p ,"/");
 			print p[n-1] "/" p[n];
