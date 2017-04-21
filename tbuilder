@@ -1,5 +1,7 @@
 #!/bin/sh
 
+readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+readonly CONFIGDIR="$XDG_CONFIG_HOME/tbuilder"
 readonly POUDRIERE_DIR=${POUDRIERE_DIR:-/usr/local/poudriere}
 readonly POUDRIERE_PORTS=${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}
 
@@ -29,7 +31,7 @@ check_portname() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} <command> <query> [jail_name] [poudriere testport args]
+Usage: ${0##*/} <command> <query> [name] [poudriere testport args]
 
  command: bdeps  - build ports having certain build dependency
           file   - build ports read from file
@@ -44,7 +46,7 @@ Usage: ${0##*/} <command> <query> [jail_name] [poudriere testport args]
         (grep) - grep pattern
         (ldeps|name|slaves) - category/port or '.' for port from current directory
 
- jail_name: poudriere jail name or 'all' for all available jails
+ name: poudriere jail name or profile filename
 
 EOF
 	exit 1
@@ -117,10 +119,10 @@ poudriere_test_build() {
 
 [ "$query" ] || display_usage
 
-if [ "$build" != "none" -a "$build" != "all" \
-	-a -z "$(poudriere_jails | grep $build)" ]
+if [ "$build" != "none" -a -z "$(poudriere_jails | grep $build)" \
+	-a ! -f "$CONFIGDIR/$build" ]
 then
-	printf "===> $build: no such poudriere jail\n\n" >&2
+	printf "===> $build: no such poudriere jail or profile\n\n" >&2
 	display_usage
 fi
 
@@ -220,14 +222,16 @@ for port in $ports; do
 			esac
 		fi
 		;;
-	all)
-		for b in $(poudriere_jails | sort -h); do
+	*)
+		if [ "$(poudriere_jails | grep $build)" ]; then
+			queue=$build
+		else
+			queue=$(grep -v "^#" "$CONFIGDIR/$build")
+		fi
+		for b in $queue; do
 			poudriere_test_build $b $port
 			[ $interrupted -eq 0 ] || break 2
-		done ;;
-	*)
-		poudriere_test_build $build $port
-		[ $interrupted -eq 0 ] || break
+		done
 	esac
 done
 
