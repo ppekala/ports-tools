@@ -102,7 +102,7 @@ check_packages() {
 		rinst = rinst ? rinst " " origin : origin;
 	}
 	END {
-		print "check_install=\"" inst "\" check_rebuild=\"" rinst "\"";
+		print "need_install=\"" inst "\" need_reinstall=\"" rinst "\"";
 		for (pkg in install) {
 			origin = pkg_origin(pkg);
 			gsub(/(\/|-|\.|\+)/, "_", origin);
@@ -115,11 +115,11 @@ check_packages() {
 		}
 	}')
 
-	if [ "$check_install" -o "$check_rebuild" ]; then
-		print_list "Ports need to be INSTALLED:" $(to_inst_str $check_install)
-		print_list "Packages need to be REINSTALLED:" $(to_mlibs_str $check_rebuild)
+	if [ "$need_install" -o "$need_reinstall" ]; then
+		print_list "Ports need to be INSTALLED:" $(to_inst_str $need_install)
+		print_list "Packages need to be REINSTALLED:" $(to_mlibs_str $need_reinstall)
 		ask_yesno "Continue with changes" &&
-			rebuild_ports $check_install $check_rebuild
+			rebuild_ports $need_install $need_reinstall
 	fi
 	upgrade_exit 0
 }
@@ -429,7 +429,7 @@ rebuild_error_clean() {
 }
 
 rebuild_ports() {
-	local errlog error full_queue make_cmd port queue ret t
+	local errlog error full_queue make_cmd port queue ret=1 t
 
 	[ "$tmpfile" ] || tmpfile=$(create_tmpfile)
 	if [ $# -gt 1 ]; then
@@ -490,8 +490,6 @@ rebuild_ports() {
 					pkg_remove $(pkg-static info -qo $CONFLICT)
 					unset CONFLICT
 					continue
-				else
-					ret=1
 				fi
 			fi
 			break
@@ -515,7 +513,7 @@ rebuild_ports() {
 		print_list "Following ports upgrades were SKIPPED:" $(to_fail_str $build_skipped)
 		upgrade_exit 1 $last_upd
 	fi
-	unset conflicts_self
+	unset conflicts_self need_install need_reinstall need_remove need_upgrade
 }
 
 signal_handler() {
@@ -543,7 +541,9 @@ skip_reverse_deps() {
 		rev_deps=$(eval echo \$$(to_env_str $1)_reqby)
 	fi
 	for consumer in $rev_deps; do
-		if list_find need_upgrade $consumer; then
+		if list_find need_upgrade $consumer ||
+		   list_find need_reinstall $consumer;
+		then
 			list_add build_skipped $consumer
 			setvar $(to_env_str $consumer)_fail "$1: $2"
 		fi
