@@ -64,19 +64,20 @@ EOF
 }
 
 file_add() {
-	local child file=$1
+	local child file=$1 n_kind="file"
 
 	case $file in *svn-commit*) return 1 ;; esac
 	[ $ignore_empty -eq 1 -a ! -s "$file" ] && return 1
+	[ -d "$file" ] && n_kind="directory"
 
-	if ask_yesno "Add file $file"; then
-		[ $non_interactive -eq 0 ] || echo "===> Adding file $file"
+	if ask_yesno "Add $n_kind $file"; then
+		[ $non_interactive -eq 0 ] || echo "===> Adding $n_kind $file"
 		if ! $PSVN -q add "$file"; then
 			echo "===> File addition failed" >&2
 			pcommit_exit 1
 		fi
 
-		if [ -d "$file" ]; then
+		if [ "$n_kind" = "directory" ]; then
 			for child in $(ls "$file"); do
 				file_set_props "$file/$child"
 			done
