@@ -25,5 +25,7 @@ install:
 	${INSTALL_SCRIPT} ${SCRIPTS} ${DESTDIR}${PREFIX}/bin
 	@${MKDIR} ${DESTDIR}${PREFIX}/sbin
 	${INSTALL_SCRIPT} ${SSCRIPTS} ${DESTDIR}${PREFIX}/sbin
+	(cd ${DESTDIR}${PREFIX}/sbin && ln -s upgrade-ports pinstall)
+	(cd ${DESTDIR}${PREFIX}/sbin && ln -s upgrade-ports preinstall)
 	@${MKDIR} ${DESTDIR}${DOCSDIR}
 	${INSTALL_DATA} ${DOCS} ${DESTDIR}${DOCSDIR}

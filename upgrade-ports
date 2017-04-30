@@ -8,7 +8,6 @@ answer_yes=0	# answer yes to all of the questions
 build_started=0 # ports build has started
 interrupted=0   # build interrupted by ctrl+c
 make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
-run_mode="upgrade" # script operation mode
 skip_update=0	# don't update ports tree
 wait_for_key=0	# wait for key press after upgrade finish
 
@@ -233,9 +232,36 @@ desc_pids() {
 	echo $pids
 }
 
-display_usage() {
+display_usage_install() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-c|-h|-u|-w|-y]
+Usage: ${0##*/} -h
+       ${0##*/} [-y] pkg-name ...
+
+    -h - show this help
+    -y - answer yes to all questions
+
+EOF
+	exit 1
+}
+
+display_usage_reinstall() {
+	<< EOF >&2 cat
+Usage: ${0##*/} -h
+       ${0##*/} [-r pkg-name] [-y] pkg-name ...
+
+    -h - show this help
+    -r - reinstall pkg-name and all it's consumers
+    -y - answer yes to all questions
+
+EOF
+	exit 1
+}
+
+display_usage_upgrade() {
+	<< EOF >&2 cat
+Usage:  ${0##*/} -c [-wy]
+        ${0##*/} -h
+	${0##*/} [-uwy]
 
     -c - only check packages database for errors
     -h - show this help
@@ -516,6 +542,40 @@ rebuild_ports() {
 	unset conflicts_self need_install need_reinstall need_remove need_upgrade
 }
 
+show_operations_summary() {
+	local cnfl origin port
+
+	for port in $need_upgrade $need_install $need_reinstall; do
+		check_for_missing_deps $port
+	done
+
+	for port in $need_upgrade $need_install $need_reinstall; do
+		for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
+			-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
+		do
+			for origin in $(pkg-static query -g %o "$cnfl"); do
+				if [ "$port" = "$origin" ]; then
+					list_add conflicts_self $port
+				else
+					mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
+				fi
+			done
+		done
+	done
+
+	print_list "Following packages need to be REMOVED:" $(to_rm_str $need_remove)
+	print_list "Following ports will be INSTALLED:" $(to_inst_str $need_install)
+	print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstall)
+	print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
+
+	if ask_yesno "Proceed with $run_mode"; then
+		pkg_remove $need_remove
+		rebuild_ports $need_install $need_reinstall $need_upgrade
+	else
+		upgrade_exit 0 $last_upd
+	fi
+}
+
 signal_handler() {
 	local pids
 
@@ -570,7 +630,8 @@ to_inst_str() {
 
 	for port in $*; do
 		reqby=$(eval echo \$$(to_env_str $port)_reqby | sed 's| |@|g')
-		list_add str "$port@(required@by@$reqby)"
+		[ "$reqby" ] && list_add str "$port@(required@by@$reqby)" ||
+			list_add str $port
 	done
 	[ "$str" ] && echo $str
 }
@@ -799,36 +860,7 @@ upgrade_ports() {
 		echo "===> No ports needing upgrade found"
 		upgrade_exit 0 $last_upd
 	fi
-
-	for port in $need_upgrade $need_install $need_reinstall; do
-		check_for_missing_deps $port
-	done
-
-	for port in $need_upgrade $need_install $need_reinstall; do
-		for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
-			-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
-		do
-			for origin in $(pkg-static query -g %o "$cnfl"); do
-				if [ "$port" = "$origin" ]; then
-					list_add conflicts_self $port
-				else
-					mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
-				fi
-			done
-		done
-	done
-
-	print_list "Following packages need to be REMOVED:" $(to_rm_str $need_remove)
-	print_list "Following ports need to be INSTALLED:" $(to_inst_str $need_install)
-	print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstall)
-	print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
-
-	if ask_yesno "Proceed with upgrade"; then
-		pkg_remove $need_remove
-		rebuild_ports $need_reinstall $need_upgrade
-	else
-		upgrade_exit 0 $last_upd
-	fi
+	show_operations_summary
 }
 
 wait_for_distfiles() {
@@ -865,20 +897,58 @@ wait_for_distfiles() {
 
 trap signal_handler INT
 
-while getopts "chuwy" option; do
-	case $option in
-	c)
-		run_mode="check" ;;
-	u)
-		skip_update=1 ;;
-	w)
-		wait_for_key=1 ;;
-	y)
-		answer_yes=1 ;;
+case ${0##*/} in
+	pinstall)
+		run_mode="install"
+		while getopts "hy" option; do
+			case $option in
+			y)
+				answer_yes=1 ;;
+			*)
+				display_usage_install
+			esac
+		done
+		shift $((OPTIND-1)) ;;
+	preinstall)
+		run_mode="reinstall"
+		while getopts "hr:y" option; do
+			case $option in
+			r)
+				origin=$(pkg-static info -qo $OPTARG)
+				if [ ! "$origin" ]; then
+					printf "$OPTARG: no such package\n\n" >&2
+					display_usage_reinstall
+				fi
+				list_add need_reinstall $origin
+				list_add need_reinstall $(pkg-static query %ro $origin)
+				;;
+			y)
+				answer_yes=1 ;;
+			*)
+				display_usage_reinstall
+			esac
+		done
+		shift $((OPTIND-1)) ;;
+	upgrade-ports)
+		run_mode="upgrade"
+		while getopts "chuwy" option; do
+			case $option in
+			c)
+				run_mode="check" ;;
+			u)
+				skip_update=1 ;;
+			w)
+				wait_for_key=1 ;;
+			y)
+				answer_yes=1 ;;
+			*)
+				display_usage_upgrade
+			esac
+		done ;;
 	*)
-		display_usage
-	esac
-done
+		echo "===> ${0##*/}: bad frontend name" >&2
+		exit 1
+esac
 
 if [ ! -d "$PORTSDIR" ]; then
 	echo "===> Ports directory not found: $PORTSDIR" >&2
@@ -898,6 +968,47 @@ fi
 case $run_mode in
 check)
 	check_packages ;;
+install)
+	[ "$*" ] || display_usage_install
+	echo "===> Checking ports selected for install..."
+	for pattern in $*; do
+		case $pattern in
+		*/*)
+			[ -d "$PORTSDIR/$pattern" ] || continue
+			pkg_exists $pattern && continue
+			list_add need_install $pattern ;;
+		*)
+			for port in $(pfind -n $pattern); do
+				pkg_exists $port && continue
+				list_add need_install $port
+			done
+		esac
+	done
+	if [ ! "$need_install" ]; then
+		echo "===> No suitable ports to install found" >&2
+		upgrade_exit 1
+	fi
+	show_operations_summary ;;
+reinstall)
+	[ "$need_reinstall" -o "$*" ] || display_usage_reinstall
+	echo "===> Checking ports selected for reinstall..."
+	for pattern in $*; do
+		case $pattern in
+		*/*)
+			pkg_exists $pattern || continue
+			list_add need_reinstall $pattern ;;
+		*)
+			for port in $(pfind -n $pattern); do
+				pkg_exists $port || continue
+				list_add need_reinstall $port
+			done
+		esac
+	done
+	if [ ! "$need_reinstall" ]; then
+		echo "===> No suitable packages to reinstall found" >&2
+		upgrade_exit 1
+	fi
+	show_operations_summary ;;
 upgrade)
 	if [ -f "$CONFIG" ]; then
 		last_read=$(cat "$CONFIG")
