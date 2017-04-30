@@ -7,7 +7,8 @@ readonly PLIST=$(make -V PLIST 2>/dev/null)
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-h] [-s <subname>]
+Usage: ${0##*/} -h
+       ${0##*/} [-s <subname>]
 
     -h show this help
     -s insert new entries with %%subname%% prefix

@@ -2,9 +2,9 @@
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-h]
-       ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name] [-g regexp]
+Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name] [-g regexp]
        ${0##*/} [-g regexp] [-s master category/port]
+       ${0##*/} -h
 
     -b - port needing certain build dependency
     -c - port category

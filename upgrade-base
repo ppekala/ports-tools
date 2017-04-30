@@ -58,11 +58,13 @@ delete_old_files() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-h|-s|-u]
+Usage: ${0##*/} -h
+       ${0##*/} [-su]
 
     -h - show this help
     -s - reset status and begin from start
     -u - skip system source tree update before build
+
 EOF
 	exit 1
 }

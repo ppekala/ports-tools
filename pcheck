@@ -8,7 +8,8 @@ skip_spellcheck=0 # skip spellchecking of descrption/message files
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-h|-s]
+Usage: ${0##*/} -h
+       ${0##*/} [-s]
 
     -h - show this help
     -s - skip spellcheck

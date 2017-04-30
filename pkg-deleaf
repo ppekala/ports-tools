@@ -14,8 +14,9 @@ sel_status="off" # default packages selection state (on|off)
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-h|-x]
-       ${0##*/} [-o] [-y]
+Usage: ${0##*/} -h
+       ${0##*/} [-oy]
+       ${0##*/} -x
 
     -h - show this help
     -o - set selection to on by default

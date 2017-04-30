@@ -10,7 +10,7 @@ readonly cmd=${1:-check}
 if [ "$cmd" != "check" -a "$cmd" != "show" ]; then
 	<< EOF >&2 cat
 Usage: ${0##*/} [check]
-       ${0##*/} [show] [patterns]
+       ${0##*/} show [patterns]
 
     check - print files not modified by REINPLACE_CMD (default operation)
     show  - display diff(1) of modified files with names matching patterns or

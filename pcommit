@@ -52,7 +52,9 @@ dir_cache_add() {
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-c|-e|-h|-n]
+Usage: ${0##*/} -c
+       ${0##*/} [-en]
+       ${0##*/} -h
 
     -c - clean temp files only
     -e - ignore empty files
