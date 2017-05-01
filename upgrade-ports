@@ -115,10 +115,14 @@ check_packages() {
 	}')
 
 	if [ "$need_install" -o "$need_reinstall" ]; then
+		detect_conflicts
+		print_list "Packages need to be REMOVED:" $(to_rm_str $need_remove)
 		print_list "Ports need to be INSTALLED:" $(to_inst_str $need_install)
 		print_list "Packages need to be REINSTALLED:" $(to_mlibs_str $need_reinstall)
-		ask_yesno "Continue with changes" &&
+		if ask_yesno "Continue with changes"; then
+			pkg_remove $need_remove
 			rebuild_ports $need_install $need_reinstall
+		fi
 	fi
 	upgrade_exit 0
 }
@@ -230,6 +234,28 @@ desc_pids() {
 		[ "$ret" ] && pids="$pids $ret"
 	done
 	echo $pids
+}
+
+detect_conflicts() {
+	local cnfl origin port
+
+	for port in $need_upgrade $need_install $need_reinstall; do
+		check_for_missing_deps $port
+	done
+
+	for port in $need_upgrade $need_install $need_reinstall; do
+		for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
+			-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
+		do
+			for origin in $(pkg-static query -g %o "$cnfl"); do
+				if [ "$port" = "$origin" ]; then
+					list_add conflicts_self $port
+				else
+					mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
+				fi
+			done
+		done
+	done
 }
 
 display_usage_install() {
@@ -543,25 +569,7 @@ rebuild_ports() {
 }
 
 show_operations_summary() {
-	local cnfl origin port
-
-	for port in $need_upgrade $need_install $need_reinstall; do
-		check_for_missing_deps $port
-	done
-
-	for port in $need_upgrade $need_install $need_reinstall; do
-		for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
-			-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
-		do
-			for origin in $(pkg-static query -g %o "$cnfl"); do
-				if [ "$port" = "$origin" ]; then
-					list_add conflicts_self $port
-				else
-					mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
-				fi
-			done
-		done
-	done
+	detect_conflicts
 
 	print_list "Following packages need to be REMOVED:" $(to_rm_str $need_remove)
 	print_list "Following ports will be INSTALLED:" $(to_inst_str $need_install)
