@@ -602,8 +602,10 @@ signal_handler() {
 skip_reverse_deps() {
 	local consumer rev_deps
 
-	list_add build_failed $1
-	setvar $(to_env_str $1)_fail "$2"
+	if ! list_find build_skipped $1; then
+		list_add build_failed $1
+		setvar $(to_env_str $1)_fail "$2"
+	fi
 
 	if pkg_exists $1; then
 		rev_deps=$(pkg-static query %ro $1)
@@ -611,11 +613,13 @@ skip_reverse_deps() {
 		rev_deps=$(eval echo \$$(to_env_str $1)_reqby)
 	fi
 	for consumer in $rev_deps; do
-		if list_find need_upgrade $consumer ||
-		   list_find need_reinstall $consumer;
+		if list_find need_install $consumer ||
+		   list_find need_reinstall $consumer ||
+		   list_find need_upgrade $consumer;
 		then
 			list_add build_skipped $consumer
 			setvar $(to_env_str $consumer)_fail "$1: $2"
+			skip_reverse_deps $consumer "dependency skipped"
 		fi
 	done
 }
