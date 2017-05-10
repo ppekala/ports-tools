@@ -482,10 +482,12 @@ rebuild_error_clean() {
 
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret=1 t
+	local operation=$run_mode
 
 	[ "$tmpfile" ] || tmpfile=$(create_tmpfile)
 	if [ $# -gt 1 ]; then
-		echo "===> Calculating ports upgrade order..."
+		[ "$operation" = "check" ] && operation="reinstall"
+		echo "===> Calculating ports $operation order..."
 		queue=$(ports_upgrade_sort $*)
 	else
 		queue=$*
