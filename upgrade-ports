@@ -261,8 +261,9 @@ detect_conflicts() {
 display_usage_install() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-y] pkg-name ...
+       ${0##*/} [-dy] pkg-name ...
 
+    -d - build with debug support
     -h - show this help
     -y - answer yes to all questions
 
@@ -273,8 +274,9 @@ EOF
 display_usage_reinstall() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-r pkg-name] [-y] pkg-name ...
+       ${0##*/} [-dy] [-r pkg-name] pkg-name ...
 
+    -d - build with debug support
     -h - show this help
     -r - reinstall pkg-name and all it's consumers
     -y - answer yes to all questions
@@ -914,8 +916,10 @@ trap signal_handler INT
 case ${0##*/} in
 	pinstall)
 		run_mode="install"
-		while getopts "hy" option; do
+		while getopts "dhy" option; do
 			case $option in
+			d)
+				make_args="$make_args WITH_DEBUG=yes" ;;
 			y)
 				answer_yes=1 ;;
 			*)
@@ -925,8 +929,10 @@ case ${0##*/} in
 		shift $((OPTIND-1)) ;;
 	preinstall)
 		run_mode="reinstall"
-		while getopts "hr:y" option; do
+		while getopts "dhr:y" option; do
 			case $option in
+			d)
+				make_args="$make_args WITH_DEBUG=yes" ;;
 			r)
 				origin=$(pkg-static info -qo $OPTARG)
 				if [ ! "$origin" ]; then
