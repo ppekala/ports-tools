@@ -116,9 +116,9 @@ check_packages() {
 
 	if [ "$need_install" -o "$need_reinstall" ]; then
 		detect_conflicts
-		print_list "Packages need to be REMOVED:" $(to_rm_str $need_remove)
-		print_list "Ports need to be INSTALLED:" $(to_inst_str $need_install)
-		print_list "Packages need to be REINSTALLED:" $(to_mlibs_str $need_reinstall)
+		print_list "Packages need to be REMOVED" $(to_rm_str $need_remove)
+		print_list "Ports need to be INSTALLED" $(to_inst_str $need_install)
+		print_list "Packages need to be REINSTALLED" $(to_mlibs_str $need_reinstall)
 		if ask_yesno "Continue with changes"; then
 			pkg_remove $need_remove
 			rebuild_ports $need_install $need_reinstall
@@ -462,9 +462,11 @@ ports_upgrade_sort() {
 }
 
 print_list() {
+	local item title=$1
+
 	[ "$2" ] || return
-	printf "\n$1\n"
 	shift 1
+	printf "\n$title [$#]:\n"
 	for item in $*; do printf "\t$item\n" | sed 's|@| |g'; done | sort
 }
 
@@ -559,14 +561,14 @@ rebuild_ports() {
 	rm $errlog
 	if [ "$build_failed" -o "$build_interrupted" ]; then
 		if [ $interrupted -eq 1 ]; then
-			printf "\nUpgrade process was interrupted.\n"
+			printf "\n===> Execution of $operation operation was interrupted.\n"
 		else
-			printf "\nNot all ports were upgraded successfully, check your system and try again.\n"
+			printf "\n===> Not all operations were successfull.\n"
 		fi
-		print_list "Following ports upgrade SUCCEEDED:" $build_ok
-		print_list "Upgrade build process INTERRUPTED:" $build_interrupted
-		print_list "Following ports upgrade FAILED:" $(to_fail_str $build_failed)
-		print_list "Following ports upgrades were SKIPPED:" $(to_fail_str $build_skipped)
+		print_list "Following ports builds SUCCEEDED" $build_ok
+		print_list "Following ports builds FAILED" $(to_fail_str $build_failed)
+		print_list "Following build was INTERRUPTED" $build_interrupted
+		print_list "Following ports builds were SKIPPED" $(to_fail_str $build_skipped)
 		upgrade_exit 1 $last_upd
 	fi
 	unset conflicts_self need_install need_reinstall need_remove need_upgrade
@@ -575,10 +577,10 @@ rebuild_ports() {
 show_operations_summary() {
 	detect_conflicts
 
-	print_list "Following packages need to be REMOVED:" $(to_rm_str $need_remove)
-	print_list "Following ports will be INSTALLED:" $(to_inst_str $need_install)
-	print_list "Following packages will be REINSTALLED:" $(to_pkg_str $need_reinstall)
-	print_list "Following packages will be UPGRADED:" $(to_upgrade_str $need_upgrade)
+	print_list "Following packages need to be REMOVED" $(to_rm_str $need_remove)
+	print_list "Following ports will be INSTALLED" $(to_inst_str $need_install)
+	print_list "Following packages will be REINSTALLED" $(to_pkg_str $need_reinstall)
+	print_list "Following packages will be UPGRADED" $(to_upgrade_str $need_upgrade)
 
 	if ask_yesno "Proceed with $run_mode"; then
 		pkg_remove $need_remove
@@ -738,7 +740,7 @@ update_ports_tree() {
 	do
 		pkg_exists $port && list_add obsolete $port
 	done
-	print_list "Following packages are marked as OBSOLETE:" $(to_obs_str $obsolete)
+	print_list "Following packages are marked as OBSOLETE" $(to_obs_str $obsolete)
 	for port in $obsolete; do
 		ask_yesno "Remove $(to_pkg_str $port)" &&
 			$SUDO pkg-static delete --quiet --yes --force $port
