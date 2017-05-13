@@ -113,6 +113,10 @@ check_packages() {
 			print origin "_mlibs=\"" rebuild[pkg] "\"";
 		}
 	}')
+	for port in $need_install; do
+		[ -d "$PORTSDIR/$port" ] && continue
+		list_remove need_install $port
+	done
 
 	if [ "$need_install" -o "$need_reinstall" ]; then
 		detect_conflicts
