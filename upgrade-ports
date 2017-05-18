@@ -752,14 +752,24 @@ update_ports_tree() {
 	for ports in $(awk -F '|' -v line="$moved_last" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
 	do
-		if pkg_exists ${ports%%:*}; then
-			oldname=$(pkg-static query %n ${ports%%:*})
-			newname=$(make -C "$PORTSDIR/${ports##*:}" -VPKGBASE)
-			[ "$newname" ] || continue
-			echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
-			[ "$oldname" != "$newname" ] &&
-				$SUDO pkg-static set --change-name $oldname:$newname --yes
-			$SUDO pkg-static set --change-origin $ports --yes
+		pkg_exists ${ports%%:*} || continue
+		oldname=$(pkg-static query %n ${ports%%:*})
+		newname=$(make -C "$PORTSDIR/${ports##*:}" -VPKGBASE)
+		[ "$newname" ] || continue
+
+		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
+		if [ "$oldname" != "$newname" ]; then
+			if ! $SUDO pkg-static set --change-name $oldname:$newname \
+				--yes 2>/dev/null;
+			then
+				list_add need_remove ${ports%%:*}
+				pkg_exists ${ports##*:} || list_add need_install ${ports##*:}
+				continue
+			fi
+		fi
+		if ! $SUDO pkg-static set --change-origin $ports --yes 2>/dev/null; then
+			list_add need_remove ${ports%%:*}
+			pkg_exists ${port##*:} || list_add need_install ${ports##*:}
 		fi
 	done
 }
