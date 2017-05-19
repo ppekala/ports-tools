@@ -37,12 +37,10 @@ check_for_missing_deps() {
 		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
 		tr ' ' '\n' | cut -d':' -f2 | sort -u)
 	do
-		if ! pkg_exists $dep; then
-			list_add need_install $dep
-			list_add $(to_env_str $dep)_reqby $1
-			list_add $(to_env_str $1)_mdeps $dep
-			check_for_missing_deps $dep
-		fi
+		need_install_add $dep || continue
+		list_add $(to_env_str $dep)_reqby $1
+		list_add $(to_env_str $1)_mdeps $dep
+		check_for_missing_deps $dep
 	done
 }
 
@@ -354,6 +352,7 @@ mark_for_removal() {
 
 	list_add need_remove $1
 	setvar $(to_env_str $1)_conflicts "$2"
+	[ "$3" ] && return
 	for port in $(pkg-static query %ro $1); do
 		mark_for_removal $port "depends on $(to_pkg_str $1)"
 	done
@@ -371,6 +370,12 @@ missing_deps_recursive() {
 moved_reason() {
 	awk -F '|' -v line="$moved_last" -v port="$1" '
 		NR > line && $1 == port { print $4 }' "$PORTSDIR/MOVED"
+}
+
+need_install_add() {
+	pkg_exists $1 && return 1
+	list_add need_install $1
+	return 0
 }
 
 pkg_exists() {
@@ -757,19 +762,20 @@ update_ports_tree() {
 		newname=$(make -C "$PORTSDIR/${ports##*:}" -VPKGBASE)
 		[ "$newname" ] || continue
 
-		echo "===> ${ports%%:*} moved to ${ports##*:} ($(moved_reason ${ports%%:*}))"
+		reason=$(moved_reason ${ports%%:*})
+		echo "===> ${ports%%:*} moved to ${ports##*:} ($reason)"
 		if [ "$oldname" != "$newname" ]; then
 			if ! $SUDO pkg-static set --change-name $oldname:$newname \
 				--yes 2>/dev/null;
 			then
-				list_add need_remove ${ports%%:*}
-				pkg_exists ${ports##*:} || list_add need_install ${ports##*:}
+				mark_for_removal ${ports%%:*} "$reason" nodeps
+				need_install_add ${ports##*:}
 				continue
 			fi
 		fi
 		if ! $SUDO pkg-static set --change-origin $ports --yes 2>/dev/null; then
-			list_add need_remove ${ports%%:*}
-			pkg_exists ${port##*:} || list_add need_install ${ports##*:}
+			mark_for_removal ${ports%%:*} "$reason" nodeps
+			need_install_add ${ports##*:}
 		fi
 	done
 }
@@ -1011,12 +1017,10 @@ install)
 		case $pattern in
 		*/*)
 			[ -d "$PORTSDIR/$pattern" ] || continue
-			pkg_exists $pattern && continue
-			list_add need_install $pattern ;;
+			need_install_add $pattern ;;
 		*)
 			for port in $(pfind -n $pattern); do
-				pkg_exists $port && continue
-				list_add need_install $port
+				need_install_add $port
 			done
 		esac
 	done
