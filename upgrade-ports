@@ -6,6 +6,7 @@ export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
 answer_yes=0	# answer yes to all of the questions
 build_started=0 # ports build has started
+force_recompile=0 # recompile packages with stale dependencies
 interrupted=0   # build interrupted by ctrl+c
 make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
 skip_update=0	# don't update ports tree
@@ -51,7 +52,8 @@ check_packages() {
 	for pkg in $(pkg-static lock -lq); do
 		list_add pkg_ignore $(pkg-static query %n $pkg)
 	done
-	eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
+	eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" \
+		-v force_recompile="$force_recompile" '
 	function pkg_origin(pkg) {
 		"pkg-static rquery %o " pkg | getline port
 		close("pkg-static rquery %o " pkg);
@@ -73,13 +75,23 @@ check_packages() {
 	/has a missing dependency:/ {
 		if ($6 in ignore)
 			next;
+		missing = pkg_origin($6);
+		"test -d " ENVIRON["PORTSDIR"] "/" missing " || echo fail" | getline res
+		close("make -C " ENVIRON["PORTSDIR"] "/" missing " || echo fail");
+		if (res == "fail") {
+			if (force_recompile == "1" && $1 in rebuild == 0) {
+				rebuild[$1] = $6;
+				morigin = pkg_origin($1);
+				rinst = rinst ? rinst " " morigin : morigin;
+			}
+			next;
+		}
 		miss_deps[$1] = $1;
 		if ($6 in install) {
 			install[$6] = install[$6] " " $1;
 			next;
 		}
 		install[$6] = $1;
-		missing = pkg_origin($6);
 		inst = inst ? inst " " missing : missing;
 	}
 	/is missing a required shared library:/ {
@@ -111,10 +123,6 @@ check_packages() {
 			print origin "_mlibs=\"" rebuild[pkg] "\"";
 		}
 	}')
-	for port in $need_install; do
-		[ -d "$PORTSDIR/$port" ] && continue
-		list_remove need_install $port
-	done
 
 	if [ "$need_install" -o "$need_reinstall" ]; then
 		detect_conflicts
@@ -303,11 +311,12 @@ EOF
 
 display_usage_upgrade() {
 	<< EOF >&2 cat
-Usage:  ${0##*/} -c [-wy]
+Usage:  ${0##*/} -c [-fwy]
         ${0##*/} -h
-	${0##*/} [-uwy]
+	${0##*/} [-fuwy]
 
     -c - only check packages database for errors
+    -f - force recompile of packages with stale dependencies
     -h - show this help
     -u - skip ports tree update
     -w - wait for key press after finish
@@ -973,10 +982,12 @@ case ${0##*/} in
 		shift $((OPTIND-1)) ;;
 	upgrade-ports)
 		run_mode="upgrade"
-		while getopts "chuwy" option; do
+		while getopts "cfhuwy" option; do
 			case $option in
 			c)
 				run_mode="check" ;;
+			f)
+				force_recompile=1 ;;
 			u)
 				skip_update=1 ;;
 			w)
