@@ -7,6 +7,7 @@ export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 answer_yes=0	# answer yes to all of the questions
 build_started=0 # ports build has started
 force_recompile=0 # recompile packages with stale dependencies
+interactive=0   # ask for confirmation for each package operation
 interrupted=0   # build interrupted by ctrl+c
 make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
 skip_update=0	# don't update ports tree
@@ -288,10 +289,11 @@ detect_conflicts() {
 display_usage_install() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-dy] pkg-name ...
+       ${0##*/} [-diy] pkg-name ...
 
     -d - build with debug support
     -h - show this help
+    -i - interactive mode, confirm each matched port install
     -y - answer yes to all questions
 
 EOF
@@ -301,10 +303,11 @@ EOF
 display_usage_reinstall() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-dy] [-r pkg-name] pkg-name ...
+       ${0##*/} [-diy] [-r pkg-name] pkg-name ...
 
     -d - build with debug support
     -h - show this help
+    -i - interactive mode, confirm each matched package reinstall
     -r - reinstall pkg-name and all it's consumers
     -y - answer yes to all questions
 
@@ -342,6 +345,15 @@ fetch_distfiles() {
 
 get_entry_dates() {
 	egrep "^[0-9]{8}:" "$PORTSDIR/UPDATING" | sed 's/://'
+}
+
+interactive_select() {
+	local name
+
+	[ $interactive -eq 1 ] || return
+	for name in $(eval echo \$$1); do
+		ask_yesno "$2 $name" || list_remove $1 $name
+	done
 }
 
 list_add() {
@@ -956,10 +968,12 @@ trap signal_handler INT
 case ${0##*/} in
 	pinstall)
 		run_mode="install"
-		while getopts "dhy" option; do
+		while getopts "dhiy" option; do
 			case $option in
 			d)
 				make_args="$make_args WITH_DEBUG=yes" ;;
+			i)
+				interactive=1 ;;
 			y)
 				answer_yes=1 ;;
 			*)
@@ -969,10 +983,12 @@ case ${0##*/} in
 		shift $((OPTIND-1)) ;;
 	preinstall)
 		run_mode="reinstall"
-		while getopts "dhr:y" option; do
+		while getopts "dhir:y" option; do
 			case $option in
 			d)
 				make_args="$make_args WITH_DEBUG=yes" ;;
+			i)
+				interactive=1 ;;
 			r)
 				origin=$(pkg-static info -qo $OPTARG)
 				if [ ! "$origin" ]; then
@@ -1044,6 +1060,7 @@ install)
 			done
 		esac
 	done
+	interactive_select need_install Install
 	if [ ! "$need_install" ]; then
 		echo "===> No suitable ports to install found" >&2
 		upgrade_exit 1
@@ -1064,6 +1081,7 @@ reinstall)
 			done
 		esac
 	done
+	interactive_select need_reinstall Reinstall
 	if [ ! "$need_reinstall" ]; then
 		echo "===> No suitable packages to reinstall found" >&2
 		upgrade_exit 1
