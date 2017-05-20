@@ -76,8 +76,11 @@ check_packages() {
 		if ($6 in ignore)
 			next;
 		missing = pkg_origin($6);
-		"test -d " ENVIRON["PORTSDIR"] "/" missing " || echo fail" | getline res
-		close("make -C " ENVIRON["PORTSDIR"] "/" missing " || echo fail");
+		if (missing) {
+			"test -d " ENVIRON["PORTSDIR"] "/" missing " || echo fail" | getline res
+			close("make -C " ENVIRON["PORTSDIR"] "/" missing " || echo fail");
+		} else
+			res="fail";
 		if (res == "fail") {
 			if (force_recompile == "1" && $1 in rebuild == 0) {
 				rebuild[$1] = $6;
@@ -120,7 +123,7 @@ check_packages() {
 		for (pkg in rebuild) {
 			origin = pkg_origin(pkg);
 			gsub(/(\/|-|\.|\+)/, "_", origin);
-			print origin "_mlibs=\"" rebuild[pkg] "\"";
+			print origin "_miss=\"" rebuild[pkg] "\"";
 		}
 	}')
 
@@ -128,7 +131,7 @@ check_packages() {
 		detect_conflicts
 		print_list "Packages need to be REMOVED" $(to_rm_str $need_remove)
 		print_list "Ports need to be INSTALLED" $(to_inst_str $need_install)
-		print_list "Packages need to be REINSTALLED" $(to_mlibs_str $need_reinstall)
+		print_list "Packages need to be REINSTALLED" $(to_reinst_str $need_reinstall)
 		if ask_yesno "Continue with changes"; then
 			pkg_remove $need_remove
 			rebuild_ports $need_install $need_reinstall
@@ -672,13 +675,19 @@ to_inst_str() {
 	[ "$str" ] && echo $str
 }
 
-to_mlibs_str() {
-	local mlibs pkg port str
+to_reinst_str() {
+	local defect miss pkg port str
 
 	for port in $*; do
-		mlibs=$(eval echo \$$(to_env_str $port)_mlibs | sed 's| |@|g')
+		miss=$(eval echo \$$(to_env_str $port)_miss | sed 's| |@|g')
 		pkg=$(to_pkg_str $port)
-		list_add str "$pkg@(misses@libraries:@$mlibs)"
+		case $miss in
+		*.so*)
+			defect="misses@libraries" ;;
+		*)
+			defect="stale@dependency"
+		esac
+		list_add str "$pkg@($defect:@$miss)"
 	done
 	[ "$str" ] && echo $str
 }
