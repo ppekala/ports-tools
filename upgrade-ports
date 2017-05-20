@@ -129,6 +129,20 @@ check_packages() {
 	upgrade_exit 0
 }
 
+clean_after_build_error() {
+	if list_find conflicts_self $1; then
+		echo "===> Restoring previous version from backup..."
+		$SUDO pkg-static add --quiet \
+			"$(eval echo \$$(to_env_str $1)_backup)"
+	fi
+	if [ $interrupted -eq 1 ]; then
+		build_interrupted=$1
+		$SUDO make clean
+	else
+		skip_reverse_deps $1 "$2 error"
+	fi
+}
+
 command_is_valid() {
 	local old_IFS=$IFS
 
@@ -479,20 +493,6 @@ print_list() {
 	for item in $*; do printf "\t$item\n" | sed 's|@| |g'; done | sort
 }
 
-rebuild_error_clean() {
-	if list_find conflicts_self $1; then
-		echo "===> Restoring previous version from backup..."
-		$SUDO pkg-static add --quiet \
-			"$(eval echo \$$(to_env_str $1)_backup)"
-	fi
-	if [ $interrupted -eq 1 ]; then
-		build_interrupted=$1
-		$SUDO make clean
-	else
-		skip_reverse_deps $1 "$2 error"
-	fi
-}
-
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret=1 t
 	local operation=$run_mode
@@ -540,7 +540,7 @@ rebuild_ports() {
 		[ $build_started -eq 1 ] || build_started=1
 		[ -d work ] && $SUDO make clean
 		if ! $SUDO make $make_args build; then
-			rebuild_error_clean $port build
+			clean_after_build_error $port build
 			continue
 		fi
 		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
@@ -562,7 +562,7 @@ rebuild_ports() {
 			break
 		done
 		if [ $ret -ne 0 ]; then
-			rebuild_error_clean $port install
+			clean_after_build_error $port install
 		else
 			list_add build_ok $port
 		fi
