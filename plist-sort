@@ -140,7 +140,7 @@ function print_files(array, file) {
 	sort_to_file(array, file);
 
 	while((getline line < file) > 0) {
-		if (match(line, "@\(.*\)")) {
+		if (match(line, "@\\(.*\\)")) {
 			keyword_line_untokenize(line, "");
 			continue;
 		}
