@@ -1075,6 +1075,10 @@ reinstall)
 			pkg_exists $pattern || continue
 			list_add need_reinstall $pattern ;;
 		*)
+			if pkg_exists $pattern; then
+				list_add need_reinstall $(pkg-static info -oq $pattern)
+				continue
+			fi
 			for port in $(pfind -n $pattern); do
 				pkg_exists $port || continue
 				list_add need_reinstall $port
