@@ -411,7 +411,10 @@ moved_reason() {
 }
 
 need_install_add() {
-	pkg_exists $1 && return 1
+	if pkg_exists $1; then
+		[ "$2" ] && echo "===> $1 already installed"
+		return 1
+	fi
 	list_add need_install $1
 	return 0
 }
@@ -1053,10 +1056,10 @@ install)
 		case $pattern in
 		*/*)
 			[ -d "$PORTSDIR/$pattern" ] || continue
-			need_install_add $pattern ;;
+			need_install_add $pattern verbose ;;
 		*)
 			for port in $(pfind -n $pattern); do
-				need_install_add $port
+				need_install_add $port verbose
 			done
 		esac
 	done
