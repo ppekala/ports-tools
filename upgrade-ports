@@ -10,6 +10,7 @@ force_recompile=0 # recompile packages with stale dependencies
 interactive=0   # ask for confirmation for each package operation
 interrupted=0   # build interrupted by ctrl+c
 make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
+ports_config=0	# set port(s) options before build
 skip_update=0	# don't update ports tree
 wait_for_key=0	# wait for key press after upgrade finish
 
@@ -291,6 +292,7 @@ display_usage_install() {
 Usage: ${0##*/} -h
        ${0##*/} [-diy] pkg-name ...
 
+    -c - set port(s) options before install
     -d - build with debug support
     -h - show this help
     -i - interactive mode, confirm each matched port install
@@ -305,6 +307,7 @@ display_usage_reinstall() {
 Usage: ${0##*/} -h
        ${0##*/} [-diy] [-r pkg-name] pkg-name ...
 
+    -c - set port(s) options before reinstall
     -d - build with debug support
     -h - show this help
     -i - interactive mode, confirm each matched package reinstall
@@ -462,6 +465,17 @@ pm_fake_run() {
 		echo $rports
 		list_add need_reinstall $rports
 	fi
+}
+
+ports_configure() {
+	local port
+	[ $ports_config -eq 1 ] || return
+
+	for port in $*; do
+		cd "$PORTSDIR/$port" 2>/dev/null || continue
+		[ "$(make -V OPTIONS_DEFINE)" ] || continue
+		$SUDO make config
+	done
 }
 
 ports_upgrade_sort() {
@@ -971,8 +985,10 @@ trap signal_handler INT
 case ${0##*/} in
 	pinstall)
 		run_mode="install"
-		while getopts "dhiy" option; do
+		while getopts "cdhiy" option; do
 			case $option in
+			c)
+				ports_config=1 ;;
 			d)
 				make_args="$make_args WITH_DEBUG=yes" ;;
 			i)
@@ -986,8 +1002,10 @@ case ${0##*/} in
 		shift $((OPTIND-1)) ;;
 	preinstall)
 		run_mode="reinstall"
-		while getopts "dhir:y" option; do
+		while getopts "cdhir:y" option; do
 			case $option in
+			c)
+				ports_config=1 ;;
 			d)
 				make_args="$make_args WITH_DEBUG=yes" ;;
 			i)
@@ -1068,6 +1086,7 @@ install)
 		echo "===> No suitable ports to install found" >&2
 		upgrade_exit 1
 	fi
+	ports_configure $need_install
 	show_operations_summary ;;
 reinstall)
 	[ "$need_reinstall" -o "$*" ] || display_usage_reinstall
@@ -1093,6 +1112,7 @@ reinstall)
 		echo "===> No suitable packages to reinstall found" >&2
 		upgrade_exit 1
 	fi
+	ports_configure $need_reinstall
 	show_operations_summary ;;
 upgrade)
 	if [ -f "$CONFIG" ]; then
