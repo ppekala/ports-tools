@@ -104,7 +104,7 @@ check_packages() {
 			next;
 		libname = substr($8, 1, index($8, ".so") + 2);
 		if (libname in syslibs == 0) {
-			print "===> " $1 " linked to " $8 ", not found on the system" > "/dev/stderr"
+			#print "===> " $1 " linked to " $8 ", not found on the system" > "/dev/stderr"
 			next;
 		}
 		if ($1 in rebuild) {
