@@ -346,6 +346,15 @@ fetch_distfiles() {
 		" >/dev/null 2>&1 &
 }
 
+gather_missing_dependencies() {
+	local port
+
+	for port in $(eval echo \$$(to_env_str $1)_mdeps); do
+		gather_missing_dependencies $port
+		echo $port
+	done
+}
+
 get_entry_dates() {
 	egrep "^[0-9]{8}:" "$PORTSDIR/UPDATING" | sed 's/://'
 }
@@ -396,15 +405,6 @@ mark_for_removal() {
 	[ "$3" ] && return
 	for port in $(pkg-static query %ro $1); do
 		mark_for_removal $port "depends on $(to_pkg_str $1)"
-	done
-}
-
-missing_deps_recursive() {
-	local port
-
-	for port in $(eval echo \$$(to_env_str $1)_mdeps); do
-		missing_deps_recursive $port
-		list_add mdeps $port
 	done
 }
 
@@ -548,8 +548,7 @@ rebuild_ports() {
 	fi
 	for port in $queue; do
 		[ -d "$PORTSDIR/$port" ] || continue
-		mdeps=""
-		missing_deps_recursive $port
+		mdeps=$(gather_missing_dependencies $port)
 		list_add full_queue $mdeps $port
 	done
 	if [ "$conflicts_self" ]; then
