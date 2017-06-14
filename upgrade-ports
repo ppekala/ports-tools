@@ -975,7 +975,7 @@ wait_for_distfiles() {
 			echo "===> Waiting for $1 distfiles to fetch..."
 			msg_shown=1
 		fi
-		sleep 5
+		while [ ! -s $tmpfile ]; do sleep 1; done
 	done
 }
 
