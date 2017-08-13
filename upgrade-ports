@@ -536,7 +536,7 @@ print_list() {
 
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret=1 t
-	local operation=$run_mode
+	local operation=$run_mode conflict_port remove_port=0
 
 	[ "$tmpfile" ] || tmpfile=$(create_tmpfile)
 	if [ $# -gt 1 ]; then
@@ -593,9 +593,21 @@ rebuild_ports() {
 			eval $(cat $errlog | awk '
 				/conflicts with/ { print "CONFLICT=" $5 }')
 			if [ "$CONFLICT" ]; then
-				if ask_yesno "$port install conflicts with $CONFLICT. Remove it"; then
-					pkg_remove $(pkg-static info -qo $CONFLICT)
+				conflict_port=$(pkg-static info -qo $CONFLICT)
+				if list_find need_reinstall $conflict_port &&
+				   ! list_find build_ok $conflict_port; then
+					# conflicting port is marked for reinstall
+					# hopefully this will address conflict
+					# and if not we will deal with conflict later
+					remove_port=1
+				else
+					ask_yesno "$port install conflicts with $CONFLICT. Remove it" &&
+						remove_port=1
+				fi
+				if [ $rm_port -eq 1 ]; then
+					pkg_remove $conflict_port
 					unset CONFLICT
+					remove_port=0
 					continue
 				fi
 			fi
