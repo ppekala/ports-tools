@@ -388,6 +388,15 @@ list_find() {
 	return 1
 }
 
+list_first() {
+	local elem
+
+	for elem in $(eval echo \$$1); do
+		echo $elem
+		exit
+	done
+}
+
 list_remove() {
 	local elem name=$1 new_list
 
@@ -479,6 +488,45 @@ ports_configure() {
 }
 
 ports_upgrade_sort() {
+	local deps_tmpfile=$(create_tmpfile -deps)
+	local ncpu=$(sysctl -n hw.ncpu)
+	local djobs=0 next port ports_list=$*
+
+	[ "$ncpu" ] || ncpu=1
+
+	while true; do
+		[ $djobs -eq 0 -a ! "$ports_list" ] && break
+
+		if [ $djobs -lt $ncpu -a "$ports_list" ]; then
+			next=$(list_first ports_list)
+			(
+				deps=$(make -C "$PORTSDIR/$next" all-depends-list |
+					sed "s,$PORTSDIR/,,g")
+				lockf -k $deps_tmpfile sh -c "echo \"START:$next\" >> $deps_tmpfile
+					echo \"$deps\" >> $deps_tmpfile
+					echo \"END:$next\" >> $deps_tmpfile"
+			) &
+			djobs=$((djobs+1))
+			list_remove ports_list $next
+		fi
+		for line in $(lockf -k $deps_tmpfile sh -c "
+			[ -s \"$deps_tmpfile\" ] || exit
+			cat $deps_tmpfile
+			echo -n > $deps_tmpfile");
+		do
+			case ${line%:*} in
+			START)
+				port=$(to_env_str ${line#*:}) ;;
+			END)
+				eval export ${port}_alldeps
+				djobs=$((djobs-1)) ;;
+			*)
+				list_add ${port}_alldeps $line
+			esac
+		done
+	done
+	rm $deps_tmpfile
+
 	echo $* | tr ' ' '\n' | awk '
 	function partition(a, s, e) {
 		i = s-1; j = e+1;
@@ -510,13 +558,11 @@ ports_upgrade_sort() {
 		qsort(a, p+1, end);
 	}
 	{
+		envname = $0 "_alldeps";
+		gsub(/(\/|-|\.|\+)/, "_", envname);
 		ports[++n_ports] = $0;
-		while ("make -C \"" ENVIRON["PORTSDIR"] "/" $0 "\" all-depends-list" | getline line) {
-			sub(ENVIRON["PORTSDIR"] "/", " ", line);
-			port_deps[$0] = port_deps[$0] line;
-			port_ndeps[$0]++;
-		}
-		close("make -C \"" ENVIRON["PORTSDIR"] "/" $0 "\" all-depends-list");
+		port_deps[$0] = ENVIRON[envname];
+		port_ndeps[$0] = split(port_deps[$0], adeps);
 	}
 	END {
 		qsort(ports, 1, n_ports);
