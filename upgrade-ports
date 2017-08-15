@@ -252,6 +252,7 @@ create_tmpfile() {
 		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1
 	fi
+	list_add upgrade_tmpfiles $temp
 	echo $temp
 }
 
@@ -934,11 +935,14 @@ updating_entry() {
 # $2 - last read/executed UPDATING entry
 # $3 - wait for final keypress?
 upgrade_exit() {
-	local keywait=$3
+	local key keywait=$3 temp
 
 	[ "$2" ] && echo $2 > "$CONFIG"
 	[ "$keywait" ] || keywait=$wait_for_key
-	[ "$tmpfile" -a -f "$tmpfile" ] && rm -rf "$tmpfile"
+
+	for temp in $upgrade_tmpfiles; do
+		[ -f "$temp" ] && rm -rf "$temp"
+	done
 
 	if [ $keywait -eq 1 ]; then
 		printf "\n===> Press Enter key to finish.\n\n"
