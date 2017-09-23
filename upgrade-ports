@@ -312,7 +312,7 @@ Usage: ${0##*/} -h
     -d - build with debug support
     -h - show this help
     -i - interactive mode, confirm each matched package reinstall
-    -r - reinstall pkg-name and all it's consumers
+    -r - reinstall pkg-name and all its consumers
     -y - answer yes to all questions
 
 EOF
