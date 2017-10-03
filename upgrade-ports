@@ -252,7 +252,7 @@ create_tmpfile() {
 		echo "===> Failed to create temporary file" >&2
 		upgrade_exit 1
 	fi
-	list_add upgrade_tmpfiles $temp
+
 	echo $temp
 }
 
@@ -493,6 +493,7 @@ ports_upgrade_sort() {
 	local ncpu=$(sysctl -n hw.ncpu)
 	local djobs=0 next port ports_list=$*
 
+	list_add upgrade_tmpfiles $deps_tmpfile
 	[ "$ncpu" ] || ncpu=1
 
 	while true; do
@@ -585,7 +586,10 @@ rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret=1 t
 	local operation=$run_mode conflict_port remove_port=0
 
-	[ "$tmpfile" ] || tmpfile=$(create_tmpfile)
+	if [ ! "$tmpfile" ]; then
+		tmpfile=$(create_tmpfile)
+		list_add upgrade_tmpfiles $tmpfile
+	fi
 	if [ $# -gt 1 ]; then
 		[ "$operation" = "check" ] && operation="reinstall"
 		echo "===> Calculating ports $operation order..."
@@ -604,6 +608,7 @@ rebuild_ports() {
 	fi
 	fetch_distfiles $full_queue
 	errlog=$(create_tmpfile "-errlog")
+	list_add upgrade_tmpfiles $errlog
 	for port in $full_queue; do
 		if [ $interrupted -eq 1 ]; then
 			list_add build_skipped $port
@@ -956,6 +961,7 @@ upgrade_ports() {
 
 	if [ $last_read -lt $last_upd ]; then
 		tmpfile=$(create_tmpfile)
+		list_add upgrade_tmpfiles $tmpfile
 		printf "===> New entries since last upgrade in $PORTSDIR/UPDATING file:\n\n"
 		for entry in $(get_entry_dates | sort -u); do
 			[ $entry -gt $last_read ] || continue
