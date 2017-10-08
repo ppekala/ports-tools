@@ -469,6 +469,19 @@ need_install_add() {
 	return 0
 }
 
+need_reinstall_add() {
+	local port
+
+	for port in $*; do
+		pkg_exists $port || continue
+		if [ "$(pkg-static info -kq $port)" = "yes" ]; then
+			echo "===> $port is locked, skipping"
+			continue
+		fi
+		list_add need_reinstall $port
+	done
+}
+
 pkg_exists() {
 	[ "$1" ] || return 1
 	pkg-static info --exists $1 >/dev/null 2>&1
@@ -510,7 +523,7 @@ pm_fake_run() {
 	if [ "$rports" ]; then
 		echo "===> Found packages to reinstall in later stage:"
 		echo $rports
-		list_add need_reinstall $rports
+		need_reinstall_add $rports
 	fi
 }
 
@@ -1119,8 +1132,7 @@ case ${0##*/} in
 					printf "$OPTARG: no such package\n\n" >&2
 					display_usage_reinstall
 				fi
-				list_add need_reinstall $origin
-				list_add need_reinstall $(pkg-static query %ro $origin)
+				need_reinstall_add $origin $(pkg-static query %ro $origin)
 				;;
 			y)
 				answer_yes=1 ;;
@@ -1197,17 +1209,13 @@ reinstall)
 	for pattern in $*; do
 		case $pattern in
 		*/*)
-			pkg_exists $pattern || continue
-			list_add need_reinstall $pattern ;;
+			need_reinstall_add $pattern ;;
 		*)
 			if pkg_exists $pattern; then
-				list_add need_reinstall $(pkg-static info -oq $pattern)
+				need_reinstall_add $(pkg-static info -oq $pattern)
 				continue
 			fi
-			for port in $(pfind -n $pattern); do
-				pkg_exists $port || continue
-				list_add need_reinstall $port
-			done
+			need_reinstall_add $(pfind -n $pattern)
 		esac
 	done
 	interactive_select need_reinstall Reinstall
