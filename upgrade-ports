@@ -4,6 +4,9 @@ readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
 export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
+NCPU=$(sysctl -n hw.ncpu)
+[ "$NCPU" ] || NCPU=1
+
 answer_yes=0	# answer yes to all of the questions
 build_started=0 # ports build has started
 force_recompile=0 # recompile packages with stale dependencies
@@ -34,17 +37,54 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
-	local dep
+	local curr jobs=0 line pkgs_done pkgs_to_check
+	local mdeps_tmpfile=$(create_tmpfile -mdeps)
 
-	for dep in $(make -C "$PORTSDIR/$1" -VFETCH_DEPENDS -VEXTRACT_DEPENDS \
-		-VPATCH_DEPENDS -VBUILD_DEPENDS -VLIB_DEPENDS -VRUN_DEPENDS |
-		tr ' ' '\n' | cut -d':' -f2 | sort -u)
-	do
-		need_install_add $dep || continue
-		list_add $(to_env_str $dep)_reqby $1
-		list_add $(to_env_str $1)_mdeps $dep
-		check_for_missing_deps $dep
+	list_add pkgs_to_check $need_install $need_reinstall $need_upgrade
+	list_add upgrade_tmpfiles $mdeps_tmpfile
+
+	while true; do
+		[ $jobs -eq 0 -a ! "$pkgs_to_check" ] && break
+
+		if [ $jobs -lt $NCPU -a "$pkgs_to_check" ]; then
+			curr=$(list_first pkgs_to_check)
+			(
+				for dep in $(make -C "$PORTSDIR/$curr" \
+					-VFETCH_DEPENDS -VEXTRACT_DEPENDS \
+					-VPATCH_DEPENDS -VBUILD_DEPENDS \
+					-VLIB_DEPENDS -VRUN_DEPENDS |
+					tr ' ' '\n' | cut -d':' -f2 | sort -u)
+				do
+					pkg_exists $dep && continue
+					lockf -k $mdeps_tmpfile sh -c \
+						"echo \"$curr:$dep\"" >> $mdeps_tmpfile
+				done
+				lockf -k $mdeps_tmpfile sh -c \
+					"echo \"DONE:$curr\"" >> $mdeps_tmpfile
+			) &
+			jobs=$((jobs+1))
+			list_remove pkgs_to_check $curr
+		fi
+
+		for line in $(lockf -k $mdeps_tmpfile sh -c "
+			[ -s \"$mdeps_tmpfile\" ] || exit
+			cat $mdeps_tmpfile
+			echo -n > $mdeps_tmpfile");
+		do
+			case ${line%:*} in
+			DONE)
+				list_add pkgs_done ${line#*:}
+				jobs=$((jobs-1)) ;;
+			*)
+				list_find pkgs_done ${line#*:} && continue
+				list_add need_install ${line#*:}
+				list_add $(to_env_str ${line#*:})_reqby ${line%:*}
+				list_add $(to_env_str ${line%:*})_mdeps ${line#*:}
+				list_add pkgs_to_check ${line#*:}
+			esac
+		done
 	done
+	rm $mdeps_tmpfile
 }
 
 check_packages() {
@@ -130,6 +170,7 @@ check_packages() {
 	}')
 
 	if [ "$need_install" -o "$need_reinstall" ]; then
+		check_for_missing_deps
 		detect_conflicts
 		print_list "Packages need to be REMOVED" $(to_rm_str $need_remove)
 		print_list "Ports need to be INSTALLED" $(to_inst_str $need_install)
@@ -268,10 +309,6 @@ desc_pids() {
 
 detect_conflicts() {
 	local cnfl origin port
-
-	for port in $need_upgrade $need_install $need_reinstall; do
-		check_for_missing_deps $port
-	done
 
 	for port in $need_upgrade $need_install $need_reinstall; do
 		for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
@@ -490,16 +527,14 @@ ports_configure() {
 
 ports_upgrade_sort() {
 	local deps_tmpfile=$(create_tmpfile -deps)
-	local ncpu=$(sysctl -n hw.ncpu)
 	local djobs=0 next port ports_list=$*
 
 	list_add upgrade_tmpfiles $deps_tmpfile
-	[ "$ncpu" ] || ncpu=1
 
 	while true; do
 		[ $djobs -eq 0 -a ! "$ports_list" ] && break
 
-		if [ $djobs -lt $ncpu -a "$ports_list" ]; then
+		if [ $djobs -lt $NCPU -a "$ports_list" ]; then
 			next=$(list_first ports_list)
 			(
 				deps=$(make -C "$PORTSDIR/$next" all-depends-list |
@@ -688,6 +723,7 @@ rebuild_ports() {
 }
 
 show_operations_summary() {
+	check_for_missing_deps
 	detect_conflicts
 
 	print_list "Following packages need to be REMOVED" $(to_rm_str $need_remove)
