@@ -308,19 +308,50 @@ desc_pids() {
 }
 
 detect_conflicts() {
-	local cnfl origin port
+	local confl_tmpfile=$(create_tmpfile -confl)
+	local cnfl jobs=0 line origin pkgs_to_check
 
-	for port in $need_upgrade $need_install $need_reinstall; do
-		for cnfl in $(make -C "$PORTSDIR/$port" -VCONFLICTS \
-			-VCONFLICTS_BUILD -VCONFLICTS_INSTALL)
+	list_add pkgs_to_check $need_upgrade $need_install $need_reinstall
+	list_add upgrade_tmpfiles $confl_tmpfile
+
+	while true; do
+		[ $jobs -eq 0 -a ! "$pkgs_to_check" ] && break
+		if [ $jobs -lt $NCPU -a "$pkgs_to_check" ]; then
+			curr=$(list_first pkgs_to_check)
+			(
+				for cnfl in $(make -C "$PORTSDIR/$curr" \
+					-VCONFLICTS -VCONFLICTS_BUILD \
+					-VCONFLICTS_INSTALL)
+				do
+					for origin in $(pkg-static query -g %o "$cnfl"); do
+						lockf -k $confl_tmpfile sh -c \
+							"echo \"$curr:$origin\"" >> $confl_tmpfile
+					done
+				done
+				lockf -k $confl_tmpfile sh -c \
+					"echo \"DONE:$curr\"" >>$confl_tmpfile
+			) &
+			jobs=$((jobs+1))
+			list_remove pkgs_to_check $curr
+		fi
+
+		for line in $(lockf -k $confl_tmpfile sh -c "\
+			[ -s "\"$confl_tmpfile\"" ] || exit
+			cat $confl_tmpfile
+			echo -n > $confl_tmpfile");
 		do
-			for origin in $(pkg-static query -g %o "$cnfl"); do
-				if [ "$port" = "$origin" ]; then
-					list_add conflicts_self $port
+			case ${line%:*} in
+			DONE)
+				jobs=$((jobs-1))
+				list_remove pkgs_to_check ${line#*:} ;;
+			*)
+				if [ "${line%:*}" = "${line#*:}" ]; then
+					list_add conflicts_self ${line%:*}
 				else
-					mark_for_removal $origin "conflicts with $(to_pkg_str $port)"
+					mark_for_removal ${line#*:} \
+						"conflicts with $(to_pkg_str ${line%:*})"
 				fi
-			done
+			esac
 		done
 	done
 }
