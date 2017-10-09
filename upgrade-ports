@@ -735,7 +735,7 @@ rebuild_ports() {
 					ask_yesno "$port install conflicts with $CONFLICT. Remove it" &&
 						remove_port=1
 				fi
-				if [ $rm_port -eq 1 ]; then
+				if [ $remove_port -eq 1 ]; then
 					pkg_remove $conflict_port
 					unset CONFLICT
 					remove_port=0
