@@ -1032,7 +1032,8 @@ upgrade_exit() {
 }
 
 upgrade_ports() {
-	last_upd=$(get_entry_dates | head -n 1)
+	local cmd entry entry_prev old_IFS port ret
+	local last_upd=$(get_entry_dates | head -n 1)
 
 	if [ $last_read -lt $last_upd ]; then
 		tmpfile_initialize
