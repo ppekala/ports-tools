@@ -1071,6 +1071,7 @@ upgrade_ports() {
 			IFS=$old_IFS
 			entry_prev=$entry
 		done
+		echo -n > $tmpfile
 	fi
 
 	echo "===> Checking for ports needing upgrade..."
