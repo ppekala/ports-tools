@@ -486,7 +486,7 @@ need_install_add() {
 }
 
 need_reinstall_add() {
-	local port
+	local port pkgname
 
 	for port in $*; do
 		pkg_exists $port || continue
@@ -494,7 +494,19 @@ need_reinstall_add() {
 			echo "===> $port is locked, skipping"
 			continue
 		fi
-		list_add need_reinstall $port
+		pkgname=$(pkg-static query "%n" $port)
+		case $(pkg-static version -n $pkgname | awk '{print $2}') in
+		'>')
+			setvar $(to_env_str $port)_version \
+				$(make -C "$PORTSDIR/$port" -VPKGVERSION)
+			list_add need_downgrade $port ;;
+		'<')
+			setvar $(to_env_str $port)_version \
+				$(make -C "$PORTSDIR/$port" -VPKGVERSION)
+			list_add need_upgrade $port ;;
+		'=')
+			list_add need_reinstall $port
+		esac
 	done
 }
 
@@ -736,7 +748,8 @@ rebuild_ports() {
 		print_list "Following ports builds were SKIPPED" $(to_fail_str $build_skipped)
 		upgrade_exit 1 $last_upd
 	fi
-	unset conflicts_self need_install need_reinstall need_remove need_upgrade
+	unset conflicts_self need_downgrade need_install need_reinstall
+	unset need_remove need_upgrade
 }
 
 show_operations_summary() {
@@ -748,10 +761,10 @@ show_operations_summary() {
 	print_list "Following ports will be INSTALLED" $(to_inst_str $need_install)
 	print_list "Following packages will be REINSTALLED" $(to_pkg_str $need_reinstall)
 	print_list "Following packages will be UPGRADED" $(to_upgrade_str $need_upgrade)
-
+	print_list "Following packages will be DOWNGRADED" $(to_upgrade_str $need_downgrade)
 	if ask_yesno "Proceed with $run_mode"; then
 		pkg_remove $need_remove
-		rebuild_ports $need_install $need_reinstall $need_upgrade
+		rebuild_ports $need_downgrade $need_install $need_reinstall $need_upgrade
 	else
 		upgrade_exit 0 $last_upd
 	fi
@@ -1033,6 +1046,7 @@ upgrade_exit() {
 
 upgrade_ports() {
 	local cmd entry entry_prev old_IFS port ret
+	# needs to be global, used by upgrade_exit() in few places
 	last_upd=$(get_entry_dates | head -n 1)
 
 	if [ $last_read -lt $last_upd ]; then
@@ -1242,7 +1256,9 @@ reinstall)
 		esac
 	done
 	interactive_select need_reinstall Reinstall
-	if [ ! "$need_reinstall" ]; then
+	interactive_select need_upgrade Reinstall
+	interactive_select need_downgrade Reinstall
+	if [ ! "$need_reinstall" -a ! "$need_upgrade" -a ! "$need_downgrade" ]; then
 		echo "===> No suitable packages to reinstall found" >&2
 		upgrade_exit 1
 	fi
