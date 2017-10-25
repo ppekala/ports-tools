@@ -717,8 +717,13 @@ rebuild_ports() {
 					# and if not we will deal with conflict later
 					remove_port=1
 				else
-					ask_yesno "$port install conflicts with $CONFLICT. Remove it" &&
-						remove_port=1
+					unset need_remove
+					mark_for_removal $conflict_port "conflicts with $port"
+					conflict_port=$need_remove
+					printf "\n===> $port install conflicts with $CONFLICT detected\n"
+					print_list "Following packages need to be REMOVED" \
+						$(to_rm_str $conflict_port)
+					ask_yesno "Proceed" && remove_port=1
 				fi
 				if [ $remove_port -eq 1 ]; then
 					pkg_remove $conflict_port
