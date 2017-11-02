@@ -393,7 +393,7 @@ fetch_distfiles() {
 	$SUDO sh -c "
 		lockf -k $tmpfile sh -c \" echo PID:\$\$ >> $tmpfile\"
 		for port in $*; do
-			make -C \"$PORTSDIR/\$port\" checksum
+			make -C \"$PORTSDIR/\$port\" checksum $make_args
 			lockf -k $tmpfile sh -c \"echo \$port:\$? >> $tmpfile\"
 		done
 		lockf -k $tmpfile sh -c \" echo PID:0 >> $tmpfile\"
