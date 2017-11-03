@@ -414,11 +414,33 @@ get_entry_dates() {
 }
 
 interactive_select() {
-	local name
+	local dwidth items msg=$1 pkg port selected tcols tlines
 
 	[ $interactive -eq 1 ] || return
-	for name in $(eval echo \$$1); do
-		ask_yesno "$2 $name" || list_remove $1 $name
+
+	shift 1
+	for port in $*; do
+		pkg=$(make -C $PORTSDIR/$port -VPKGNAME)
+		items="$items $port $pkg on"
+	done
+
+	tmpfile_initialize
+	tcols=$(stty size | cut -d" " -f2)
+	tlines=$(stty size | cut -d" " -f1)
+	[ $tcols -lt 80 ] && dwidth=$((tcols-4)) || dwidth=76
+
+	echo "--checklist \"$msg\" \
+		$((tlines-3)) $dwidth $((tlines-5)) $items" > $tmpfile
+	selected=$(dialog --stdout --file $tmpfile)
+	dialog --clear
+	echo -n > $tmpfile
+
+	for port in $*; do
+		list_find selected $port && continue
+		list_remove need_downgrade $port
+		list_remove need_install $port
+		list_remove need_reinstall $port
+		list_remove need_upgrade $port
 	done
 }
 
@@ -1238,7 +1260,7 @@ install)
 			done
 		esac
 	done
-	interactive_select need_install Install
+	interactive_select "Select ports to install:" $need_install
 	if [ ! "$need_install" ]; then
 		echo "===> No suitable ports to install found" >&2
 		upgrade_exit 1
@@ -1260,9 +1282,8 @@ reinstall)
 			need_reinstall_add $(pfind -n $pattern)
 		esac
 	done
-	interactive_select need_reinstall Reinstall
-	interactive_select need_upgrade Reinstall
-	interactive_select need_downgrade Reinstall
+	interactive_select "Select packages for reinstall:" $need_reinstall \
+		$need_upgrade $need_downgrade
 	if [ ! "$need_reinstall" -a ! "$need_upgrade" -a ! "$need_downgrade" ]; then
 		echo "===> No suitable packages to reinstall found" >&2
 		upgrade_exit 1
