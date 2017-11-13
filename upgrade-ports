@@ -207,7 +207,7 @@ command_is_valid() {
 cmd_pkg_validate() {
 	local cmd=${*%% *} exists=0 pkgname
 
-	[ "$cmd" = "info" -o "$cmd" = "query" ] && return 1
+	[ "$cmd" = "delete" -o "$cmd" = "set" ] || return 1
 	shift 1
 	while getopts "fgn:o:y" opt; do
 		case $opt in
