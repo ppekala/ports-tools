@@ -279,17 +279,6 @@ cmd_pm_validate() {
 	return 0
 }
 
-create_tmpfile() {
-	local temp=$(mktemp -t ${0##*/}$1)
-
-	if [ ! "$temp" ]; then
-		echo "===> Failed to create temporary file" >&2
-		upgrade_exit 1
-	fi
-
-	echo $temp
-}
-
 desc_pids() {
 	local pids=$1 ret
 
@@ -693,7 +682,7 @@ rebuild_ports() {
 		pkg_remove $conflicts_self
 	fi
 	fetch_distfiles $full_queue
-	errlog=$(create_tmpfile "-errlog")
+	errlog=$(tmpfile_create "-errlog")
 	list_add upgrade_tmpfiles $errlog
 	for port in $full_queue; do
 		if [ $interrupted -eq 1 ]; then
@@ -835,10 +824,21 @@ skip_reverse_deps() {
 	done
 }
 
+tmpfile_create() {
+	local temp=$(mktemp -t ${0##*/}$1)
+
+	if [ ! "$temp" ]; then
+		echo "===> Failed to create temporary file" >&2
+		upgrade_exit 1
+	fi
+
+	echo $temp
+}
+
 tmpfile_initialize() {
 	[ "$tmpfile" ] && return
 
-	tmpfile=$(create_tmpfile)
+	tmpfile=$(tmpfile_create)
 	list_add upgrade_tmpfiles $tmpfile
 }
 
