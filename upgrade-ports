@@ -710,7 +710,7 @@ rebuild_ports() {
 			clean_after_build_error $port build
 			continue
 		fi
-		pkg_exists $port && make_cmd="reinstall" || make_cmd="install"
+		pkg_exists $port && make_cmd="deinstall install" || make_cmd="install"
 		while true; do
 			$SUDO make $make_args $make_cmd clean 2>$errlog
 			if [ $? -eq 0 ]; then
