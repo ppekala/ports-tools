@@ -38,7 +38,7 @@ ask_yesno() {
 }
 
 check_for_missing_deps() {
-	local curr jobs=0 line pkgs_done pkgs_to_check
+	local curr dep jobs=0 line pkgs_done pkgs_to_check
 
 	list_add pkgs_to_check $need_install $need_reinstall $need_upgrade
 
@@ -48,11 +48,11 @@ check_for_missing_deps() {
 		if [ $jobs -lt $NCPU -a "$pkgs_to_check" ]; then
 			curr=$(list_first pkgs_to_check)
 			(
-				for dep in $(make -C "$PORTSDIR/$curr" \
-					-VFETCH_DEPENDS -VEXTRACT_DEPENDS \
-					-VPATCH_DEPENDS -VBUILD_DEPENDS \
-					-VLIB_DEPENDS -VRUN_DEPENDS |
-					tr ' ' '\n' | cut -d':' -f2 | sort -u)
+				for dep in $(pmake $curr -V FETCH_DEPENDS \
+					-V EXTRACT_DEPENDS -V PATCH_DEPENDS \
+					-V BUILD_DEPENDS -V LIB_DEPENDS \
+					-V RUN_DEPENDS |
+					tr ' ' '\n' | cut -d: -f2 | sort -u)
 				do
 					pkg_exists $dep && continue
 					tmpfile_locked_write $curr:$dep
@@ -151,12 +151,12 @@ check_packages() {
 		print "need_install=\"" inst "\" need_reinstall=\"" rinst "\"";
 		for (pkg in install) {
 			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|\+)/, "_", origin);
+			gsub(/(\/|-|\.|\+|@)/, "_", origin);
 			print origin "_reqby=\"" install[pkg] "\"";
 		}
 		for (pkg in rebuild) {
 			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|\+)/, "_", origin);
+			gsub(/(\/|-|\.|\+|@)/, "_", origin);
 			print origin "_miss=\"" rebuild[pkg] "\"";
 		}
 	}')
@@ -299,9 +299,9 @@ detect_conflicts() {
 		if [ $jobs -lt $NCPU -a "$pkgs_to_check" ]; then
 			curr=$(list_first pkgs_to_check)
 			(
-				for cnfl in $(make -C "$PORTSDIR/$curr" \
-					-VCONFLICTS -VCONFLICTS_BUILD \
-					-VCONFLICTS_INSTALL)
+				for cnfl in $(pmake $curr \
+					-V CONFLICTS -V CONFLICTS_BUILD \
+					-V CONFLICTS_INSTALL)
 				do
 					for origin in $(pkg-static query -g %o "$cnfl"); do
 						tmpfile_locked_write $curr:$origin
@@ -382,7 +382,7 @@ fetch_distfiles() {
 	$SUDO sh -c "
 		lockf -k $tmpfile sh -c \" echo PID:\$\$ >> $tmpfile\"
 		for port in $*; do
-			make -C \"$PORTSDIR/\$port\" checksum $make_args
+			make -C \"$PORTSDIR/\${port%%@*}\" checksum $make_args
 			lockf -k $tmpfile sh -c \"echo \$port:\$? >> $tmpfile\"
 		done
 		lockf -k $tmpfile sh -c \" echo PID:0 >> $tmpfile\"
@@ -409,7 +409,7 @@ interactive_select() {
 
 	shift 1
 	for port in $*; do
-		pkg=$(make -C $PORTSDIR/$port -VPKGNAME)
+		pkg=$(pmake $port -V PKGNAME)
 		items="$items $port $pkg on"
 	done
 
@@ -509,11 +509,11 @@ need_reinstall_add() {
 		case $(pkg-static version -n $pkgname | awk '{print $2}') in
 		'>')
 			setvar $(to_env_str $port)_version \
-				$(make -C "$PORTSDIR/$port" -VPKGVERSION)
+				$(pmake $port -V PKGVERSION)
 			list_add need_downgrade $port ;;
 		'<')
 			setvar $(to_env_str $port)_version \
-				$(make -C "$PORTSDIR/$port" -VPKGVERSION)
+				$(pmake $port -V PKGVERSION)
 			list_add need_upgrade $port ;;
 		'=')
 			list_add need_reinstall $port
@@ -522,8 +522,11 @@ need_reinstall_add() {
 }
 
 pkg_exists() {
+	local pkgname
+
 	[ "$1" ] || return 1
-	pkg-static info --exists $1 >/dev/null 2>&1
+	pkgname=$(pmake $1 -V PKGBASE)
+	pkg-static info --exists $pkgname >/dev/null 2>&1
 }
 
 pkg_remove() {
@@ -566,12 +569,25 @@ pm_fake_run() {
 	fi
 }
 
+pmake() {
+	local farg flavor=${1##*@} port=${1%%@*}
+
+	if [ ! -d "$PORTSDIR/$port" ]; then
+		echo "===> Can't find port $1!" >&2
+		return
+	fi
+
+	[ "$flavor" != "$port" ] && farg="FLAVOR=$flavor"
+	shift 1
+	make -C "$PORTSDIR/$port" $farg $*
+}
+
 ports_configure() {
 	local port
 	[ $ports_config -eq 1 ] || return
 
 	for port in $*; do
-		cd "$PORTSDIR/$port" 2>/dev/null || continue
+		cd "$PORTSDIR/${port%%@*}" 2>/dev/null || continue
 		[ "$(make -V OPTIONS_DEFINE)" ] || continue
 		$SUDO make config
 	done
@@ -586,7 +602,7 @@ ports_upgrade_sort() {
 		if [ $djobs -lt $NCPU -a "$ports_list" ]; then
 			next=$(list_first ports_list)
 			(
-				deps=$(make -C "$PORTSDIR/$next" all-depends-list |
+				deps=$(pmake $next all-depends-list |
 					sed "s,$PORTSDIR/,,g")
 				tmpfile_locked_write START:$next $deps END:$next
 			) &
@@ -638,7 +654,7 @@ ports_upgrade_sort() {
 	}
 	{
 		envname = $0 "_alldeps";
-		gsub(/(\/|-|\.|\+)/, "_", envname);
+		gsub(/(\/|-|\.|\+|@)/, "_", envname);
 		ports[++n_ports] = $0;
 		port_deps[$0] = ENVIRON[envname];
 		port_ndeps[$0] = split(port_deps[$0], adeps);
@@ -656,12 +672,13 @@ print_list() {
 	[ "$2" ] || return
 	shift 1
 	printf "\n$title [$#]:\n"
-	for item in $*; do printf "\t$item\n" | sed 's|@| |g'; done | sort
+	for item in $*; do printf "\t$item\n" | sed 's|,,| |g'; done | sort
 }
 
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret=1 t
 	local operation=$run_mode conflict_port remove_port=0
+	local flavor
 
 	tmpfile_initialize
 
@@ -673,7 +690,7 @@ rebuild_ports() {
 		queue=$*
 	fi
 	for port in $queue; do
-		[ -d "$PORTSDIR/$port" ] || continue
+		[ -d "$PORTSDIR/${port%%@*}" ] || continue
 		mdeps=$(gather_missing_dependencies $port)
 		list_add full_queue $mdeps $port
 	done
@@ -691,9 +708,15 @@ rebuild_ports() {
 		fi
 		list_find build_skipped $port && continue
 
-		cd "$PORTSDIR/$port"
+		if [ "${port##*@}" == "${port%%@*}" ]; then
+			flavor="";
+		else
+			flavor="FLAVOR=${port##*@}"
+		fi
+
+		cd "$PORTSDIR/${port%%@*}"
 		for t in BROKEN IGNORE; do
-			error=$(make $make_args -V$t)
+			error=$(make $flavor $make_args -V$t)
 			if [ "$error" ]; then
 				skip_reverse_deps $port "$t: $error"
 				continue 2
@@ -706,13 +729,18 @@ rebuild_ports() {
 		fi
 		[ $build_started -eq 1 ] || build_started=1
 		[ -d work ] && $SUDO make clean
-		if ! $SUDO make $make_args build; then
+		if ! $SUDO make $flavor $make_args build; then
 			clean_after_build_error $port build
 			continue
 		fi
-		pkg_exists $port && make_cmd="deinstall install" || make_cmd="install"
+
+		if pkg_exists $port; then
+			make_cmd="deinstall install clean"
+		else
+			make_cmd="install clean"
+		fi
 		while true; do
-			$SUDO make $make_args $make_cmd clean 2>$errlog
+			$SUDO make $flavor $make_args $make_cmd 2>$errlog
 			if [ $? -eq 0 ]; then
 				ret=0
 				break
@@ -852,20 +880,20 @@ tmpfile_locked_read() {
 tmpfile_locked_write() {
 	lockf -k $tmpfile sh -c "
 		for line in $*; do
-			echo "\"\$line\"" >> $tmpfile
+			echo \$line >> $tmpfile
 		done"
 }
 
 to_env_str() {
-	echo "$1" | sed -E 's,(\/|-|\.|\+),_,g'
+	echo "$1" | sed -E 's,(\/|-|\.|\+|@),_,g'
 }
 
 to_fail_str() {
 	local failure port str
 
 	for port in $*; do
-		failure=$(eval echo \$$(to_env_str $port)_fail | sed 's| |@|g')
-		[ "$failure" ] && list_add str "$port@($failure)" ||
+		failure=$(eval echo \$$(to_env_str $port)_fail | sed 's| |,,|g')
+		[ "$failure" ] && list_add str "$port,,($failure)" ||
 			list_add str $port
 	done
 	[ "$str" ] && echo $str
@@ -875,8 +903,8 @@ to_inst_str() {
 	local port reqby str
 
 	for port in $*; do
-		reqby=$(eval echo \$$(to_env_str $port)_reqby | sed 's| |@|g')
-		[ "$reqby" ] && list_add str "$port@(required@by@$reqby)" ||
+		reqby=$(eval echo \$$(to_env_str $port)_reqby | sed 's| |,,|g')
+		[ "$reqby" ] && list_add str "$port,,(required,,by,,$reqby)" ||
 			list_add str $port
 	done
 	[ "$str" ] && echo $str
@@ -886,15 +914,15 @@ to_reinst_str() {
 	local defect miss pkg port str
 
 	for port in $*; do
-		miss=$(eval echo \$$(to_env_str $port)_miss | sed 's| |@|g')
+		miss=$(eval echo \$$(to_env_str $port)_miss | sed 's| |,,|g')
 		pkg=$(to_pkg_str $port)
 		case $miss in
 		*.so*)
-			defect="misses@libraries" ;;
+			defect="misses,,libraries" ;;
 		*)
-			defect="stale@dependency"
+			defect="stale,,dependency"
 		esac
-		list_add str "$pkg@($defect:@$miss)"
+		list_add str "$pkg,,($defect:,,$miss)"
 	done
 	[ "$str" ] && echo $str
 }
@@ -903,8 +931,8 @@ to_obs_str() {
 	local port reason str
 
 	for port in $*; do
-		reason=$(moved_reason $port | sed 's| |@|g')
-		list_add str "$(to_pkg_str $port)@($reason)"
+		reason=$(moved_reason $port | sed 's| |,,|g')
+		list_add str "$(to_pkg_str $port),,($reason)"
 	done
 	[ "$str" ] && echo $str
 }
@@ -938,8 +966,8 @@ to_rm_str() {
 	local port reason str
 
 	for port in $*; do
-		reason=$(eval echo \$$(to_env_str $port)_conflicts | sed 's| |@|g')
-		list_add str "$(to_pkg_str $port)@($reason)"
+		reason=$(eval echo \$$(to_env_str $port)_conflicts | sed 's| |,,|g')
+		list_add str "$(to_pkg_str $port),,($reason)"
 	done
 	[ "$str" ] && echo $str
 }
@@ -948,9 +976,9 @@ to_upgrade_str() {
 	local curr new_ver port str
 
 	for port in $*; do
-		curr=$(pkg-static query "%n:@%v" $port)
+		curr=$(pkg-static query "%n:,,%v" $port)
 		new_ver=$(eval echo \$$(to_env_str $port)_version)
-		list_add str "$curr@->@$new_ver"
+		list_add str "$curr,,->,,$new_ver"
 	done
 	[ "$str" ] && echo $str
 }
@@ -984,7 +1012,7 @@ update_ports_tree() {
 	do
 		pkg_exists ${ports%%:*} || continue
 		oldname=$(pkg-static query %n ${ports%%:*})
-		newname=$(make -C "$PORTSDIR/${ports##*:}" -VPKGBASE)
+		newname=$(pmake ${ports##*:} -V PKGBASE)
 		[ "$newname" ] || continue
 
 		reason=$(moved_reason ${ports%%:*})
@@ -1119,10 +1147,9 @@ upgrade_ports() {
 	for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
 		[ "$(pkg-static info -kq $port)" = "yes" ] && continue
 		list_add need_upgrade $port
-		setvar $(to_env_str $port)_version \
-			$(make -C "$PORTSDIR/$port" -VPKGVERSION)
+		setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 		list_remove need_reinstall $port
-		[ "$(make -C "$PORTSDIR/$port" -VPKGBASE)" != "$(pkg-static query %n $port)" ] &&
+		[ "$(pmake $port -V PKGBASE)" != "$(pkg-static query %n $port)" ] &&
 			list_add conflicts_self $port
 	done
 	if [ ! "$need_upgrade" ]; then
