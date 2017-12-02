@@ -572,11 +572,7 @@ pm_fake_run() {
 pmake() {
 	local farg flavor=${1##*@} port=${1%%@*}
 
-	if [ ! -d "$PORTSDIR/$port" ]; then
-		echo "===> Can't find port $1!" >&2
-		return
-	fi
-
+	[ -d "$PORTSDIR/$port" ] || return
 	[ "$flavor" != "$port" ] && farg="FLAVOR=$flavor"
 	shift 1
 	make -C "$PORTSDIR/$port" $farg $*
