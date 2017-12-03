@@ -177,11 +177,17 @@ check_packages() {
 }
 
 clean_after_build_error() {
+	local pkgfile
+
 	if list_find conflicts_self $1; then
 		echo "===> Restoring previous version from backup..."
-		$SUDO pkg-static add --quiet \
-			"$(eval echo \$$(to_env_str $1)_backup)"
+		pkgfile=$(pmake $1 -V PKGFILE)
+	else if [ "$2" = "install" ]; then
+		echo "===> Install failed, reinstalling old version..."
+		pkgfile="work/$(basename $(make -V $PKGFILE))"
 	fi
+	[ "$pkgfile" -a -f "$pkgfile" ] &&
+		$SUDO pkg-static add --quiet $pkgfile
 	if [ $interrupted -eq 1 ]; then
 		build_interrupted=$1
 		$SUDO make clean
@@ -538,15 +544,11 @@ pkg_mark_for_removal() {
 }
 
 pkg_remove() {
-	local pkg port
+	local pkg pkgrepo=$(make -f "${PORTSDIR}/Mk/bsd.port.mk" -V PKGREPOSITORY)
 
 	[ "$*" ] || return
 	for pkg in $*; do
-		$SUDO pkg-static create --quiet \
-			--out-dir "$PORTSDIR/packages/All" $pkg
-		port=$(pkg_to_port $pkg)
-		setvar $(to_env_str $port)_backup \
-			"${PORTSDIR}/packages/All/$pkg.txz"
+		$SUDO pkg-static create --quiet --out-dir "$pkgrepo" $pkg
 	done
 	$SUDO pkg-static delete --quiet --yes --force $*
 }
@@ -758,6 +760,8 @@ rebuild_ports() {
 
 		if pkg_exists $port; then
 			make_cmd="deinstall install clean"
+			${SUDO} pkg-static create --out-dir work \
+				$(pmake $port -V PKGBASE)
 		else
 			make_cmd="install clean"
 		fi
