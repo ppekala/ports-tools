@@ -335,7 +335,7 @@ detect_conflicts() {
 display_usage_install() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-diy] pkg-name ...
+       ${0##*/} [-diy] pkg-name|category/port|match-pattern ...
 
     -c - set port(s) options before install
     -d - build with debug support
@@ -350,7 +350,7 @@ EOF
 display_usage_reinstall() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-diy] [-r pkg-name] pkg-name ...
+       ${0##*/} [-diy] [-r pkg-name] pkg-name|category/port|match-pattern ...
 
     -c - set port(s) options before reinstall
     -d - build with debug support
