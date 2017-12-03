@@ -290,7 +290,7 @@ desc_pids() {
 }
 
 detect_conflicts() {
-	local cnfl jobs=0 line origin pkgs_to_check
+	local cnfl jobs=0 line pkg port pkgs_to_check
 
 	list_add pkgs_to_check $need_upgrade $need_install $need_reinstall
 
@@ -303,8 +303,9 @@ detect_conflicts() {
 					-V CONFLICTS -V CONFLICTS_BUILD \
 					-V CONFLICTS_INSTALL)
 				do
-					for origin in $(pkg-static query -g %o "$cnfl"); do
-						tmpfile_locked_write $curr:$origin
+					for pkg in $(pkg-static query -g %n "$cnfl"); do
+						port=$(pkg_to_port $pkg)
+						tmpfile_locked_write $curr:$port
 					done
 				done
 				tmpfile_locked_write DONE:$curr
@@ -322,7 +323,8 @@ detect_conflicts() {
 				if [ "${line%:*}" = "${line#*:}" ]; then
 					list_add conflicts_self ${line%:*}
 				else
-					mark_for_removal ${line#*:} \
+					pkg_mark_for_removal \
+						$(pmake ${line#*:} -V PKGNAME) \
 						"conflicts with $(to_pkg_str ${line%:*})"
 				fi
 			esac
@@ -471,17 +473,6 @@ list_remove() {
 	setvar $name "$new_list"
 }
 
-mark_for_removal() {
-	local port
-
-	list_add need_remove $1
-	setvar $(to_env_str $1)_conflicts "$2"
-	[ "$3" ] && return
-	for port in $(pkg-static query %ro $1); do
-		mark_for_removal $port "depends on $(to_pkg_str $1)"
-	done
-}
-
 moved_reason() {
 	awk -F '|' -v line="$moved_last" -v port="$1" '
 		NR > line && $1 == port { print $4 }' "$PORTSDIR/MOVED"
@@ -500,12 +491,12 @@ need_reinstall_add() {
 	local port pkgname
 
 	for port in $*; do
-		pkg_exists $port || continue
-		if [ "$(pkg-static info -kq $port)" = "yes" ]; then
-			echo "===> $port is locked, skipping"
+		pkgname=$(pmake $port -V PKGBASE)
+		pkg_exists $pkgname || continue
+		if [ "$(pkg-static info -kq $pkgname)" = "yes" ]; then
+			echo "===> $pkgname is locked, skipping"
 			continue
 		fi
-		pkgname=$(pkg-static query "%n" $port)
 		case $(pkg-static version -n $pkgname | awk '{print $2}') in
 		'>')
 			setvar $(to_env_str $port)_version \
@@ -525,21 +516,49 @@ pkg_exists() {
 	local pkgname
 
 	[ "$1" ] || return 1
-	pkgname=$(pmake $1 -V PKGBASE)
+	case $1 in
+	*/*)
+		pkgname=$(pmake $1 -V PKGBASE) ;;
+	*)
+		pkgname=$1
+	esac
+	[ "$pkgname" ] || return 1
 	pkg-static info --exists $pkgname >/dev/null 2>&1
 }
 
+pkg_mark_for_removal() {
+	local pkg
+
+	list_add need_remove $1
+	setvar $(to_env_str $1)_conflicts "$2"
+	[ "$3" ] && return
+	for pkg in $(pkg-static query %rn $1); do
+		pkg_mark_for_removal $pkg "depends on $1"
+	done
+}
+
 pkg_remove() {
-	local port
+	local pkg port
 
 	[ "$*" ] || return
-	for port in $*; do
+	for pkg in $*; do
 		$SUDO pkg-static create --quiet \
-			--out-dir "$PORTSDIR/packages/All" $port
+			--out-dir "$PORTSDIR/packages/All" $pkg
+		port=$(pkg_to_port $pkg)
 		setvar $(to_env_str $port)_backup \
-			"${PORTSDIR}/packages/All/$(to_pkg_str $port).txz"
+			"${PORTSDIR}/packages/All/$pkg.txz"
 	done
 	$SUDO pkg-static delete --quiet --yes --force $*
+}
+
+pkg_to_port() {
+	local flavor port
+
+	port=$(pkg-static query %o $1)
+	[ "$port" ] || return
+	flavor=$(pkg-static info $1 | awk '/flavor/ { print $3 }')
+	[ "$flavor" ] && port="$port@$flavor"
+	echo $port
 }
 
 pm_fake_run() {
@@ -552,8 +571,15 @@ pm_fake_run() {
 		o)
 			new_origin=$OPTARG ;;
 		r)
-			list_add rports $(to_port_str $OPTARG)
-			list_add rports $(pkg-static query %ro $OPTARG)
+			case $OPTARG in
+			*/*)
+				[ -d "$PORTSDIR/$OPTARG" ] || continue
+				port=$OPTARG ;;
+			*)
+				port=$(pkg_to_port $OPTARG)
+			esac
+			[ "$port" ] || continue
+			list_add rports $port $(reverse_deps $port)
 		esac
 	done
 	shift $((OPTIND-1))
@@ -744,7 +770,7 @@ rebuild_ports() {
 			eval $(cat $errlog | awk '
 				/conflicts with/ { print "CONFLICT=" $5 }')
 			if [ "$CONFLICT" ]; then
-				conflict_port=$(pkg-static info -qo $CONFLICT)
+				conflict_port=$(pkg_to_port $CONFLICT)
 				if list_find need_reinstall $conflict_port &&
 				   ! list_find build_ok $conflict_port; then
 					# conflicting port is marked for reinstall
@@ -753,11 +779,11 @@ rebuild_ports() {
 					remove_port=1
 				else
 					unset need_remove
-					mark_for_removal $conflict_port "conflicts with $port"
+					pkg_mark_for_removal $CONFLICT "conflicts with $port"
 					conflict_port=$need_remove
 					printf "\n===> $port install conflicts with $CONFLICT detected\n"
 					print_list "Following packages need to be REMOVED" \
-						$(to_rm_str $conflict_port)
+						$(to_rm_str $CONFLICT)
 					ask_yesno "Proceed" && remove_port=1
 				fi
 				if [ $remove_port -eq 1 ]; then
@@ -790,6 +816,17 @@ rebuild_ports() {
 	fi
 	unset conflicts_self need_downgrade need_install need_reinstall
 	unset need_remove need_upgrade
+}
+
+reverse_deps() {
+	local dep pkg port
+
+	pkg=$(pmake $1 -V PKGBASE)
+	[ "$pkg" ] || return
+	for dep in $(pkg-static query %rn $pkg); do
+		port=$(pkg_to_port $dep)
+		[ "$port" ] && echo $port
+	done
 }
 
 show_operations_summary() {
@@ -832,7 +869,7 @@ skip_reverse_deps() {
 	fi
 
 	if pkg_exists $1; then
-		rev_deps=$(pkg-static query %ro $1)
+		rev_deps=$(reverse_deps $1)
 	else
 		rev_deps=$(eval echo \$$(to_env_str $1)_reqby)
 	fi
@@ -924,11 +961,12 @@ to_reinst_str() {
 }
 
 to_obs_str() {
-	local port reason str
+	local pkg port reason str
 
-	for port in $*; do
+	for pkg in $*; do
+		port=$(pkg_to_port $pkg)
 		reason=$(moved_reason $port | sed 's| |,,|g')
-		list_add str "$(to_pkg_str $port),,($reason)"
+		list_add str "$pkg,,($reason)"
 	done
 	[ "$str" ] && echo $str
 }
@@ -937,7 +975,7 @@ to_pkg_str() {
 	local pkg port str
 
 	for port in $*; do
-		pkg=$(pkg-static query "%n-%v" $port)
+		pkg=$(pmake $port -V PKGNAME)
 		[ "$pkg" ] || pkg=$port
 		list_add str $pkg
 	done
@@ -950,7 +988,7 @@ to_port_str() {
 	for arg in $*; do
 		case $arg in
 		*/*)
-			[ -d "$PORTSDIR/$arg" ] && list_add str $arg ;;
+			[ -d "$PORTSDIR/${arg%%@*}" ] && list_add str $arg ;;
 		*)
 			list_add str $(pkg-static query -x %o ^$arg)
 		esac
@@ -959,20 +997,22 @@ to_port_str() {
 }
 
 to_rm_str() {
-	local port reason str
+	local pkg port reason str
 
-	for port in $*; do
+	for pkg in $*; do
+		port=$(pkg_to_port $pkg)
 		reason=$(eval echo \$$(to_env_str $port)_conflicts | sed 's| |,,|g')
-		list_add str "$(to_pkg_str $port),,($reason)"
+		list_add str "$pkg,,($reason)"
 	done
 	[ "$str" ] && echo $str
 }
 
 to_upgrade_str() {
-	local curr new_ver port str
+	local curr new_ver pkg port str
 
 	for port in $*; do
-		curr=$(pkg-static query "%n:,,%v" $port)
+		pkg=$(pmake $port -V PKGBASE)
+		curr=$(pkg-static query "%n:,,%v" $pkg)
 		new_ver=$(eval echo \$$(to_env_str $port)_version)
 		list_add str "$curr,,->,,$new_ver"
 	done
@@ -982,7 +1022,7 @@ to_upgrade_str() {
 update_ports_tree() {
 	local last_entry=$(tail -n 1 "$PORTSDIR/MOVED")
 	local moved_lines=$(wc -l "$PORTSDIR/MOVED" | awk '{ print $1 }')
-	local line_n newname oldname port ports
+	local line_n newname oldname pkg port ports
 
 	[ $skip_update -eq 0 ] || return
 
@@ -996,12 +1036,12 @@ update_ports_tree() {
 	for port in $(awk -F '|' -v line="$moved_last" '
 		NR > line && !$2 { print $1 }' "$PORTSDIR/MOVED")
 	do
-		pkg_exists $port && list_add obsolete $port
+		pkg_exists $port && list_add obsolete $(to_pkg_str $port)
 	done
 	print_list "Following packages are marked as OBSOLETE" $(to_obs_str $obsolete)
-	for port in $obsolete; do
-		ask_yesno "Remove $(to_pkg_str $port)" &&
-			$SUDO pkg-static delete --quiet --yes --force $port
+	for pkg in $obsolete; do
+		ask_yesno "Remove $pkg" &&
+			$SUDO pkg-static delete --quiet --yes --force $pkg
 	done
 	for ports in $(awk -F '|' -v line="$moved_last" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
@@ -1009,7 +1049,7 @@ update_ports_tree() {
 		pkg_exists ${ports%%:*} || continue
 		oldname=$(pkg-static query %n ${ports%%:*})
 		newname=$(pmake ${ports##*:} -V PKGBASE)
-		[ "$newname" ] || continue
+		[ "$oldname" -a "$newname" ] || continue
 
 		reason=$(moved_reason ${ports%%:*})
 		echo "===> ${ports%%:*} moved to ${ports##*:} ($reason)"
@@ -1017,13 +1057,13 @@ update_ports_tree() {
 			if ! $SUDO pkg-static set --change-name $oldname:$newname \
 				--yes 2>/dev/null;
 			then
-				mark_for_removal ${ports%%:*} "$reason" nodeps
+				pkg_mark_for_removal $oldname "$reason" nodeps
 				need_install_add ${ports##*:}
 				continue
 			fi
 		fi
 		if ! $SUDO pkg-static set --change-origin $ports --yes 2>/dev/null; then
-			mark_for_removal ${ports%%:*} "$reason" nodeps
+			pkg_mark_for_removal $oldname "$reason" nodeps
 			need_install_add ${ports##*:}
 		fi
 	done
@@ -1096,7 +1136,7 @@ upgrade_exit() {
 }
 
 upgrade_ports() {
-	local cmd entry entry_prev old_IFS port ret
+	local cmd entry entry_prev old_IFS pkg port ret
 	# needs to be global, used by upgrade_exit() in few places
 	last_upd=$(get_entry_dates | head -n 1)
 
@@ -1140,12 +1180,13 @@ upgrade_ports() {
 	fi
 
 	echo "===> Checking for ports needing upgrade..."
-	for port in $(pkg-static version -o -l '<' | cut -f1 -d' '); do
-		[ "$(pkg-static info -kq $port)" = "yes" ] && continue
+	for pkg in $(pkg-static version -l '<' | cut -f1 -d' '); do
+		[ "$(pkg-static info -kq $pkg)" = "yes" ] && continue
+		port=$(pkg_to_port $pkg)
 		list_add need_upgrade $port
 		setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 		list_remove need_reinstall $port
-		[ "$(pmake $port -V PKGBASE)" != "$(pkg-static query %n $port)" ] &&
+		[ "$(pmake $port -V PKGBASE)" != "$(pkg-static query %n $pkg)" ] &&
 			list_add conflicts_self $port
 	done
 	if [ ! "$need_upgrade" ]; then
@@ -1214,12 +1255,12 @@ case ${0##*/} in
 			i)
 				interactive=1 ;;
 			r)
-				origin=$(pkg-static info -qo $OPTARG)
+				origin=$(pkg_to_port $OPTARG)
 				if [ ! "$origin" ]; then
 					printf "$OPTARG: no such package\n\n" >&2
 					display_usage_reinstall
 				fi
-				need_reinstall_add $origin $(pkg-static query %ro $origin)
+				need_reinstall_add $origin $(reverse_deps $origin)
 				;;
 			y)
 				answer_yes=1 ;;
@@ -1299,10 +1340,13 @@ reinstall)
 			need_reinstall_add $pattern ;;
 		*)
 			if pkg_exists $pattern; then
-				need_reinstall_add $(pkg-static info -oq $pattern)
+				need_reinstall_add $(pkg_to_port $pattern)
 				continue
 			fi
-			need_reinstall_add $(pfind -n $pattern)
+			for pkg in $(pkg-static info --quiet | grep $pattern); do
+				port=$(pkg_to_port $pkg)
+				need_reinstall_add $port
+			done
 		esac
 	done
 	interactive_select "Select packages for reinstall:" $need_reinstall \
