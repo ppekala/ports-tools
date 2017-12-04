@@ -179,7 +179,7 @@ check_packages() {
 clean_after_build_error() {
 	local pkgfile
 
-	if list_find conflicts_self $1; then
+	if list_find conflicts_self $(pmake $1 -V PKGBASE); then
 		echo "===> Restoring previous version from backup..."
 		pkgfile=$(pmake $1 -V PKGFILE)
 	else
@@ -329,7 +329,8 @@ detect_conflicts() {
 				list_remove pkgs_to_check ${line#*:} ;;
 			*)
 				if [ "${line%:*}" = "${line#*:}" ]; then
-					list_add conflicts_self ${line%:*}
+					list_add conflicts_self \
+						$(pmake ${line%:*} -V PKGBASE)
 				else
 					pkg_mark_for_removal \
 						$(pmake ${line#*:} -V PKGNAME) \
@@ -498,13 +499,16 @@ need_install_add() {
 need_reinstall_add() {
 	local port pkgname
 
-	for port in $*; do
-		pkgname=$(pmake $port -V PKGBASE)
+	for pkgname in $*; do
 		pkg_exists $pkgname || continue
 		if [ "$(pkg-static info -kq $pkgname)" = "yes" ]; then
 			echo "===> $pkgname is locked, skipping"
 			continue
 		fi
+		port=$(pkg_to_port $pkgname)
+		[ "$(pmake $port -V PKGBASE)" != "$(pkg-static query %n $pkgname)" ] &&
+			list_add conflicts_self $pkgname
+
 		case $(pkg-static version -n $pkgname | awk '{print $2}') in
 		'>')
 			setvar $(to_env_str $port)_version \
@@ -514,7 +518,7 @@ need_reinstall_add() {
 			setvar $(to_env_str $port)_version \
 				$(pmake $port -V PKGVERSION)
 			list_add need_upgrade $port ;;
-		'=')
+		*)
 			list_add need_reinstall $port
 		esac
 	done
@@ -556,13 +560,20 @@ pkg_remove() {
 }
 
 pkg_to_port() {
-	local flavor port
+	local origin=$(pkg-static query %o $1)
+	local flavor=$(pkg-static info $1 | awk '
+		/flavor/ && NF == 3 && $2 == ":" { print $3 }')
+	local flavors=$(pmake $origin -V FLAVORS)
 
-	port=$(pkg-static query %o $1)
-	[ "$port" ] || return
-	flavor=$(pkg-static info $1 | awk '/flavor/ { print $3 }')
-	[ "$flavor" ] && port="$port@$flavor"
-	echo $port
+	if [ "$flavors" -a ! "$flavor" ]; then
+		echo "$origin@${flavors%% *}"
+		return
+	fi
+	if [ "$flavor" ]; then
+		echo "$origin@$flavor"
+	else
+		echo $origin
+	fi
 }
 
 pm_fake_run() {
@@ -703,8 +714,7 @@ print_list() {
 
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret=1 t
-	local operation=$run_mode conflict_port remove_port=0
-	local flavor
+	local operation=$run_mode conflict_port flavor
 
 	tmpfile_initialize
 
@@ -735,7 +745,7 @@ rebuild_ports() {
 		list_find build_skipped $port && continue
 
 		if [ "${port##*@}" == "${port%%@*}" ]; then
-			flavor="";
+			flavor=""
 		else
 			flavor="FLAVOR=${port##*@}"
 		fi
@@ -782,21 +792,20 @@ rebuild_ports() {
 					# conflicting port is marked for reinstall
 					# hopefully this will address conflict
 					# and if not we will deal with conflict later
-					remove_port=1
+					pkg_remove $CONFLICT
+					unset CONFLICT
+					continue
 				else
 					unset need_remove
 					pkg_mark_for_removal $CONFLICT "conflicts with $port"
-					conflict_port=$need_remove
 					printf "\n===> $port install conflicts with $CONFLICT detected\n"
 					print_list "Following packages need to be REMOVED" \
-						$(to_rm_str $CONFLICT)
-					ask_yesno "Proceed" && remove_port=1
-				fi
-				if [ $remove_port -eq 1 ]; then
-					pkg_remove $conflict_port
-					unset CONFLICT
-					remove_port=0
-					continue
+						$(to_rm_str $need_remove)
+					if ask_yesno "Proceed"; then
+						pkg_remove $need_remove
+						unset CONFLICT
+						continue
+					fi
 				fi
 			fi
 			break
@@ -989,25 +998,28 @@ to_pkg_str() {
 }
 
 to_port_str() {
-	local arg str
+	local arg matched pkg str
 
 	for arg in $*; do
 		case $arg in
 		*/*)
 			[ -d "$PORTSDIR/${arg%%@*}" ] && list_add str $arg ;;
 		*)
-			list_add str $(pkg-static query -x %o ^$arg)
+			matched=$(pkg-static info --quiet | grep ^$arg)
+			[ "$matched" ] || continue
+			for pkg in $matched; do
+				list_add str $(pkg_to_port $pkg)
+			done
 		esac
 	done
 	[ "$str" ] && echo $str
 }
 
 to_rm_str() {
-	local pkg port reason str
+	local pkg reason str
 
 	for pkg in $*; do
-		port=$(pkg_to_port $pkg)
-		reason=$(eval echo \$$(to_env_str $port)_conflicts | sed 's| |,,|g')
+		reason=$(eval echo \$$(to_env_str $pkg)_conflicts | sed 's| |,,|g')
 		list_add str "$pkg,,($reason)"
 	done
 	[ "$str" ] && echo $str
@@ -1193,7 +1205,7 @@ upgrade_ports() {
 		setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 		list_remove need_reinstall $port
 		[ "$(pmake $port -V PKGBASE)" != "$(pkg-static query %n $pkg)" ] &&
-			list_add conflicts_self $port
+			list_add conflicts_self $pkg
 	done
 	if [ ! "$need_upgrade" ]; then
 		echo "===> No ports needing upgrade found"
@@ -1261,12 +1273,12 @@ case ${0##*/} in
 			i)
 				interactive=1 ;;
 			r)
-				origin=$(pkg_to_port $OPTARG)
-				if [ ! "$origin" ]; then
+				if ! pkg_exists $OPTARG; then
 					printf "$OPTARG: no such package\n\n" >&2
 					display_usage_reinstall
 				fi
-				need_reinstall_add $origin $(reverse_deps $origin)
+				need_reinstall_add $OPTARG \
+					$(pkg-static query %rn $OPTARG)
 				;;
 			y)
 				answer_yes=1 ;;
@@ -1343,16 +1355,13 @@ reinstall)
 	for pattern in $*; do
 		case $pattern in
 		*/*)
-			need_reinstall_add $pattern ;;
+			need_reinstall_add $(pmake $pattern -V PKGBASE) ;;
 		*)
 			if pkg_exists $pattern; then
-				need_reinstall_add $(pkg_to_port $pattern)
+				need_reinstall_add $pattern
 				continue
 			fi
-			for pkg in $(pkg-static info --quiet | grep $pattern); do
-				port=$(pkg_to_port $pkg)
-				need_reinstall_add $port
-			done
+			need_reinstall_add $(pkg-static info --quiet | grep $pattern)
 		esac
 	done
 	interactive_select "Select packages for reinstall:" $need_reinstall \
