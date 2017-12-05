@@ -12,7 +12,7 @@ readonly build=${3:-none}
 interrupted=0 # build interrupted by ctrl+c
 
 check_portname() {
-	local port
+	local flavor flavors port
 
 	if [ "$1" = "." ]; then
 		if [ ! "$(make -V PORTNAME)" ]; then
@@ -26,9 +26,18 @@ check_portname() {
 	else
 		port=$1
 	fi
-	if [ ! -d "$POUDRIERE_PORTS/$port" ]; then
+	if [ ! -d "$POUDRIERE_PORTS/${port%%@*}" ]; then
 		printf "===> $POUDRIERE_PORTS/$port: port directory does not exists\n\n" >&2
 		display_usage
+	fi
+	if [ "${port##*@}" != "${port%%@*}" ]; then
+		flavors=$(make -C "$POUDRIERE_PORTS/${port%%@*}" -V FLAVORS)
+		if [ "${port##*@}" = "all" ]; then
+			for flavor in $flavors; do
+				echo "${port%%@*}@$flavor"
+			done
+			return
+		fi
 	fi
 	echo $port
 }
