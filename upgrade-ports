@@ -563,7 +563,7 @@ pkg_to_port() {
 	local origin=$(pkg-static query %o $1)
 	local flavor=$(pkg-static info $1 | awk '
 		/flavor/ && NF == 3 && $2 == ":" { print $3 }')
-	local flavors=$(pmake $origin -V FLAVORS)
+	local flavors=$(pmake $origin -V FLAVORS | sed 's,^ ,,')
 
 	if [ "$flavors" -a ! "$flavor" ]; then
 		echo "$origin@${flavors%% *}"
