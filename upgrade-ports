@@ -151,12 +151,12 @@ check_packages() {
 		print "need_install=\"" inst "\" need_reinstall=\"" rinst "\"";
 		for (pkg in install) {
 			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|\+|@)/, "_", origin);
+			gsub(/(\/|-|\.|,|\+|@)/, "_", origin);
 			print origin "_reqby=\"" install[pkg] "\"";
 		}
 		for (pkg in rebuild) {
 			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|\+|@)/, "_", origin);
+			gsub(/(\/|-|\.|,|\+|@)/, "_", origin);
 			print origin "_miss=\"" rebuild[pkg] "\"";
 		}
 	}')
@@ -185,7 +185,7 @@ clean_after_build_error() {
 	else
 		if [ "$2" = "install" ]; then
 			echo "===> Install failed, reinstalling old version..."
-			pkgfile="work/$(basename $(make -V $PKGFILE))"
+			pkgfile="work/$(basename $(make -V PKGFILE))"
 		fi
 	fi
 	[ "$pkgfile" -a -f "$pkgfile" ] &&
@@ -691,7 +691,7 @@ ports_upgrade_sort() {
 	}
 	{
 		envname = $0 "_alldeps";
-		gsub(/(\/|-|\.|\+|@)/, "_", envname);
+		gsub(/(\/|-|\.|,|\+|@)/, "_", envname);
 		ports[++n_ports] = $0;
 		port_deps[$0] = ENVIRON[envname];
 		port_ndeps[$0] = split(port_deps[$0], adeps);
@@ -933,7 +933,7 @@ tmpfile_locked_write() {
 }
 
 to_env_str() {
-	echo "$1" | sed -E 's,(\/|-|\.|\+|@),_,g'
+	echo "$1" | sed -E 's:(\/|-|\.|,|\+|@):_:g'
 }
 
 to_fail_str() {
