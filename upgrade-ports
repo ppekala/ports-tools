@@ -676,10 +676,15 @@ ports_upgrade_sort() {
 	function ports_cmp(a, b) {
 		if (a == b)
 			return 0;
-		if (match(port_deps[b], a))
+
+		split(a, port_a, "@");
+		if (match(port_deps[b], port_a[1]) != 0)
 			return -1;
-		if (match(port_deps[a], b))
+
+		split(b, port_b, "@");
+		if (match(port_deps[a], port_b[1]) != 0)
 			return 1;
+
 		return port_ndeps[a] - port_ndeps[b];
 	}
 	function qsort(a, start, end) {
