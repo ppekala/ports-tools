@@ -151,12 +151,12 @@ check_packages() {
 		print "need_install=\"" inst "\" need_reinstall=\"" rinst "\"";
 		for (pkg in install) {
 			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|,|\+|@)/, "_", origin);
+			gsub(/(\/|-|\.|\+|@)/, "_", origin);
 			print origin "_reqby=\"" install[pkg] "\"";
 		}
 		for (pkg in rebuild) {
 			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|,|\+|@)/, "_", origin);
+			gsub(/(\/|-|\.|\+|@)/, "_", origin);
 			print origin "_miss=\"" rebuild[pkg] "\"";
 		}
 	}')
@@ -333,7 +333,7 @@ detect_conflicts() {
 						$(pmake ${line%:*} -V PKGBASE)
 				else
 					pkg_mark_for_removal \
-						$(pmake ${line#*:} -V PKGNAME) \
+						$(pmake ${line#*:} -V PKGBASE) \
 						"conflicts with $(to_pkg_str ${line%:*})"
 				fi
 			esac
@@ -691,7 +691,7 @@ ports_upgrade_sort() {
 	}
 	{
 		envname = $0 "_alldeps";
-		gsub(/(\/|-|\.|,|\+|@)/, "_", envname);
+		gsub(/(\/|-|\.|\+|@)/, "_", envname);
 		ports[++n_ports] = $0;
 		port_deps[$0] = ENVIRON[envname];
 		port_ndeps[$0] = split(port_deps[$0], adeps);
@@ -797,7 +797,8 @@ rebuild_ports() {
 					continue
 				else
 					unset need_remove
-					pkg_mark_for_removal $CONFLICT "conflicts with $port"
+					pkg_mark_for_removal $(pkg-static query %n $CONFLICT) \
+						"conflicts with $port"
 					printf "\n===> $port install conflicts with $CONFLICT detected\n"
 					print_list "Following packages need to be REMOVED" \
 						$(to_rm_str $need_remove)
@@ -933,7 +934,7 @@ tmpfile_locked_write() {
 }
 
 to_env_str() {
-	echo "$1" | sed -E 's:(\/|-|\.|,|\+|@):_:g'
+	echo "$1" | sed -E 's,(\/|-|\.|\+|@),_,g'
 }
 
 to_fail_str() {
@@ -1016,11 +1017,12 @@ to_port_str() {
 }
 
 to_rm_str() {
-	local pkg reason str
+	local pkg pkgname reason str
 
 	for pkg in $*; do
 		reason=$(eval echo \$$(to_env_str $pkg)_conflicts | sed 's| |,,|g')
-		list_add str "$pkg,,($reason)"
+		pkgname=$(pkg-static query %n-%v $pkg)
+		list_add str "$pkgname,,($reason)"
 	done
 	[ "$str" ] && echo $str
 }
