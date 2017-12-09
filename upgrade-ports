@@ -178,19 +178,18 @@ check_packages() {
 }
 
 clean_after_build_error() {
-	local pkgfile
+	local pkgfile=""
 
 	if list_find conflicts_self $(pmake $1 -V PKGBASE); then
-		echo "===> Restoring previous version from backup..."
 		pkgfile=$(pmake $1 -V PKGFILE)
 	else
-		if [ "$2" = "install" ]; then
-			echo "===> Install failed, reinstalling old version..."
+		[ "$2" = "install" ] &&
 			pkgfile="work/$(basename $(make -V PKGFILE))"
-		fi
 	fi
-	[ "$pkgfile" -a -f "$pkgfile" ] &&
+	if [ "$pkgfile" -a -f "$pkgfile" ]; then
+		echo "===> Restoring older package version from backup..."
 		$SUDO pkg-static add --quiet $pkgfile
+	fi
 	if [ $interrupted -eq 1 ]; then
 		build_interrupted=$1
 		$SUDO make clean
