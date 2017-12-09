@@ -80,14 +80,13 @@ check_for_missing_deps() {
 }
 
 check_packages() {
-	local pkg pkg_ignore
+	local data port pkg pkg_ignore
 
 	echo "===> Checking packages for missing libraries/dependencies..."
 	for pkg in $(pkg-static lock -lq); do
 		list_add pkg_ignore $(pkg-static query %n $pkg)
 	done
-	eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" \
-		-v force_recompile="$force_recompile" '
+	eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
 	function pkg_origin(pkg) {
 		"pkg-static rquery %o " pkg | getline port
 		close("pkg-static rquery %o " pkg);
@@ -109,27 +108,14 @@ check_packages() {
 	/has a missing dependency:/ {
 		if ($6 in ignore)
 			next;
-		missing = pkg_origin($6);
-		if (missing) {
-			"test -d " ENVIRON["PORTSDIR"] "/" missing " || echo fail" | getline res
-			close("make -C " ENVIRON["PORTSDIR"] "/" missing " || echo fail");
-		} else
-			res="fail";
-		if (res == "fail") {
-			if (force_recompile == "1" && $1 in rebuild == 0) {
-				rebuild[$1] = $6;
-				morigin = pkg_origin($1);
-				rinst = rinst ? rinst " " morigin : morigin;
-			}
-			next;
-		}
+
 		miss_deps[$1] = $1;
 		if ($6 in install) {
 			install[$6] = install[$6] " " $1;
 			next;
 		}
 		install[$6] = $1;
-		inst = inst ? inst " " missing : missing;
+		inst = inst ? inst " " $6 : $6;
 	}
 	/is missing a required shared library:/ {
 		if ($1 in ignore || $1 in miss_deps)
@@ -144,23 +130,38 @@ check_packages() {
 			next;
 		}
 		rebuild[$1] = $8;
-		origin = pkg_origin($1);
-		rinst = rinst ? rinst " " origin : origin;
+		rinst = rinst ? rinst " " $1 : $1;
 	}
 	END {
-		print "need_install=\"" inst "\" need_reinstall=\"" rinst "\"";
+		print "check_need_install=\"" inst "\" check_need_reinstall=\"" rinst "\"";
 		for (pkg in install) {
-			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|\+|@)/, "_", origin);
-			print origin "_reqby=\"" install[pkg] "\"";
+			envname = pkg;
+			gsub(/(\/|-|\.|\+|@)/, "_", envname);
+			print envname "_reqby=\"" install[pkg] "\"";
 		}
 		for (pkg in rebuild) {
-			origin = pkg_origin(pkg);
-			gsub(/(\/|-|\.|\+|@)/, "_", origin);
-			print origin "_miss=\"" rebuild[pkg] "\"";
+			envname = pkg;
+			gsub(/(\/|-|\.|\+|@)/, "_", envname);
+			print envname "_miss=\"" rebuild[pkg] "\"";
 		}
 	}')
+	for pkg in $check_need_reinstall; do
+		port=$(pkg_to_port $pkg)
+		data=$(eval echo \$$(to_env_str $pkg)_miss)
+		setvar $(to_env_str $port)_miss "$data"
+	done
+	need_reinstall_add $check_need_reinstall
 
+	for pkg in $check_need_install; do
+		port=$(pfind -n $pkg)
+		data=$(eval echo \$$(to_env_str $pkg)_reqby)
+		if [ "$port" ]; then
+			setvar $(to_env_str $port)_reqby "$data"
+			list_add need_install $port
+		else
+			[ $force_recompile -eq 1 ] && need_reinstall_add $data
+		fi
+	done
 	if [ "$need_install" -o "$need_reinstall" ]; then
 		tmpfile_initialize
 		check_for_missing_deps
