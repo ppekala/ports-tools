@@ -187,7 +187,7 @@ if [ "$ports_modules" ]; then
 	export PORTSDIR=${PORTSDIR:-/usr/ports}
 	if [ ! -d "$PORTSDIR" ]; then
 		echo "===> Ports directory not found: $PORTSDIR" >&2
-		echo "===> Try setting PORTSDIR enviroment variable" >&2
+		echo "===> Try setting PORTSDIR environment variable" >&2
 		exit 1
 	fi
 fi

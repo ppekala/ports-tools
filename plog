@@ -28,7 +28,7 @@ poudriere_jails() {
 
 if [ ! -d "$POUDRIERE_PORTS" ]; then
 	echo "===> Poudriere ports directory not found: $POUDRIERE_PORTS" >&2
-	echo "===> Try setting POUDRIERE_PORTS enviroment variable" >&2
+	echo "===> Try setting POUDRIERE_PORTS environment variable" >&2
 	exit 1
 fi
 
