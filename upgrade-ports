@@ -153,7 +153,7 @@ check_packages() {
 	need_reinstall_add $check_need_reinstall
 
 	for pkg in $check_need_install; do
-		port=$(pfind -n $pkg)
+		port=$(pfind -N $pkg)
 		data=$(eval echo \$$(to_env_str $pkg)_reqby)
 		if [ "$port" ]; then
 			setvar $(to_env_str $port)_reqby "$data"

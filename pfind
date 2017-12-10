@@ -2,8 +2,9 @@
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name] [-g regexp]
+Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name pattern] [-g regexp]
        ${0##*/} [-g regexp] [-s master category/port]
+       ${0##*/} [-N package name ]
        ${0##*/} -h
 
     -b - port needing certain build dependency
@@ -11,7 +12,8 @@ Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name] [-g regexp]
     -g - find ports with Makefile containing grep pattern
     -h - show this help
     -m - port maintainer
-    -n - port name
+    -n - ports name matching pattern
+    -N - find port with exact package name
     -s - find slave ports
 
 EOF
@@ -23,7 +25,30 @@ grep_files() {
 		2>/dev/null | sed 's|^.\/||'
 }
 
-while getopts "b:c:g:hm:n:s:" option; do
+pkgname_exact_match() {
+	local flavor flavors pkgbase portdir
+
+	for portdir in $*; do
+		cd "$portdir"
+		flavors=$(make -V FLAVORS)
+		if [ "$flavors" ]; then
+			for flavor in $flavors; do
+				pkgbase=$(make FLAVOR=$flavor -V PKGBASE)
+				if [ "$exact_match" = "$pkgbase" ]; then
+					echo "$portdir@$flavor" | sed "s|$PORTSDIR/||"
+					exit 0
+				fi
+			done
+		else
+			pkgbase=$(make -V PKGBASE)
+			[ "$exact_match" = "$pkgbase" ] &&
+				echo "$portdir" | sed "s|$PORTSDIR/||"
+		fi
+	done
+	exit 0
+}
+
+while getopts "b:c:g:hm:n:N:s:" option; do
 	case $option in
 	b)
 		bdeps="$OPTARG" ;;
@@ -35,6 +60,8 @@ while getopts "b:c:g:hm:n:s:" option; do
 		maintainer="$OPTARG" ;;
 	n)
 		name="$OPTARG" ;;
+	N)
+		exact_match="$OPTARG" ;;
 	s)
 		master="$OPTARG" ;;
 	*)
@@ -42,8 +69,14 @@ while getopts "b:c:g:hm:n:s:" option; do
 	esac
 done
 
-[ ! "$bdeps" -a ! "$category" -a ! "$maintainer" -a ! "$name" \
-	-a ! "$string" -a ! "$master" ] && display_usage
+if [ "$exact_match" ]; then
+	[ "$bdeps" -o "$category" -o "$maintainer" -o "$master" -o "$name" \
+		-o "$string" ] && display_usage
+	search_args="name=$exact_match"
+else
+	[ ! "$bdeps" -a ! "$category" -a ! "$maintainer" -a ! "$name" \
+		-a ! "$string" -a ! "$master" ] && display_usage
+fi
 
 readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 if [ ! -d "$PORTSDIR" ]; then
@@ -94,6 +127,7 @@ if [ "$master" ]; then
 	done)
 else
 	portdirs=$(make quicksearch $search_args | awk '/^Path:/ { print $2 }')
+	[ "$exact_match" ] && pkgname_exact_match $portdirs
 fi
 
 for portdir in $portdirs; do
