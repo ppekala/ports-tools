@@ -184,7 +184,7 @@ clean_after_build_error() {
 		pkgfile=$(pmake $1 -V PKGFILE)
 	else
 		[ "$2" = "install" ] &&
-			pkgfile="$(pmake -V WRKDIR)/$(basename $(make -V PKGFILE))"
+			pkgfile="$(pmake $1 -V WRKDIR)/$(basename $(make -V PKGFILE))"
 	fi
 	if [ "$pkgfile" -a -f "$pkgfile" ]; then
 		echo "===> Restoring older package version from backup..."
@@ -769,7 +769,7 @@ rebuild_ports() {
 			continue
 		fi
 		[ $build_started -eq 1 ] || build_started=1
-		wrkdir=$(pmake -V WRKDIR)
+		wrkdir=$(pmake $port -V WRKDIR)
 		[ -d "$wrkdir" ] && $SUDO make clean
 		if ! $SUDO make $flavor $make_args build; then
 			clean_after_build_error $port build
