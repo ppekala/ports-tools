@@ -184,7 +184,7 @@ clean_after_build_error() {
 		pkgfile=$(pmake $1 -V PKGFILE)
 	else
 		[ "$2" = "install" ] &&
-			pkgfile="work/$(basename $(make -V PKGFILE))"
+			pkgfile="$(pmake -V WRKDIR)/$(basename $(make -V PKGFILE))"
 	fi
 	if [ "$pkgfile" -a -f "$pkgfile" ]; then
 		echo "===> Restoring older package version from backup..."
@@ -719,7 +719,7 @@ print_list() {
 
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret=1 t
-	local operation=$run_mode conflict_port flavor
+	local operation=$run_mode conflict_port flavor wrkdir
 
 	tmpfile_initialize
 
@@ -769,7 +769,8 @@ rebuild_ports() {
 			continue
 		fi
 		[ $build_started -eq 1 ] || build_started=1
-		[ -d work ] && $SUDO make clean
+		wrkdir=$(pmake -V WRKDIR)
+		[ -d "$wrkdir" ] && $SUDO make clean
 		if ! $SUDO make $flavor $make_args build; then
 			clean_after_build_error $port build
 			continue
@@ -777,7 +778,7 @@ rebuild_ports() {
 
 		if pkg_exists $port; then
 			make_cmd="deinstall install clean"
-			${SUDO} pkg-static create --out-dir work \
+			${SUDO} pkg-static create --out-dir "$wrkdir" \
 				$(pmake $port -V PKGBASE)
 		else
 			make_cmd="install clean"
