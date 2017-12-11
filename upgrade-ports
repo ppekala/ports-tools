@@ -16,7 +16,7 @@ make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
 ports_config=0	# set port(s) options before build
 skip_update=0	# don't update ports tree
 tmpfile=""	# all purpose, global temporary file
-wait_for_key=0	# wait for key press after upgrade finish
+wait_for_key=1	# wait for key press after upgrade finish
 
 ask_yesno() {
 	local answer
