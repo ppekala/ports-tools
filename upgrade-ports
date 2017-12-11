@@ -16,6 +16,7 @@ make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
 ports_config=0	# set port(s) options before build
 skip_update=0	# don't update ports tree
 tmpfile=""	# all purpose, global temporary file
+user_selection=0 # user package selection was activated
 wait_for_key=0	# wait for key press after upgrade finish
 
 ask_yesno() {
@@ -419,6 +420,9 @@ interactive_select() {
 	[ $interactive -eq 1 ] || return
 
 	shift 1
+	[ "$*" ] || return
+	user_selection=1
+
 	for port in $*; do
 		pkg=$(pmake $port -V PKGNAME)
 		items="$items $port $pkg on"
@@ -1352,7 +1356,8 @@ install)
 	done
 	interactive_select "Select ports to install:" $need_install
 	if [ ! "$need_install" ]; then
-		echo "===> No suitable ports to install found" >&2
+		[ $user_selection -ne 1 ] &&
+			echo "===> No suitable ports to install found" >&2
 		upgrade_exit 1
 	fi
 	ports_configure $need_install
@@ -1375,7 +1380,8 @@ reinstall)
 	interactive_select "Select packages for reinstall:" $need_reinstall \
 		$need_upgrade $need_downgrade
 	if [ ! "$need_reinstall" -a ! "$need_upgrade" -a ! "$need_downgrade" ]; then
-		echo "===> No suitable packages to reinstall found" >&2
+		[ $user_selection -ne 1 ] &&
+			echo "===> No suitable packages to reinstall found" >&2
 		upgrade_exit 1
 	fi
 	ports_configure $need_reinstall
