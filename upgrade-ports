@@ -88,11 +88,6 @@ check_packages() {
 		list_add pkg_ignore $(pkg-static query %n $pkg)
 	done
 	eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
-	function pkg_origin(pkg) {
-		"pkg-static rquery %o " pkg | getline port
-		close("pkg-static rquery %o " pkg);
-		return port;
-	}
 	BEGIN {
 		if ((n = split(pkg_ignore, array, " ")))
 			for (i=1; i<=n; i++)
@@ -1335,6 +1330,11 @@ if [ $(id -u) -ne 0 ]; then
 		upgrade_exit 1
 	fi
 	SUDO="sudo"
+fi
+
+if ! which pfind >/dev/null; then
+	echo "===> Required script pfind not found" >&2
+	exit 1
 fi
 
 case $run_mode in
