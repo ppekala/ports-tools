@@ -41,8 +41,10 @@ pkgname_exact_match() {
 			done
 		else
 			pkgbase=$(make -V PKGBASE)
-			[ "$exact_match" = "$pkgbase" ] &&
+			if [ "$exact_match" = "$pkgbase" ]; then
 				echo "$portdir" | sed "s|$PORTSDIR/||"
+				exit 0
+			fi
 		fi
 	done
 	exit 0
@@ -72,7 +74,7 @@ done
 if [ "$exact_match" ]; then
 	[ "$bdeps" -o "$category" -o "$maintainer" -o "$master" -o "$name" \
 		-o "$string" ] && display_usage
-	search_args="name=$exact_match"
+	search_args="name=$exact_match-"
 else
 	[ ! "$bdeps" -a ! "$category" -a ! "$maintainer" -a ! "$name" \
 		-a ! "$string" -a ! "$master" ] && display_usage
