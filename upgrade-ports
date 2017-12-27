@@ -496,19 +496,14 @@ need_install_add() {
 }
 
 need_reinstall_add() {
-	local port pkgname
+	local pkg port
 
-	for pkgname in $*; do
-		pkg_exists $pkgname || continue
-		if [ "$(pkg-static info -kq $pkgname)" = "yes" ]; then
-			echo "===> $pkgname is locked, skipping"
-			continue
-		fi
-		port=$(pkg_to_port $pkgname)
-		[ "$(pmake $port -V PKGBASE)" != "$(pkg-static query %n $pkgname)" ] &&
-			list_add conflicts_self $pkgname
+	for pkg in $*; do
+		pkg_exists $pkg || continue
+		pkg_check_status $pkg || continue
+		port=$(pkg_to_port $pkg)
 
-		case $(pkg-static version -n $pkgname | awk '{print $2}') in
+		case $(pkg-static version -n $pkg | awk '{print $2}') in
 		'>')
 			setvar $(to_env_str $port)_version \
 				$(pmake $port -V PKGVERSION)
@@ -523,12 +518,37 @@ need_reinstall_add() {
 	done
 }
 
+pkg_check_status() {
+	local neworigin pkg=$1 pkgbase pkgname port
+
+	if [ "$(pkg-static info -kq $pkg)" = "yes" ]; then
+		echo "===> $pkg is locked, skipping"
+		return 1
+	fi
+
+	port=$(pkg_to_port $pkg)
+	pkgbase=$(pmake $port -V PKGBASE)
+	pkgname=$(pkg-static query %n $pkg)
+
+	if [ "$pkgbase" != "$pkgname" ]; then
+		neworigin=$(pfind -N $pkgname)
+
+		if [ "$neworigin" -a "$port" != "$neworigin" ]; then
+			$SUDO pkg-static set --change-origin $port:$neworigin --yes
+			echo "===> $pkgname changed its origin from $port to $neworigin"
+			need_reinstall_add $(pkg-static query %rn $pkg)
+		else
+			list_add conflicts_self $pkg
+		fi
+	fi
+}
+
 pkg_exists() {
 	local pkgname
 
 	[ "$1" ] || return 1
 	case $1 in
-	*/*)
+	*/*@*)
 		pkgname=$(pmake $1 -V PKGBASE) ;;
 	*)
 		pkgname=$1
@@ -1206,13 +1226,11 @@ upgrade_ports() {
 
 	echo "===> Checking for ports needing upgrade..."
 	for pkg in $(pkg-static version -l '<' | cut -f1 -d' '); do
-		[ "$(pkg-static info -kq $pkg)" = "yes" ] && continue
+		pkg_check_status $pkg || continue
 		port=$(pkg_to_port $pkg)
 		list_add need_upgrade $port
-		setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 		list_remove need_reinstall $port
-		[ "$(pmake $port -V PKGBASE)" != "$(pkg-static query %n $pkg)" ] &&
-			list_add conflicts_self $pkg
+		setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 	done
 	if [ ! "$need_upgrade" ]; then
 		echo "===> No ports needing upgrade found"
