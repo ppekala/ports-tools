@@ -176,11 +176,9 @@ check_packages() {
 clean_after_build_error() {
 	local pkgfile=""
 
-	if list_find conflicts_self $(pmake $1 -V PKGBASE); then
-		pkgfile=$(pmake $1 -V PKGFILE)
-	else
-		[ "$2" = "install" ] &&
-			pkgfile="$(pmake $1 -V WRKDIR)/$(basename $(make -V PKGFILE))"
+	if list_find conflicts_self $(pmake $1 -V PKGBASE) ||
+	   [ "$2" = "install" ]; then
+		pkgfile=$(eval echo \$$(to_env_str $1)_backup)
 	fi
 	if [ "$pkgfile" -a -f "$pkgfile" ]; then
 		echo "===> Restoring older package version from backup..."
@@ -515,6 +513,17 @@ need_reinstall_add() {
 	done
 }
 
+pkg_backup() {
+	local file path=$2 pkg=$1 port
+
+	file=$($SUDO pkg-static create --out-dir $path $pkg |
+		awk '{ print $4 ".txz" }')
+	[ "$file" ] || return 1
+
+	port=$(pkg_to_port $pkg)
+	setvar $(to_env_str $port)_backup "$path/$file"
+}
+
 pkg_check_status() {
 	local neworigin pkg=$1 pkgbase pkgname port
 
@@ -535,7 +544,7 @@ pkg_check_status() {
 			echo "===> $pkgname changed its origin from ${port%@*} to $neworigin"
 			need_reinstall_add $(pkg-static query %rn $pkg)
 		else
-			list_add conflicts_self $pkg
+			list_add conflicts_self $pkgname
 		fi
 	fi
 }
@@ -570,7 +579,7 @@ pkg_remove() {
 
 	[ "$*" ] || return
 	for pkg in $*; do
-		$SUDO pkg-static create --quiet --out-dir "$pkgrepo" $pkg
+		pkg_backup $pkg "$pkgrepo"
 	done
 	$SUDO pkg-static delete --quiet --yes --force $*
 }
@@ -794,8 +803,7 @@ rebuild_ports() {
 
 		if pkg_exists $port; then
 			make_cmd="deinstall install clean"
-			${SUDO} pkg-static create --out-dir "$wrkdir" \
-				$(pmake $port -V PKGBASE)
+			pkg_backup $(pmake $port -V PKGBASE) "$wrkdir"
 		else
 			make_cmd="install clean"
 		fi
