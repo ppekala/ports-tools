@@ -79,14 +79,14 @@ update_exclude_list() {
 	dialog --clear
 	rm $tmpfile
 
-	[ "$excluded" ] || exit
+	[ "$excluded" ] || exit 0
 	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
 	[ -f "$EXCLUDE_CONF" ] && rm -f "$EXCLUDE_CONF"
 
 	for pkg in $excluded; do
 		echo "$pkg" >> "$EXCLUDE_CONF"
 	done
-	exit
+	exit 0
 }
 
 while getopts "hoxy" option; do

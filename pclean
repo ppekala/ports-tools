@@ -32,7 +32,10 @@ if [ "$wrk_dirs" ]; then
 	done
 fi
 
-which $PSVN >/dev/null || exit
+if ! which $PSVN >/dev/null; then
+	echo "===> $PSVN executable not found" >&2
+	exit 1
+fi
 if $PSVN info >/dev/null 2>&1; then
 	echo "===> Running '$PSVN revert'..."
 	$PSVN revert --depth infinity .

@@ -113,7 +113,7 @@ main_loop() {
 
 				if ! ask_yesno "Continue with upgrade"; then
 					save_state "REPO_UPDATED"
-					exit
+					exit 0
 				fi
 			fi
 		fi

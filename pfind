@@ -47,7 +47,7 @@ pkgname_exact_match() {
 			fi
 		fi
 	done
-	exit 0
+	exit 1
 }
 
 while getopts "b:c:g:hm:n:N:s:" option; do

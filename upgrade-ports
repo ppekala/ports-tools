@@ -466,7 +466,7 @@ list_first() {
 
 	for elem in $(eval echo \$$1); do
 		echo $elem
-		exit
+		return
 	done
 }
 

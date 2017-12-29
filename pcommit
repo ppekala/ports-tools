@@ -217,7 +217,7 @@ if [ "$old_files" ]; then
 	echo "===> Removed old temporary files"
 	echo $old_files | tr ' ' '\n'
 fi
-[ $clean_only -eq 0 ] || exit
+[ $clean_only -eq 0 ] || exit 0
 
 if [ $ignore_empty -eq 0 ]; then
 	empty_files=$(find . -maxdepth $depth -type f -size 0 \
@@ -288,7 +288,7 @@ remove_empty_dirs
 
 if [ $non_interactive -eq 1 ]; then
 	$PSVN commit
-	exit $?
+	exit
 fi
 
 while true; do
@@ -299,9 +299,9 @@ while true; do
 	case $cmd in
 	[Cc])
 		$PSVN commit
-		exit $? ;;
-	[Qq])
 		exit ;;
+	[Qq])
+		exit 0 ;;
 	[Ss])
 		$PSVN status ;;
 	[Vv])

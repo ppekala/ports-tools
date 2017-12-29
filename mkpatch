@@ -14,7 +14,7 @@ if [ "$WRKSRC" ]; then
 				make configure >/dev/null 2>&1
 				break ;;
 			[Nn])
-				exit
+				exit 0
 			esac
 		done
 	fi
@@ -24,7 +24,7 @@ fi
 p_files=$(find . -name '*.orig' | sed 's#^./##')
 if [ ! "$p_files" ]; then
 	echo "===> No patched files found"
-	exit
+	exit 1
 fi
 
 for f in $p_files; do

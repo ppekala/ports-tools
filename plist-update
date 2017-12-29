@@ -169,7 +169,7 @@ END {
 
 plist-sort $tempfile > $plist_out
 rm $tempfile
-[ "$plist_out" = "pkg-plist" ] && exit
+[ "$plist_out" = "$PLIST" ] && exit 0
 
 if ! cmp -s $PLIST $plist_out; then
 	diff -u $PLIST $plist_out | $PAGER_DIFF
@@ -180,7 +180,7 @@ if ! cmp -s $PLIST $plist_out; then
 		case $cmd in
 		[Yy])
 			mv $plist_out $PLIST
-			exit ;;
+			exit 0 ;;
 		[Nn])
 			break
 		esac
