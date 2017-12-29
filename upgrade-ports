@@ -528,11 +528,11 @@ pkg_check_status() {
 	pkgname=$(pkg-static query %n $pkg)
 
 	if [ "$pkgbase" != "$pkgname" ]; then
-		neworigin=$(pfind -N $pkgname)
+		neworigin=$(pfind -N $pkgname | sed 's|@.*$||')
 
-		if [ "$neworigin" -a "$port" != "$neworigin" ]; then
-			$SUDO pkg-static set --change-origin $port:$neworigin --yes
-			echo "===> $pkgname changed its origin from $port to $neworigin"
+		if [ "$neworigin" -a "${port%@*}" != "$neworigin" ]; then
+			$SUDO pkg-static set --change-origin ${port%@*}:$neworigin --yes
+			echo "===> $pkgname changed its origin from ${port%@*} to $neworigin"
 			need_reinstall_add $(pkg-static query %rn $pkg)
 		else
 			list_add conflicts_self $pkg
