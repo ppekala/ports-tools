@@ -185,10 +185,10 @@ clean_after_build_error() {
 	fi
 	if [ $interrupted -eq 1 ]; then
 		build_interrupted=$1
-		$SUDO make clean
 	else
 		skip_reverse_deps $1 "$2 error"
 	fi
+	$SUDO make clean
 }
 
 command_is_valid() {
