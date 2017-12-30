@@ -176,8 +176,7 @@ check_packages() {
 clean_after_build_error() {
 	local pkgfile=""
 
-	if list_find conflicts_self $(pmake $1 -V PKGBASE) ||
-	   [ "$2" = "install" ]; then
+	if list_find conflicts_self $(port_to_pkg $1) || [ "$2" = "install" ]; then
 		pkgfile=$(eval echo \$$(to_env_str $1)_backup)
 	fi
 	if [ "$pkgfile" -a -f "$pkgfile" ]; then
@@ -322,10 +321,10 @@ detect_conflicts() {
 			*)
 				if [ "${line%:*}" = "${line#*:}" ]; then
 					list_add conflicts_self \
-						$(pmake ${line%:*} -V PKGBASE)
+						$(port_to_pkg ${line%:*})
 				else
 					pkg_mark_for_removal \
-						$(pmake ${line#*:} -V PKGBASE) \
+						$(port_to_pkg ${line#*:}) \
 						"conflicts with $(to_pkg_str ${line%:*})"
 				fi
 			esac
@@ -500,12 +499,8 @@ need_reinstall_add() {
 
 		case $(pkg-static version -n $pkg | awk '{print $2}') in
 		'>')
-			setvar $(to_env_str $port)_version \
-				$(pmake $port -V PKGVERSION)
 			list_add need_downgrade $port ;;
 		'<')
-			setvar $(to_env_str $port)_version \
-				$(pmake $port -V PKGVERSION)
 			list_add need_upgrade $port ;;
 		*)
 			list_add need_reinstall $port
@@ -547,6 +542,8 @@ pkg_check_status() {
 			list_add conflicts_self $pkgname
 		fi
 	fi
+	setvar $(to_env_str $port)_pkgname $pkgname
+	setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 }
 
 pkg_exists() {
@@ -554,8 +551,8 @@ pkg_exists() {
 
 	[ "$1" ] || return 1
 	case $1 in
-	*/*@*)
-		pkgname=$(pmake $1 -V PKGBASE) ;;
+	*/*)
+		pkgname=$(port_to_pkg $1) ;;
 	*)
 		pkgname=$1
 	esac
@@ -653,6 +650,18 @@ ports_configure() {
 		[ "$(make -V OPTIONS_DEFINE)" ] || continue
 		$SUDO make config
 	done
+}
+
+port_to_pkg() {
+	local port=$1
+	local pkg=$(eval echo \$$(to_env_str $port)_pkgname)
+
+	if [ "$pkg" ]; then
+		echo $pkg
+		return
+	fi
+	pkg=$(pmake $port -V PKGBASE)
+	echo $pkg
 }
 
 ports_upgrade_sort() {
@@ -803,7 +812,7 @@ rebuild_ports() {
 
 		if pkg_exists $port; then
 			make_cmd="deinstall install clean"
-			pkg_backup $(pmake $port -V PKGBASE) "$wrkdir"
+			pkg_backup $(port_to_pkg $port) "$wrkdir"
 		else
 			make_cmd="install clean"
 		fi
@@ -867,7 +876,7 @@ rebuild_ports() {
 reverse_deps() {
 	local dep pkg port
 
-	pkg=$(pmake $1 -V PKGBASE)
+	pkg=$(port_to_pkg $1)
 	[ "$pkg" ] || return
 	for dep in $(pkg-static query %rn $pkg); do
 		port=$(pkg_to_port $dep)
@@ -1021,7 +1030,8 @@ to_pkg_str() {
 	local pkg port str
 
 	for port in $*; do
-		pkg=$(pmake $port -V PKGNAME)
+		pkg=$(port_to_pkg $port)
+		pkg=$(pkg-static query %n-%v $pkg)
 		[ "$pkg" ] || pkg=$port
 		list_add str $pkg
 	done
@@ -1061,7 +1071,7 @@ to_upgrade_str() {
 	local curr new_ver pkg port str
 
 	for port in $*; do
-		pkg=$(pmake $port -V PKGBASE)
+		pkg=$(port_to_pkg $port)
 		curr=$(pkg-static query "%n:,,%v" $pkg)
 		new_ver=$(eval echo \$$(to_env_str $port)_version)
 		list_add str "$curr,,->,,$new_ver"
@@ -1235,7 +1245,6 @@ upgrade_ports() {
 		port=$(pkg_to_port $pkg)
 		list_add need_upgrade $port
 		list_remove need_reinstall $port
-		setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 	done
 	if [ ! "$need_upgrade" ]; then
 		echo "===> No ports needing upgrade found"
@@ -1391,7 +1400,7 @@ reinstall)
 	for pattern in $*; do
 		case $pattern in
 		*/*)
-			need_reinstall_add $(pmake $pattern -V PKGBASE) ;;
+			need_reinstall_add $(port_to_pkg $pattern) ;;
 		*)
 			if pkg_exists $pattern; then
 				need_reinstall_add $pattern
