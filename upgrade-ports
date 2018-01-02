@@ -586,10 +586,17 @@ pkg_to_port() {
 	local flavor=$(pkg-static info $1 | awk '
 		/flavor/ && NF == 3 && $2 == ":" { print $3 }')
 	local flavors=$(pmake $origin -V FLAVORS | sed 's,^ ,,')
+	local f pkgbase pkgname
 
 	if [ "$flavors" -a ! "$flavor" ]; then
-		echo "$origin@${flavors%% *}"
-		return
+		pkgname=$(pkg-static query %n $1)
+		for f in $flavors; do
+			pkgbase=$(pmake $origin@$f -V PKGBASE)
+			if [ "$pkgname" = "$pkgbase" ]; then
+				echo "$origin@$f"
+				return
+			fi
+		done
 	fi
 	if [ "$flavor" ]; then
 		echo "$origin@$flavor"
