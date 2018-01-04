@@ -55,19 +55,23 @@ function store_pathname(path, tokens) {
 }
 
 function str_replace(string, pattern, new_pattern) {
-	str=""
+	str="";
 
-	if ((n = split(string, array, pattern)) == 1)
+	if ((sr_fields = split(string, sr_array, pattern)) == 1)
 		return string;
-	for (i=1; i <= n; i++)
-		str = (i != n) ? str array[i] new_pattern : str array[i];
+	for (sr_index=1; sr_index <= sr_fields; sr_index++) {
+		if (sr_index != sr_fields)
+			str = str sr_array[sr_index] new_pattern;
+		else
+			str = str sr_array[sr_index];
+	}
 	return str;
 }
 
-function plist_split(string, array) {
-	n = index(string, " ");
-	array[1] = substr(string,1, n-1);
-	array[2] = substr(string, n+1);
+function plist_split(string, out) {
+	pos = index(string, " ");
+	out[1] = substr(string,1, pos-1);
+	out[2] = substr(string, pos+1);
 }
 
 function keyword_line_tokenize(line, keyword) {
