@@ -143,6 +143,7 @@ check_packages() {
 	}')
 	for pkg in $check_need_reinstall; do
 		port=$(pkg_to_port $pkg)
+		list_find build_failed $port && continue
 		data=$(eval echo \$$(to_env_str $pkg)_miss)
 		setvar $(to_env_str $port)_miss "$data"
 	done
@@ -150,6 +151,7 @@ check_packages() {
 
 	for pkg in $check_need_install; do
 		port=$(pfind -N $pkg)
+		list_find build_failed $port && continue
 		data=$(eval echo \$$(to_env_str $pkg)_reqby)
 		if [ "$port" ]; then
 			setvar $(to_env_str $port)_reqby "$data"
