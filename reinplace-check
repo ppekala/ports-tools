@@ -7,6 +7,19 @@ readonly PATHFILE=$(make -V PATHFIX_MAKEFILEIN)
 readonly PKGNAME=$(make -V PKGNAME 2>/dev/null)
 readonly cmd=${1:-check}
 
+valid_reinplace_file() {
+	local filename path=$1 pattern
+
+	#TODO Makefile.in may be changed by REINPLACE_CMD too, fix it
+	if [ $PATHFIX -eq 0 ]; then
+		filename=$(basename ${path%.bak})
+		for pattern in $PATHFIX_PATTERNS; do
+			[ "$filename" = "$pattern" ] && return 1
+		done
+	fi
+	case $path in *.libtool.bak|*ltmain.sh.bak) return 1 ;; esac
+}
+
 if [ "$cmd" != "check" -a "$cmd" != "show" ]; then
 	<< EOF >&2 cat
 Usage: ${0##*/} [check]
@@ -25,29 +38,37 @@ if [ ! "$PKGNAME" ]; then
 	exit 1
 fi
 
-if [ ! -f "$(make -V CONFIGURE_COOKIE)" ]; then
-	echo "===> You must run 'make configure' first" >&2
+flavors=$(make -V FLAVORS | sed 's,^ ,,')
+if [ "$flavors" ]; then
+	for f in $flavors; do
+		[ -f "$(make FLAVOR=$f -V CONFIGURE_COOKIE)" ] || continue
+		wrkdirs="$wrkdirs $(basename $(make FLAVOR=$f -V WRKDIR))"
+	done
+else
+	[ -f "$(make -V CONFIGURE_COOKIE)" ] &&
+		wrkdirs=$(basename $(make -V WRKDIR))
+fi
+
+if [ ! "$wrkdirs" ]; then
+	echo "===> No suitable work directory found, run make configure first" >&2
 	exit 1
 fi
+
+for dir in $wrkdirs; do
+	bak_files=$(find $dir -name "*.bak" -print)
+	[ "$bak_files" ] && files="$files $bak_files"
+done
+[ "$files" ] || exit 0
+
+[ $PATHFIX -eq 0 ] &&
+	PATHFIX_PATTERNS=$(make -V PATHFIX_MAKEFILEIN -V PATHFIX_CMAKELISTSTXT)
 
 if [ "$cmd" = "show" ]; then
 	shift
 	patterns=$@
-	viewer=$PAGER_DIFF
-fi
 
-find work -name "*.bak" -print | while read file; do
-	#TODO Makefile.in may be changed by REINPLACE_CMD too, fix it
-#	[ ${PATHFIX} -eq 0 -a \
-#		"$(basename ${file%.bak})" = "${PATHFILE}" ] && continue
-
-	case $file in *.libtool.bak) continue ;; esac
-
-	case $cmd in
-	check)
-		[ "$(diff "$file" "${file%.bak}")" ] ||
-			echo "File ${file%.bak} not modified" ;;
-	show)
+	for file in $files; do
+		valid_reinplace_file $file || continue
 		if [ "$patterns" ]; then
 			matched=0
 			for p in $patterns; do
@@ -59,5 +80,11 @@ find work -name "*.bak" -print | while read file; do
 			[ $matched -eq 1 ] || continue
 		fi
 		diff -u "$file" "${file%.bak}"
-	esac
-done | $viewer
+	done | $PAGER_DIFF
+else
+	for file in $files; do
+		valid_reinplace_file $file || continue
+		cmp -s "$file" "${file%.bak}" &&
+			echo "File ${file%.bak} seems to be unmodified"
+	done
+fi
