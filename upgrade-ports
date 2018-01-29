@@ -764,7 +764,7 @@ print_list() {
 }
 
 rebuild_ports() {
-	local errlog error full_queue make_cmd port queue ret=1 t
+	local errlog error full_queue make_cmd port queue ret t
 	local operation=$run_mode conflict_port flavor wrkdir
 
 	tmpfile_initialize
@@ -860,6 +860,7 @@ rebuild_ports() {
 					fi
 				fi
 			fi
+			ret=1
 			break
 		done
 		if [ $ret -ne 0 ]; then
