@@ -821,15 +821,19 @@ rebuild_ports() {
 			clean_after_build_error $port build
 			continue
 		fi
-
+		if ! $SUDO make $flavor $make_args stage; then
+			clean_after_build_error $port stage
+			continue
+		fi
 		if pkg_exists $port; then
-			make_cmd="deinstall install clean"
 			pkg_backup $(port_to_pkg $port) "$wrkdir"
-		else
-			make_cmd="install clean"
+			if ! $SUDO make $flavor $make_args deinstall; then
+				clean_after_build_error $port deinstall
+				continue
+			fi
 		fi
 		while true; do
-			$SUDO make $flavor $make_args $make_cmd 2>$errlog
+			$SUDO make $flavor $make_args install clean 2>$errlog
 			if [ $? -eq 0 ]; then
 				ret=0
 				break
