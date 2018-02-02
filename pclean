@@ -14,7 +14,7 @@ wrk_dirs=$(find . -name "work*" -type d -depth $((depth-1)) | sed 's|^./||g')
 if [ "$wrk_dirs" ]; then
 	for wdir in $wrk_dirs; do
 		if [ $depth -ne 2 ]; then
-			dirname=$(dirname $wdir)
+			dirname=$(dirname "$wdir")
 			echo "===> Running 'make clean' in $dirname..."
 			make_args="-C $dirname"
 		else
@@ -23,7 +23,7 @@ if [ "$wrk_dirs" ]; then
 		fi
 
 		ret=$(make $make_args clean 2>/dev/null)
-		if [ "$(echo $ret | grep 'not writable')" ]; then
+		if [ "$(echo "$ret" | grep 'not writable')" ]; then
 			if [ $depth -ne 2 ]; then
 				echo "  Failed to 'make clean' in $dirname"
 			else
@@ -33,7 +33,7 @@ if [ "$wrk_dirs" ]; then
 	done
 fi
 
-if ! which $PSVN >/dev/null; then
+if ! which "$PSVN" >/dev/null; then
 	echo "===> $PSVN executable not found" >&2
 	exit 1
 fi
@@ -43,8 +43,8 @@ if $PSVN info >/dev/null 2>&1; then
 
 	echo "===> Removing leftover files..."
 	$PSVN status --no-ignore | while read line; do
-		status=$(echo $line | awk '{ print $1 }')
-		file=$(echo $line | awk ' { print $2 }')
+		status=$(echo "$line" | awk '{ print $1 }')
+		file=$(echo "$line" | awk ' { print $2 }')
 
 		[ ! "$status" -o ! "$file" ] && continue
 

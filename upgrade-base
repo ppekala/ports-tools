@@ -17,9 +17,7 @@ ask_yesno() {
 	local answer
 
 	while true; do
-		echo -n "$1 (y/n)? [y] "
-
-		read answer
+		read -r -p "$1 (y/n)? [y] " answer
 		[ "$answer" ] || answer="y"
 
 		case $answer in
@@ -32,28 +30,28 @@ ask_yesno() {
 }
 
 delete_old_files() {
-	local file items tmpfile=$(mktemp -t ${0##*/}) to_remove tstr type
+	local file items tmpfile=$(mktemp -t "${0##*/}") to_remove tstr type
 
 	[ "$tmpfile" ] || return
 
 	for type in libs files dirs; do
-		$MAKE check-old-$type | grep '^/' > $tmpfile
+		$MAKE check-old-$type | grep '^/' > "$tmpfile"
 		tstr=$(echo $type | cut -b1)
-		for file in $(cat $tmpfile); do
+		for file in $(cat "$tmpfile"); do
 			items="$items \"$file\" $tstr on"
 		done
 	done
 	if [ "$items" ]; then
 		echo "--stdout --checklist \"Choose old files to delete\" \
 			$((tlines-3)) $dwidth $((tlines-5)) \
-			$items" > $tmpfile
-		to_remove=$(dialog --file $tmpfile)
+			$items" > "$tmpfile"
+		to_remove=$(dialog --file "$tmpfile")
 		dialog --clear
 		for file in $to_remove; do
-			$SUDO rm -rf $file
+			$SUDO rm -rf "$file"
 		done
 	fi
-	rm $tmpfile
+	rm "$tmpfile"
 }
 
 display_usage() {
@@ -81,7 +79,7 @@ exec_cmd() {
 
 last_updating_entry() {
 	if [ -f "$SRCDIR/UPDATING" ]; then
-		egrep -m 1 '^[0-9]{8}\:' "$SRCDIR/UPDATING" | sed 's|:||'
+		grep -E -m 1 '^[0-9]{8}\:' "$SRCDIR/UPDATING" | sed 's|:||'
 	else
 		echo "0"
 	fi
@@ -101,7 +99,7 @@ main_loop() {
 
 			n_entry=$(last_updating_entry)
 			if [ $n_entry -gt $l_entry ]; then
-				printf "===> New entries since last upgrade in $SRCDIR/UPDATING file:\n\n"
+				printf "===> New entries since last upgrade in %s/UPDATING file:\n\n" "$SRCDIR"
 				awk -F ':' -v entry="$l_entry" '
 				/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
 					if (entry == $1)
@@ -125,7 +123,7 @@ main_loop() {
 		exec_cmd "$MAKE buildkernel $make_args" "KERNEL_BUILT" ;;
 	"KERNEL_BUILT")
 		exec_cmd "$MAKE installkernel $make_args" "KERNEL_INSTALLED"
-		printf "\n===> You need to reboot and run ${0##*/} again to finish installation.\n\n"
+		printf "\n===> You need to reboot and run %s again to finish installation.\n\n" "${0##*/}"
 		reboot_ask ;;
 	"KERNEL_INSTALLED")
 		exec_cmd "mergemaster -p" "MERGEMASTER_INIT"  ;;
@@ -179,6 +177,12 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
+if [ ! -d "$SRCDIR" ]; then
+	echo "===> System source directory not found: $SRCDIR" >&2
+	echo "===> Try setting SRCDIR environment variable" >&2
+	exit 1
+fi
+
 jobs=$(sysctl -n hw.ncpu)
 [ "$jobs" ] && make_args="$make_args -j$jobs"
 
@@ -191,5 +195,5 @@ if [ "$ports_modules" ]; then
 		exit 1
 	fi
 fi
-cd "$SRCDIR"
+cd "$SRCDIR" || exit 1
 main_loop

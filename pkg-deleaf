@@ -28,13 +28,13 @@ EOF
 }
 
 mktmp() {
-	local tmp=$(mktemp -t ${0##*/})
+	local tmp=$(mktemp -t "${0##*/}")
 
 	if [ ! "$tmp" ]; then
 		echo "===> Failed to create temporary file" >&2
 		exit 1
 	fi
-	echo $tmp
+	echo "$tmp"
 }
 
 number_humanize() {
@@ -74,10 +74,10 @@ update_exclude_list() {
 
 	tmpfile=$(mktmp)
 	echo "--checklist \"Select packages to exclude ($count items):\" \
-		$((tlines-3)) $dwidth $((tlines-5)) $items" > $tmpfile
-	excluded=$(dialog --stdout --file $tmpfile | sed 's|\"||g')
+		$((tlines-3)) $dwidth $((tlines-5)) $items" > "$tmpfile"
+	excluded=$(dialog --stdout --file "$tmpfile" | sed 's|\"||g')
 	dialog --clear
-	rm $tmpfile
+	rm "$tmpfile"
 
 	[ "$excluded" ] || exit 0
 	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
@@ -146,7 +146,7 @@ while true; do
 	echo "--checklist \"Select packages to delete ($count items):\" \
 		$((tlines-3)) $dwidth $((tlines-5)) $items" > $tmpfile
 
-	ret=$(dialog --stdout --file $tmpfile | sed 's|\"||g')
+	ret=$(dialog --stdout --file "$tmpfile" | sed 's|\"||g')
 	[ "$ret" ] || break
 
 	for bytes in $(pkg-static query '%sb' $ret); do
@@ -159,7 +159,7 @@ while true; do
 done
 
 if [ "$tmpfile" ]; then
-	rm $tmpfile
+	rm "$tmpfile"
 	dialog --clear
 fi
 

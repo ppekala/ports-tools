@@ -403,7 +403,7 @@ gather_missing_dependencies() {
 }
 
 get_entry_dates() {
-	egrep "^[0-9]{8}:" "$PORTSDIR/UPDATING" | sed 's/://'
+	grep -E "^[0-9]{8}:" "$PORTSDIR/UPDATING" | sed 's/://'
 }
 
 interactive_select() {
@@ -873,7 +873,7 @@ rebuild_ports() {
 			list_add build_ok $port
 		fi
 	done
-	rm $errlog
+	rm "$errlog"
 	if [ "$build_failed" -o "$build_interrupted" ]; then
 		if [ $interrupted -eq 1 ]; then
 			printf "\n===> Execution of $operation operation was interrupted.\n"

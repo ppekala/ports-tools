@@ -22,8 +22,8 @@ reinplace_file() {
 	local file=$1 expr=$2
 
 	[ "$expr" ] || return
-	sed -E "$expr" $file > $file.new
-	mv $file.new $file
+	sed -E "$expr" "$file" > "$file.new"
+	mv "$file.new" "$file"
 }
 
 while getopts "hs" option; do
@@ -44,7 +44,7 @@ descr_file=$(make -V DESCR)
 flavors=$(make -V FLAVORS | sed 's,^ ,,')
 if [ "$flavors" ]; then
 	for f in $flavors; do
-		wrkdirs="$wrkdirs|$(basename $(make FLAVOR=$f -V WRKDIR))"
+		wrkdirs="$wrkdirs|$(basename "$(make FLAVOR=$f -V WRKDIR)")"
 	done
 else
 	wrkdirs="|work"
@@ -70,14 +70,14 @@ fi
 
 find -E . -type f ! -regex "\./(\.svn$wrkdirs)/.*" | while read file; do
 	if [ ! "$(tail -n 1 $file | tr '\n' '~' | grep '~$')" ]; then
-		echo >> $file
+		echo >> "$file"
 		echo "===> Added final newline to ${file##./}"
 	fi
 done
 
 comment=$(make -V COMMENT)
-if [ "$(echo $comment | grep -E '^(A|An) ')" ]; then
-	new_comment=$(echo $comment | awk '{
+if [ "$(echo "$comment" | grep -E '^(A|An) ')" ]; then
+	new_comment=$(echo "$comment" | awk '{
 		gsub("^(A|An) ", "", $0);
 		print toupper( substr($0, 1, 1) ) substr($0, 2);
 	}')
@@ -88,12 +88,12 @@ reinplace_file Makefile "$sed_expr"
 
 if [ -f "$descr_file" ]; then
 	sed_expr=""
-	if [ "$(grep '^Author:' $descr_file)" ]; then
+	if grep -q '^Author:' "$descr_file"; then
 		sed_expr="/^Author:/d;"
 		echo "===> Deleting Author: line from description file"
 	fi
 
-	if [ "$(grep -E '^WWW:(	| {2,})' $descr_file)" ]; then
+	if grep -Eq '^WWW:(	| {2,})' "$descr_file"; then
 		sed_expr="$sed_expr s#^WWW:(	| {2,})#WWW: #g;"
 		echo "===> Fixing WWW: line in description file"
 	fi
@@ -110,11 +110,11 @@ else
 fi
 
 [ "$flavors" ] && echo "===> Flavors: $flavors"
-bdeps=$(pfind -b `make -V PORTNAME` | awk 'END {print NR}')
+bdeps=$(pfind -b $(make -V PORTNAME) | awk 'END {print NR}')
 [ $bdeps -gt 0 ] && echo "===> Port is build dependency for $bdeps port(s)"
 
-slaves=$(pfind -s `make -V CATEGORIES | awk '{print $1}'`"/"`basename $PWD`)
+slaves=$(pfind -s "$(make -V CATEGORIES | awk '{print $1}')/$(basename "$PWD")")
 if [ "$slaves" ]; then
 	echo "===> Found slave ports:"
-	echo $slaves | tr ' ' '\n'
+	echo "$slaves" | tr ' ' '\n'
 fi

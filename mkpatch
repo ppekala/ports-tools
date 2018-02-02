@@ -1,14 +1,12 @@
 #!/bin/sh
 
-readonly patterns=$@
+readonly patterns=$*
 
 [ -f pkg-descr ] && WRKSRC=$(make -V WRKSRC) || WRKSRC="."
 if [ "$WRKSRC" ]; then
 	if [ ! -d "$WRKSRC" ]; then
 		while true; do
-			echo -n "WRKSRC does not exist, run 'make configure' (y/n)? " >/dev/stderr
-			read answer
-
+			read -r -p "WRKSRC does not exist, run 'make configure' (y/n)? " answer
 			case $answer in
 			[Yy])
 				make configure >/dev/null 2>&1
@@ -18,7 +16,7 @@ if [ "$WRKSRC" ]; then
 			esac
 		done
 	fi
-	cd "$WRKSRC"
+	cd "$WRKSRC" || exit 1
 fi
 
 p_files=$(find . -name '*.orig' | sed 's#^./##')

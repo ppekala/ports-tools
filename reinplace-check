@@ -12,7 +12,7 @@ valid_reinplace_file() {
 
 	#TODO Makefile.in may be changed by REINPLACE_CMD too, fix it
 	if [ $PATHFIX -eq 0 ]; then
-		filename=$(basename ${path%.bak})
+		filename=$(basename "${path%.bak}")
 		for pattern in $PATHFIX_PATTERNS; do
 			[ "$filename" = "$pattern" ] && return 1
 		done
@@ -42,11 +42,11 @@ flavors=$(make -V FLAVORS | sed 's,^ ,,')
 if [ "$flavors" ]; then
 	for f in $flavors; do
 		[ -f "$(make FLAVOR=$f -V CONFIGURE_COOKIE)" ] || continue
-		wrkdirs="$wrkdirs $(basename $(make FLAVOR=$f -V WRKDIR))"
+		wrkdirs="$wrkdirs $(basename "$(make FLAVOR=$f -V WRKDIR)")"
 	done
 else
 	[ -f "$(make -V CONFIGURE_COOKIE)" ] &&
-		wrkdirs=$(basename $(make -V WRKDIR))
+		wrkdirs=$(basename "$(make -V WRKDIR)")
 fi
 
 if [ ! "$wrkdirs" ]; then
@@ -55,7 +55,7 @@ if [ ! "$wrkdirs" ]; then
 fi
 
 for dir in $wrkdirs; do
-	bak_files=$(find $dir -name "*.bak" -print)
+	bak_files=$(find "$dir" -name "*.bak" -print)
 	[ "$bak_files" ] && files="$files $bak_files"
 done
 [ "$files" ] || exit 0
@@ -65,10 +65,10 @@ done
 
 if [ "$cmd" = "show" ]; then
 	shift
-	patterns=$@
+	patterns=$*
 
 	for file in $files; do
-		valid_reinplace_file $file || continue
+		valid_reinplace_file "$file" || continue
 		if [ "$patterns" ]; then
 			matched=0
 			for p in $patterns; do
@@ -83,7 +83,7 @@ if [ "$cmd" = "show" ]; then
 	done | $PAGER_DIFF
 else
 	for file in $files; do
-		valid_reinplace_file $file || continue
+		valid_reinplace_file "$file" || continue
 		cmp -s "$file" "${file%.bak}" &&
 			echo "File ${file%.bak} seems to be unmodified"
 	done

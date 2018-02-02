@@ -231,4 +231,4 @@ END {
 
 	for (i in cmds)
 		print cmds[i];
-}' $plist_file
+}' "$plist_file"

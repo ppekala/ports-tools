@@ -120,12 +120,12 @@ if [ "$master" ]; then
 	cd "${portdir%/*}"
 	candidates=$(for match in $(grep_files "Makefile*" 2 "${portdir##*/}"); do
 		[ -d "${match%%/*}" ] || continue
-		[ "${portdir##*/}" = "${match%%/*}" ] || echo ${match%%/*}
+		[ "${portdir##*/}" = "${match%%/*}" ] || echo "${match%%/*}"
 	done | sort -u)
 	portdirs=$(for candidate in $candidates; do
-		masterdir=$(realpath `make -C ${candidate%%/*} -V MASTERDIR`)
+		masterdir=$(realpath "$(make -C "${candidate%%/*}" -V MASTERDIR)")
 		[ "$portdir" = "$masterdir" ] && \
-			echo $PORTSDIR/${master%/*}/$candidate
+			echo "$PORTSDIR/${master%/*}/$candidate"
 	done)
 else
 	portdirs=$(make quicksearch $search_args | awk '/^Path:/ { print $2 }')
@@ -134,8 +134,8 @@ fi
 
 for portdir in $portdirs; do
 	if [ "$string" ]; then
-		[ -e $portdir/Makefile ] || continue
-		[ "$(grep "$string" $portdir/Makefile)" ] || continue
+		[ -e "$portdir/Makefile" ] || continue
+		grep -q "$string" "$portdir/Makefile"  || continue
 	fi
-	echo $portdir | sed "s|$PORTSDIR/||"
+	echo "$portdir" | sed "s|$PORTSDIR/||"
 done

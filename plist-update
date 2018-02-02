@@ -38,12 +38,12 @@ if [ ! "$PKGNAME" ]; then
 	exit 1
 fi
 
-tempfile=$(mktemp -t ${0##*/})
+tempfile=$(mktemp -t "${0##*/}")
 if [ ! "$tempfile" ]; then
 	echo "===> Failed to create temporary file" >&2
 	exit 1
 fi
-if [ -f $PLIST ]; then
+if [ -f "$PLIST" ]; then
 	wrkdir=$(make -V WRKDIR)
 	plist_out="$wrkdir/.pkg-plist.new"
 else
@@ -165,21 +165,20 @@ function remove_blacklisted_subs(path) {
 END {
 	for (file in plist)
 		print plist[file];
-}' > $tempfile
+}' > "$tempfile"
 
-plist-sort $tempfile > $plist_out
-rm $tempfile
+plist-sort "$tempfile" > "$plist_out"
+rm "$tempfile"
 [ "$plist_out" = "$PLIST" ] && exit 0
 
-if ! cmp -s $PLIST $plist_out; then
-	diff -u $PLIST $plist_out | $PAGER_DIFF
+if ! cmp -s "$PLIST" "$plist_out"; then
+	diff -u "$PLIST" "$plist_out" | $PAGER_DIFF
 
 	while true; do
-		echo -n "Use newly generated plist (y/n)? "
-		read cmd
+		read -r -p "Use newly generated plist (y/n)? " cmd
 		case $cmd in
 		[Yy])
-			mv $plist_out $PLIST
+			mv "$plist_out" "$PLIST"
 			exit 0 ;;
 		[Nn])
 			break

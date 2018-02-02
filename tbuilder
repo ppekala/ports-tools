@@ -16,10 +16,10 @@ check_portname() {
 
 	if [ "$1" = "." ]; then
 		if [ ! "$(make -V PORTNAME)" ]; then
-		       printf "===> $PWD: not a portdir\n\n" >&2
+		       printf "===> %s: not a portdir\n\n" "$PWD" >&2
 		       display_usage
 		fi
-		port=$(echo $PWD | awk '{
+		port=$(echo "$PWD" | awk '{
 			n = split($0, p ,"/");
 			print p[n-1] "/" p[n];
 		}')
@@ -27,7 +27,8 @@ check_portname() {
 		port=$1
 	fi
 	if [ ! -d "$POUDRIERE_PORTS/${port%%@*}" ]; then
-		printf "===> $POUDRIERE_PORTS/$port: port directory does not exists\n\n" >&2
+		printf "===> %s: port directory does not exists\n\n" \
+			"$POUDRIERE_PORTS/$port" >&2
 		display_usage
 	fi
 	if [ "${port##*@}" != "${port%%@*}" ]; then
@@ -135,7 +136,7 @@ poudriere_test_build() {
 if [ "$build" != "none" -a -z "$(poudriere_jails | grep $build)" \
 	-a ! -f "$CONFIGDIR/$build" ]
 then
-	printf "===> $build: no such poudriere jail or profile\n\n" >&2
+	printf "===> %s: no such poudriere jail or profile\n\n" "$build" >&2
 	display_usage
 fi
 
@@ -159,7 +160,7 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
-trap 'interrupted=1' int
+trap 'interrupted=1' INT
 
 case $command in
 bdeps)
@@ -180,7 +181,7 @@ ldeps)
 		"^[^#].*$query[ \\]*\$" {} \; -print | sed 's|\./||')
 
 	for path in $tmp; do
-		path=$(dirname $path)
+		path=$(dirname "$path")
 		[ "$query" != "$path" ] || continue
 		cd "$POUDRIERE_PORTS/$path"
 		if is_build_dep $query; then
@@ -255,7 +256,7 @@ if [ "$BUILD_RESULTS" ]; then
 	for result in $BUILD_RESULTS; do
 		params=${result#*:}
 		printf "%-40s %-15s %s\n" "${result%%:*}" \
-			${params%:*} ${params#*:}
+			"${params%:*}" "${params#*:}"
 	done
 	echo ""
 fi

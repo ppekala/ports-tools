@@ -34,18 +34,18 @@ fi
 
 [ "$port" ] || port="."
 if [ "$port" != "." -a ! -d "$POUDRIERE_PORTS/$port" ]; then
-	printf "===> $POUDRIERE_PORTS/$port: no such port found\n\n" >&2
+	printf "===> $POUDRIERE_PORTS/%s: no such port found\n\n" "$port" >&2
 	display_usage
 fi
 
 if [ "$jail" ]; then
 	if [ ! "$(poudriere_jails | grep $jail)" ]; then
-		printf "===> $jail: no such poudriere jail\n\n" >&2
+		printf "===> %s: no such poudriere jail\n\n" "$jail" >&2
 		display_usage
 	fi
 fi
 
-[ "$port" = "." ] || cd "$POUDRIERE_PORTS/$port"
+[ "$port" = "." ] || cd "$POUDRIERE_PORTS/$port" || exit 1
 
 readonly PKGBASE=$(make -V PKGBASE 2>/dev/null)
 readonly PKGVERSION=$(make -V PKGVERSION 2>/dev/null)
@@ -81,8 +81,8 @@ fi
 if [ "$cmd" = "send" ]; then
 	logname="$PKGBASE-$PKGVERSION-$jail.log"
 	echo "===> Uploading to http://people.freebsd.org/~$FREEBSD_LOGIN/buildlogs/$logname"
-	scp "$logfile" $FREEBSD_LOGIN@freefall.freebsd.org:public_html/buildlogs/$logname
+	scp "$logfile" "$FREEBSD_LOGIN@freefall.freebsd.org:public_html/buildlogs/$logname"
 else
-	$PAGER $logfile
+	$PAGER "$logfile"
 fi
 
