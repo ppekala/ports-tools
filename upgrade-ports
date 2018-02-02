@@ -1433,7 +1433,7 @@ reinstall)
 			echo "===> No suitable packages to reinstall found" >&2
 		upgrade_exit 1
 	fi
-	ports_configure $need_reinstall
+	ports_configure $need_downgrade $need_reinstall $need_upgrade
 	show_operations_summary ;;
 upgrade)
 	if [ -f "$CONFIG" ]; then
