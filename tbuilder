@@ -177,9 +177,11 @@ grep)
 		sed -E 's;(\./|/Makefile);;g') ;;
 ldeps)
 	query=$(check_portname $query)
-	tmp=$(cd "$POUDRIERE_PORTS" && find . -name "Makefile*" -exec grep -q \
-		"^[^#].*$query[ \\]*\$" {} \; -print | sed 's|\./||')
-
+	if [ "$query" ]; then
+		tmp=$(cd "$POUDRIERE_PORTS" &&
+			find . -name "Makefile*" -exec grep -q \
+			"^[^#].*$query[ \\]*\$" {} \; -print | sed 's|\./||')
+	fi
 	for path in $tmp; do
 		path=$(dirname "$path")
 		[ "$query" != "$path" ] || continue
@@ -216,10 +218,11 @@ name)
 	ports=$(check_portname $query) ;;
 slaves)
 	master=$(check_portname $query)
-	ports=$(pfind -s $master) ;;
+	[ "$master" ] && ports=$(pfind -s $master) ;;
 *)
 	display_usage
 esac
+[ "$ports" ] || exit 1
 
 for port in $ports; do
 	case $build in
