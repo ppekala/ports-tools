@@ -69,8 +69,7 @@ EOF
 is_build_dep() {
 	local dep hname oname test_str=$(opt_test_string $2)
 
-	[ "$(make -V BUILD_DEPENDS -V LIB_DEPENDS $test_str \
-		| grep $1)" ] && return 0
+	make -V BUILD_DEPENDS -V LIB_DEPENDS $test_str | grep -q $1 && return 0
 
 	[ "$2" ] || return 1
 	hname=$(grep $1 Makefile | cut -f1 -d=)
@@ -85,8 +84,8 @@ is_build_dep() {
 is_other_dep() {
 	local dep hname oname test_str=$(opt_test_string $2)
 
-	[ "$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
-		-V RUN_DEPENDS -V TEST_DEPENDS $test_str | grep $1)" ] &&
+	make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
+		-V RUN_DEPENDS -V TEST_DEPENDS $test_str | grep -q $1 &&
 		return 0
 
 	[ "$2" ] || return 1
@@ -133,8 +132,8 @@ poudriere_test_build() {
 
 [ "$query" ] || display_usage
 
-if [ "$build" != "none" -a -z "$(poudriere_jails | grep $build)" \
-	-a ! -f "$CONFIGDIR/$build" ]
+if [ "$build" != "none" ] && ! poudriere_jails | grep -q $build \
+	&& [ ! -f "$CONFIGDIR/$build" ]
 then
 	printf "===> %s: no such poudriere jail or profile\n\n" "$build" >&2
 	display_usage
@@ -240,7 +239,7 @@ for port in $ports; do
 		fi
 		;;
 	*)
-		if [ "$(poudriere_jails | grep $build)" ]; then
+		if poudriere_jails | grep -q $build; then
 			queue=$build
 		else
 			queue=$(grep -v "^#" "$CONFIGDIR/$build")

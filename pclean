@@ -23,7 +23,7 @@ if [ "$wrk_dirs" ]; then
 		fi
 
 		ret=$(make $make_args clean 2>/dev/null)
-		if [ "$(echo "$ret" | grep 'not writable')" ]; then
+		if echo "$ret" | grep -q 'not writable'; then
 			if [ $depth -ne 2 ]; then
 				echo "  Failed to 'make clean' in $dirname"
 			else

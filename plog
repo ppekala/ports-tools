@@ -39,7 +39,7 @@ if [ "$port" != "." -a ! -d "$POUDRIERE_PORTS/$port" ]; then
 fi
 
 if [ "$jail" ]; then
-	if [ ! "$(poudriere_jails | grep $jail)" ]; then
+	if ! poudriere_jails | grep -q $jail; then
 		printf "===> %s: no such poudriere jail\n\n" "$jail" >&2
 		display_usage
 	fi
