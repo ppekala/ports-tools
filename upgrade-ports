@@ -677,15 +677,18 @@ port_to_pkg() {
 }
 
 ports_upgrade_sort() {
-	local djobs=0 next port ports_list=$*
+	local all_ports=$* djobs=0 flavors next port ports_list=$*
 
+	if grep -q 'DEPENDS_SHOW_FLAVOR' "$PORTSDIR/Mk/bsd.port.mk"; then
+		flavors="-DDEPENDS_SHOW_FLAVOR"
+	fi
 	while true; do
 		[ $djobs -eq 0 -a ! "$ports_list" ] && break
 
 		if [ $djobs -lt $NCPU -a "$ports_list" ]; then
 			next=$(list_first ports_list)
 			(
-				deps=$(pmake $next all-depends-list |
+				deps=$(pmake $next all-depends-list $flavors |
 					sed "s,$PORTSDIR/,,g")
 				tmpfile_locked_write START:$next $deps END:$next
 			) &
@@ -700,12 +703,13 @@ ports_upgrade_sort() {
 				eval export ${port}_alldeps
 				djobs=$((djobs-1)) ;;
 			*)
-				list_add ${port}_alldeps $line
+				list_find all_ports $line &&
+					list_add ${port}_alldeps $line
 			esac
 		done
 	done
 
-	echo $* | tr ' ' '\n' | awk '
+	echo $* | tr ' ' '\n' | awk -v flavors="$flavors" '
 	function partition(a, s, e) {
 		i = s-1; j = e+1;
 
@@ -719,16 +723,26 @@ ports_upgrade_sort() {
 			tmp = a[i]; a[i] = a[j]; a[j] = tmp;
 		}
 	}
-	function ports_cmp(a, b) {
-		if (a == b)
+	function ports_cmp(port_a, port_b) {
+		if (port_a == port_b)
 			return 0;
 
-		split(a, port_a, "@");
-		if (match(port_deps[b], port_a[1]) != 0)
+		if (flavors == "") {
+			split(port_a, port_array, "@");
+			port = port_array[1];
+		} else
+			port = port_a;
+
+		if (match(port_deps[port_b], port) != 0)
 			return -1;
 
-		split(b, port_b, "@");
-		if (match(port_deps[a], port_b[1]) != 0)
+		if (flavors == "") {
+			split(port_b, port_array, "@");
+			port = port_array[1];
+		} else
+			port = port_b;
+
+		if (match(port_deps[port_a], port) != 0)
 			return 1;
 
 		return port_ndeps[a] - port_ndeps[b];
