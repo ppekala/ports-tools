@@ -3,12 +3,14 @@
 display_usage() {
 	<< EOF >&2 cat
 Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name pattern] [-g regexp]
+       ${0##*/} [-d name pattern ]
        ${0##*/} [-g regexp] [-s master category/port]
        ${0##*/} [-N package name ]
        ${0##*/} -h
 
     -b - port needing certain build dependency
     -c - port category
+    -d - search deleted ports
     -g - find ports with Makefile containing grep pattern
     -h - show this help
     -m - port maintainer
@@ -50,12 +52,14 @@ pkgname_exact_match() {
 	exit 1
 }
 
-while getopts "b:c:g:hm:n:N:s:" option; do
+while getopts "b:c:d:g:hm:n:N:s:" option; do
 	case $option in
 	b)
 		bdeps="$OPTARG" ;;
 	c)
 		category="$OPTARG" ;;
+	d)
+		deleted="$OPTARG" ;;
 	g)
 		string="$OPTARG" ;;
 	m)
@@ -73,8 +77,11 @@ done
 
 if [ "$exact_match" ]; then
 	[ "$bdeps" -o "$category" -o "$maintainer" -o "$master" -o "$name" \
-		-o "$string" ] && display_usage
+		-o "$string" -o "$deleted" ] && display_usage
 	search_args="name=$exact_match-"
+elif [ "$deleted" ]; then
+	[ "$bdeps" -o "$category" -o "$maintainer" -o "$master" -o "$name" \
+		-o "$string" ] && display_usage
 else
 	[ ! "$bdeps" -a ! "$category" -a ! "$maintainer" -a ! "$name" \
 		-a ! "$string" -a ! "$master" ] && display_usage
@@ -107,6 +114,18 @@ cd "$PORTSDIR"
 if [ ! -f "$(make -VINDEXFILE)" ]; then
 	echo "===> Fetching missing index file..."
 	make fetchindex || exit 1
+fi
+
+if [ "$deleted" ]; then
+	awk -F '|' -v query="$deleted" '{
+		if (match($1, query)) {
+			if ($2 != "")
+				print $1 " MOVED TO " $2 " ON " $3 " REASON: " $4;
+			else
+				print $1 " REMOVED ON " $3 " REASON: " $4;
+		}
+	}' "$PORTSDIR/MOVED"
+	exit
 fi
 
 if [ ! "$search_args" -a ! "$master" ]; then
