@@ -745,7 +745,7 @@ ports_upgrade_sort() {
 		if (match(port_deps[port_a], port) != 0)
 			return 1;
 
-		return port_ndeps[a] - port_ndeps[b];
+		return port_ndeps[port_a] - port_ndeps[port_b];
 	}
 	function qsort(a, start, end) {
 		if (start >= end)
