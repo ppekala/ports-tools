@@ -111,9 +111,13 @@ fi
 [ "$master" -a "$search_args" ] && display_usage
 
 cd "$PORTSDIR"
-if [ ! -f "$(make -VINDEXFILE)" ]; then
+indexfile=$(make -V INDEXFILE)
+if [ ! -f "$indexfile" ]; then
 	echo "===> Fetching missing index file..."
-	make fetchindex || exit 1
+	if ! make fetchindex; then
+		echo "===> Could not fetch index file" >&2
+		exit 1
+	fi
 fi
 
 if [ "$deleted" ]; then
@@ -135,16 +139,14 @@ fi
 
 if [ "$master" ]; then
 	portdir=$(realpath "$PORTSDIR/$master")
-	# search for slaves only in the same category for performance reasons
-	cd "${portdir%/*}"
-	candidates=$(for match in $(grep_files "Makefile*" 2 "${portdir##*/}"); do
-		[ -d "${match%%/*}" ] || continue
-		[ "${portdir##*/}" = "${match%%/*}" ] || echo "${match%%/*}"
-	done | sort -u)
-	portdirs=$(for candidate in $candidates; do
-		masterdir=$(realpath "$(make -C "${candidate%%/*}" -V MASTERDIR)")
-		[ "$portdir" = "$masterdir" ] && \
-			echo "$PORTSDIR/${master%/*}/$candidate"
+	portdirs=$(for candidate in \
+		$(grep -E "($master|$(make -C "$master" -V PKGNAME))" "$indexfile" |
+			cut -d'|' -f2 | sed 's,/usr/ports/,,')
+	do
+		masterdir=$(realpath "$(make -C "$candidate" -V MASTERDIR)")
+		[ "$portdir" = "$masterdir" ] &&
+			[ "$master" != "$candidate" ] && \
+			echo "$PORTSDIR/$candidate"
 	done)
 else
 	portdirs=$(make quicksearch $search_args | awk '/^Path:/ { print $2 }')
