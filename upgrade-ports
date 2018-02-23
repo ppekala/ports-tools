@@ -1127,7 +1127,9 @@ update_ports_tree() {
 	for port in $(awk -F '|' -v line="$moved_last" '
 		NR > line && !$2 { print $1 }' "$PORTSDIR/MOVED")
 	do
-		pkg_exists $port && list_add obsolete $(to_pkg_str $port)
+		pkg=$(pkg-static query %n-%v $port)
+		[ "$pkg" ] || continue
+		list_add obsolete $pkg
 	done
 	print_list "Following packages are marked as OBSOLETE" $(to_obs_str $obsolete)
 	for pkg in $obsolete; do
@@ -1137,10 +1139,10 @@ update_ports_tree() {
 	for ports in $(awk -F '|' -v line="$moved_last" '
 		NR > line && $2 { print $1 ":" $2 }' "$PORTSDIR/MOVED")
 	do
-		pkg_exists ${ports%%:*} || continue
 		oldname=$(pkg-static query %n ${ports%%:*})
+		[ "$oldname" ] || continue
 		newname=$(pmake ${ports##*:} -V PKGBASE)
-		[ "$oldname" -a "$newname" ] || continue
+		[ "$newname" ] || continue
 
 		reason=$(moved_reason ${ports%%:*})
 		echo "===> ${ports%%:*} moved to ${ports##*:} ($reason)"
