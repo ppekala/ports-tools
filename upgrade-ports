@@ -779,7 +779,7 @@ print_list() {
 
 rebuild_ports() {
 	local errlog error full_queue make_cmd port queue ret t
-	local operation=$run_mode conflict_port flavor wrkdir
+	local operation=$run_mode conflict_port flavor itarget wrkdir
 
 	tmpfile_initialize
 
@@ -839,15 +839,20 @@ rebuild_ports() {
 			clean_after_build_error $port stage
 			continue
 		fi
-		if pkg_exists $port; then
-			pkg_backup $(port_to_pkg $port) "$wrkdir"
-			if ! $SUDO make $flavor $make_args deinstall; then
-				clean_after_build_error $port deinstall
-				continue
+		if [ "$SUDO" ] && [ "$port" = "security/sudo" ]; then
+			itarget="deinstall install clean"
+		else
+			if pkg_exists $port; then
+				pkg_backup $(port_to_pkg $port) "$wrkdir"
+				if ! $SUDO make $flavor $make_args deinstall; then
+					clean_after_build_error $port deinstall
+					continue
+				fi
 			fi
+			itarget="install clean"
 		fi
 		while true; do
-			$SUDO make $flavor $make_args install clean 2>$errlog
+			$SUDO make $flavor $make_args $itarget 2>$errlog
 			if [ $? -eq 0 ]; then
 				ret=0
 				break
