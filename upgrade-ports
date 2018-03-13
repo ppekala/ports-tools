@@ -862,6 +862,13 @@ rebuild_ports() {
 				/conflicts with/ { print "CONFLICT=" $5 }')
 			if [ "$CONFLICT" ]; then
 				conflict_port=$(pkg_to_port $CONFLICT)
+				if [ "${port%%@*}" = "${conflict_port%%@*}" ]; then
+					# probably shifting from non-flavored
+					# to flavored version, should be safe to remove
+					pkg_remove $CONFLICT
+					unset CONFLICT
+					continue
+				fi
 				if list_find need_reinstall $conflict_port &&
 				   ! list_find build_ok $conflict_port; then
 					# conflicting port is marked for reinstall
