@@ -534,15 +534,6 @@ pkg_check_status() {
 	pkgbase=$(pmake $port -V PKGBASE)
 	pkgname=$(pkg-static query %n $pkg)
 
-	if [ "$run_mode" = "upgrade" ] && [ "$pkgname" = "perl5" ]; then
-		pkg_version=$(pkg-static query %v $pkg)
-		port_version=$(pmake $port -V PKGVERSION)
-
-		if [ "$pkg_version" = "$port_version" ]; then
-			echo "===> $pkgname needs manual intervention to upgrade, skipping"
-			return 1
-		fi
-	fi
 	if [ "$pkgbase" != "$pkgname" ]; then
 		neworigin=$(pfind -N $pkgname)
 
@@ -555,6 +546,15 @@ pkg_check_status() {
 			fi
 		else
 			list_add conflicts_self $pkgname
+		fi
+	fi
+	if [ "$run_mode" = "upgrade" ] && [ "$pkgname" = "perl5" ]; then
+		pkg_version=$(pkg-static query %v $pkg)
+		port_version=$(pmake $port -V PKGVERSION)
+
+		if [ "$pkg_version" = "$port_version" ]; then
+			echo "===> $pkgname needs manual intervention to upgrade, skipping"
+			return 1
 		fi
 	fi
 	setvar $(to_env_str $port)_pkgname $pkgname
