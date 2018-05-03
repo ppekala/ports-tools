@@ -621,7 +621,7 @@ pkg_to_port() {
 }
 
 pm_fake_run() {
-	local new_origin port rports=""
+	local new_origin pkg pkg_list=""
 
 	while getopts "Rfo:r:w" opt; do
 		case $opt in
@@ -633,12 +633,12 @@ pm_fake_run() {
 			case $OPTARG in
 			*/*)
 				[ -d "$PORTSDIR/$OPTARG" ] || continue
-				port=$OPTARG ;;
+				pkg=$(port_to_pkg $OPTARG) ;;
 			*)
-				port=$(pkg_to_port $OPTARG)
+				pkg=$OPTARG
 			esac
-			[ "$port" ] || continue
-			list_add rports $port $(reverse_deps $port)
+			[ "$pkg" ] || continue
+			list_add pkg_list $pkg $(pkg-static query %rn $pkg)
 		esac
 	done
 	shift $((OPTIND-1))
@@ -646,11 +646,11 @@ pm_fake_run() {
 		$SUDO pkg-static set -o $*:$new_origin --yes
 		return $?
 	fi
-	list_add rports $(to_port_str $*)
-	if [ "$rports" ]; then
-		echo "===> Found packages to reinstall in later stage:"
-		echo $rports
-		need_reinstall_add $rports
+	list_add pkg_list $*
+	if [ "$pkg_list" ]; then
+		printf "===> Found packages to reinstall in later stage:\n%s\n" \
+			"$pkg_list"
+		need_reinstall_add $pkg_list
 	fi
 }
 
