@@ -951,7 +951,7 @@ show_operations_summary() {
 		pkg_remove $need_remove
 		rebuild_ports $need_downgrade $need_install $need_reinstall $need_upgrade
 	else
-		upgrade_exit 0 $last_upd
+		upgrade_exit 0 $last_read
 	fi
 }
 
