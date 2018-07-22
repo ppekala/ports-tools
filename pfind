@@ -157,7 +157,7 @@ if [ "$master" ]; then
 			echo "$PORTSDIR/$candidate"
 	done)
 else
-	portdirs=$(make quicksearch $search_args | awk '/^Path:/ { print $2 }')
+	portdirs=$(make quicksearch $search_args | awk '/^Path:/ { print $2 }' | uniq)
 	[ "$exact_match" ] && pkgname_exact_match $portdirs
 fi
 
@@ -166,5 +166,8 @@ for portdir in $portdirs; do
 		[ -e "$portdir/Makefile" ] || continue
 		grep -q "$string" "$portdir/Makefile"  || continue
 	fi
-	echo "$portdir" | sed "s|$PORTSDIR/||"
+	port=${portdir#$PORTSDIR/}
+	pkg info -e $port 2>/dev/null &&
+		installed="INSTALLED => $(pkg query %n $port | tr '\n' ' ')" || installed=""
+	printf "%-40s %s\n" $port "$installed"
 done
