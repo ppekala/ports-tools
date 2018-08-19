@@ -14,6 +14,7 @@ interactive=0   # ask for confirmation for each package operation
 interrupted=0   # build interrupted by ctrl+c
 make_args="BATCH=yes DISABLE_LICENSES=yes DISABLE_VULNERABILITIES=yes"
 ports_config=0	# set port(s) options before build
+pre_build_clean=1 # run make clean before each build
 skip_update=0	# don't update ports tree
 tmpfile=""	# all purpose, global temporary file
 user_selection=0 # user package selection was activated
@@ -337,8 +338,9 @@ detect_conflicts() {
 display_usage_install() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-diy] pkg-name|category/port|match-pattern ...
+       ${0##*/} [-Ccdiy] pkg-name|category/port|match-pattern ...
 
+    -C - prevent running 'make clean' before each build
     -c - set port(s) options before install
     -d - build with debug support
     -h - show this help
@@ -352,8 +354,9 @@ EOF
 display_usage_reinstall() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
-       ${0##*/} [-diy] [-r pkg-name] pkg-name|category/port|match-pattern ...
+       ${0##*/} [-Ccdiy] [-r pkg-name] pkg-name|category/port|match-pattern ...
 
+    -C - prevent running 'make clean' before each build
     -c - set port(s) options before reinstall
     -d - build with debug support
     -h - show this help
@@ -369,8 +372,9 @@ display_usage_upgrade() {
 	<< EOF >&2 cat
 Usage:  ${0##*/} -c [-fwy]
         ${0##*/} -h
-	${0##*/} [-fuwy]
+	${0##*/} [-Cfuwy]
 
+    -C - prevent running 'make clean' before each build
     -c - only check packages database for errors
     -f - force recompile of packages with stale dependencies
     -h - show this help
@@ -840,7 +844,7 @@ rebuild_ports() {
 		fi
 		[ $build_started -eq 1 ] || build_started=1
 		wrkdir=$(pmake $port -V WRKDIR)
-		[ -d "$wrkdir" ] && $SUDO make clean
+		[ -d "$wrkdir" -a $pre_build_clean -eq 1 ] && $SUDO make clean
 		if ! $SUDO make $flavor $make_args build; then
 			clean_after_build_error $port build
 			continue
@@ -1341,8 +1345,10 @@ trap signal_handler INT
 case ${0##*/} in
 	pinstall)
 		run_mode="install"
-		while getopts "cdhiy" option; do
+		while getopts "Ccdhiy" option; do
 			case $option in
+			C)
+				pre_build_clean=0 ;;
 			c)
 				ports_config=1 ;;
 			d)
@@ -1358,8 +1364,10 @@ case ${0##*/} in
 		shift $((OPTIND-1)) ;;
 	preinstall)
 		run_mode="reinstall"
-		while getopts "cdhir:y" option; do
+		while getopts "Ccdhir:y" option; do
 			case $option in
+			C)
+				pre_build_clean=0 ;;
 			c)
 				ports_config=1 ;;
 			d)
@@ -1383,8 +1391,10 @@ case ${0##*/} in
 		shift $((OPTIND-1)) ;;
 	upgrade-ports)
 		run_mode="upgrade"
-		while getopts "cfhuwy" option; do
+		while getopts "Ccfhuwy" option; do
 			case $option in
+			C)
+				pre_build_clean=0 ;;
 			c)
 				run_mode="check" ;;
 			f)
