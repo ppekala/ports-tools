@@ -969,7 +969,7 @@ signal_handler() {
 		$SUDO kill -9 $pids >/dev/null 2>&1
 	fi
 	[ $build_started -eq 0 ] || return
-	upgrade_exit 1 $entry_prev
+	upgrade_exit 1 $last_read
 }
 
 skip_reverse_deps() {
