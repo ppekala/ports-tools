@@ -853,7 +853,9 @@ rebuild_ports() {
 			clean_after_build_error $port stage
 			continue
 		fi
-		if [ "$SUDO" ] && [ "$port" = "security/sudo" ]; then
+		if [ "$SUDO" ] && [ "$port" = "devel/gettext-runtime" -o \
+			"$port" = "security/sudo" ];
+		then
 			itarget="deinstall install clean"
 		else
 			if pkg_exists $port; then
