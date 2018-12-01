@@ -113,8 +113,9 @@ fi
 bdeps=$(pfind -b $(make -V PORTNAME) | awk 'END {print NR}')
 [ $bdeps -gt 0 ] && echo "===> Port is build dependency for $bdeps port(s)"
 
-slaves=$(pfind -s "$(make -V CATEGORIES | awk '{print $1}')/$(basename "$PWD")" 2>/dev/null)
+slaves=$(pfind -s "$(make -V CATEGORIES | \
+	awk '{print $1}')/$(basename "$PWD")" | cut -f1 -d' ' 2>/dev/null)
 if [ "$slaves" ]; then
 	echo "===> Found slave ports:"
-	echo "$slaves" | tr ' ' '\n'
+	echo "$slaves"
 fi

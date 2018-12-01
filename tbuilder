@@ -163,7 +163,7 @@ trap 'interrupted=1' INT
 
 case $command in
 bdeps)
-	ports=$(pfind -b $query) ;;
+	ports=$(pfind -b $query | cut -f1 -d' ') ;;
 file)
 	if [ ! -f "$query" ]; then
 		echo "===> File $query does not exists" >&2
@@ -212,12 +212,12 @@ ldeps)
 	done
 	;;
 match)
-	ports=$(pfind -n $query) ;;
+	ports=$(pfind -n $query | cut -f1 -d' ') ;;
 name)
 	ports=$(check_portname $query) ;;
 slaves)
 	master=$(check_portname $query)
-	[ "$master" ] && ports=$(pfind -s $master) ;;
+	[ "$master" ] && ports=$(pfind -s $master | cut -f1 -d' ') ;;
 *)
 	display_usage
 esac

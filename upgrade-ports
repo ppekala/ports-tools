@@ -151,7 +151,7 @@ check_packages() {
 	need_reinstall_add $check_need_reinstall
 
 	for pkg in $check_need_install; do
-		port=$(pfind -N $pkg)
+		port=$(pfind -N $pkg | cut -f1 -d' ')
 		list_find build_failed $port && continue
 		data=$(eval echo \$$(to_env_str $pkg)_reqby)
 		if [ "$port" ]; then
@@ -538,7 +538,7 @@ pkg_check_status() {
 	pkgname=$(pkg-static query %n $pkg)
 
 	if [ "$pkgbase" != "$pkgname" ]; then
-		neworigin=$(pfind -N $pkgname)
+		neworigin=$(pfind -N $pkgname | cut -f1 -d' ')
 
 		if [ "$neworigin" -a "${port%@*}" != "${neworigin%@*}" ]; then
 			$SUDO pkg-static set --change-origin ${port%@*}:${neworigin%@*} --yes
@@ -1447,7 +1447,7 @@ install)
 			[ -d "$PORTSDIR/$pattern" ] || continue
 			need_install_add $pattern verbose ;;
 		*)
-			for port in $(pfind -n $pattern); do
+			for port in $(pfind -n $pattern | grep -v INSTALLED); do
 				need_install_add $port verbose
 			done
 		esac
