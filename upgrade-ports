@@ -672,7 +672,7 @@ ports_configure() {
 
 	for port in $*; do
 		cd "$PORTSDIR/${port%%@*}" 2>/dev/null || continue
-		[ "$(make -V OPTIONS_DEFINE)" ] || continue
+		[ "$(make -V COMPLETE_OPTIONS_LIST)" ] || continue
 		$SUDO make config
 	done
 }
