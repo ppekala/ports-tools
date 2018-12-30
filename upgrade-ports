@@ -1046,12 +1046,24 @@ to_fail_str() {
 }
 
 to_inst_str() {
-	local port reqby str
+	local count msg port reqby str
 
 	for port in $*; do
-		reqby=$(eval echo \$$(to_env_str $port)_reqby | sed 's| |,,|g')
-		[ "$reqby" ] && list_add str "$port,,(required,,by,,$reqby)" ||
-			list_add str $port
+		msg=$port
+		reqby=$(eval echo \$$(to_env_str $port)_reqby)
+
+		if [ "$reqby" ]; then
+			msg="$msg,,(required,,by,,"
+			case $reqby in
+			*\ *)
+				count=$(echo "$reqby" | wc -w)
+				msg="$msg${reqby%% *},,and,,$((count-1)),,more)" ;;
+			*)
+				msg="$msg$reqby)"
+			esac
+		fi
+
+		list_add str $msg
 	done
 	[ "$str" ] && echo $str
 }
