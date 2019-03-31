@@ -822,13 +822,13 @@ rebuild_ports() {
 		fi
 		list_find build_skipped $port && continue
 
-		if [ "${port##*@}" == "${port%%@*}" ]; then
-			flavor=""
-		else
+		cd "$PORTSDIR/${port%%@*}"
+		if [ "$(make -V FLAVORS)" ] && [ "${port##*@}" != "${port%%@*}" ]; then
 			flavor="FLAVOR=${port##*@}"
+		else
+			flavor=""
 		fi
 
-		cd "$PORTSDIR/${port%%@*}"
 		for t in BROKEN IGNORE; do
 			error=$(make $flavor $make_args -V$t)
 			if [ "$error" ]; then
