@@ -540,6 +540,10 @@ pkg_check_status() {
 	fi
 
 	port=$(pkg_to_port $pkg)
+	if [ ! -d "$PORTSDIR/${port%%@*}" ]; then
+		echo "===> ${port%%@*} not found in ports tree, skipping"
+		return 1
+	fi
 	pkgbase=$(pmake $port -V PKGBASE)
 	pkgname=$(pkg-static query %n $pkg)
 
