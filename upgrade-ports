@@ -144,15 +144,21 @@ check_packages() {
 	}')
 	for pkg in $check_need_reinstall; do
 		port=$(pkg_to_port $pkg)
-		list_find build_failed $port && continue
+		if list_find build_failed $port; then
+			echo "===> $pkg build already failed, skipping"
+			continue
+		fi
 		data=$(eval echo \$$(to_env_str $pkg)_miss)
 		setvar $(to_env_str $port)_miss "$data"
+		need_reinstall_add $pkg
 	done
-	need_reinstall_add $check_need_reinstall
 
 	for pkg in $check_need_install; do
 		port=$(pfind -N $pkg | cut -f1 -d' ')
-		list_find build_failed $port && continue
+		if list_find build_failed $port; then
+			echo "===> $pkg build already failed, skipping"
+			continue
+		fi
 		data=$(eval echo \$$(to_env_str $pkg)_reqby)
 		if [ "$port" ]; then
 			setvar $(to_env_str $port)_reqby "$data"
