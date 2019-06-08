@@ -50,12 +50,7 @@ check_for_missing_deps() {
 		if [ $jobs -lt $NCPU -a "$pkgs_to_check" ]; then
 			curr=$(list_first pkgs_to_check)
 			(
-				for dep in $(pmake $curr -V FETCH_DEPENDS \
-					-V EXTRACT_DEPENDS -V PATCH_DEPENDS \
-					-V BUILD_DEPENDS -V LIB_DEPENDS \
-					-V RUN_DEPENDS |
-					tr ' ' '\n' | cut -d: -f2 | sort -u)
-				do
+				for dep in $(port_dependencies $curr); do
 					pkg_exists $dep && continue
 					tmpfile_locked_write $curr:$dep
 				done
@@ -595,6 +590,15 @@ pkg_mark_for_removal() {
 	setvar $(to_env_str $1)_conflicts "$2"
 	[ "$3" ] && return
 	for pkg in $(pkg-static query %rn $1); do
+		# make sure that new version of port needs conflicting
+		# dependency if not skip, this helps to weed out false
+		# positives on major component upgrades where conflicting
+		# package changes origin, for example samba
+		if [ $run_mode = 'upgrade' ]; then
+			cnfl_deps=$(port_dependencies $(pkg_to_port $pkg));
+			list_find cnfl_deps $(pkg_to_port $1) || continue
+		fi
+
 		pkg_mark_for_removal $pkg "depends on $1"
 	done
 }
@@ -685,6 +689,12 @@ ports_configure() {
 		[ "$(make -V COMPLETE_OPTIONS_LIST)" ] || continue
 		$SUDO make config
 	done
+}
+
+port_dependencies() {
+	pmake $1 -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
+		-V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS |
+		tr ' ' '\n' | cut -d: -f2 | sort -u
 }
 
 port_to_pkg() {
