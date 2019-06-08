@@ -682,17 +682,6 @@ pmake() {
 	make -C "$PORTSDIR/$port" $farg $*
 }
 
-ports_configure() {
-	local port
-	[ $ports_config -eq 1 ] || return
-
-	for port in $*; do
-		cd "$PORTSDIR/${port%%@*}" 2>/dev/null || continue
-		[ "$(make -V COMPLETE_OPTIONS_LIST)" ] || continue
-		$SUDO make config
-	done
-}
-
 port_dependencies() {
 	pmake $1 -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
 		-V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS |
@@ -709,6 +698,17 @@ port_to_pkg() {
 	fi
 	pkg=$(pmake $port -V PKGBASE)
 	echo $pkg
+}
+
+ports_configure() {
+	local port
+	[ $ports_config -eq 1 ] || return
+
+	for port in $*; do
+		cd "$PORTSDIR/${port%%@*}" 2>/dev/null || continue
+		[ "$(make -V COMPLETE_OPTIONS_LIST)" ] || continue
+		$SUDO make config
+	done
 }
 
 ports_upgrade_sort() {
