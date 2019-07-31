@@ -294,42 +294,40 @@ desc_pids() {
 }
 
 detect_conflicts() {
-	local cnfl jobs=0 line pkg port pkgs_to_check
+	local cnfl jobs=0 line pkg port ports_to_check
 
-	list_add pkgs_to_check $need_upgrade $need_install $need_reinstall
+	list_add ports_to_check $need_upgrade $need_install $need_reinstall
 
 	while true; do
-		[ $jobs -eq 0 -a ! "$pkgs_to_check" ] && break
-		if [ $jobs -lt $NCPU -a "$pkgs_to_check" ]; then
-			curr=$(list_first pkgs_to_check)
+		[ $jobs -eq 0 -a ! "$ports_to_check" ] && break
+		if [ $jobs -lt $NCPU -a "$ports_to_check" ]; then
+			curr=$(list_first ports_to_check)
 			(
 				for cnfl in $(pmake $curr \
 					-V CONFLICTS -V CONFLICTS_BUILD \
 					-V CONFLICTS_INSTALL)
 				do
 					for pkg in $(pkg-static query -g %n "$cnfl"); do
-						port=$(pkg_to_port $pkg)
-						tmpfile_locked_write $curr:$port
+						tmpfile_locked_write $curr:$pkg
 					done
 				done
 				tmpfile_locked_write DONE:$curr
 			) &
 			jobs=$((jobs+1))
-			list_remove pkgs_to_check $curr
+			list_remove ports_to_check $curr
 		fi
 
 		for line in $(tmpfile_locked_read); do
 			case ${line%:*} in
 			DONE)
 				jobs=$((jobs-1))
-				list_remove pkgs_to_check ${line#*:} ;;
+				list_remove ports_to_check ${line#*:} ;;
 			*)
-				if [ "${line%:*}" = "${line#*:}" ]; then
-					list_add conflicts_self \
-						$(port_to_pkg ${line%:*})
+				port=$(pkg_to_port ${line#*:})
+				if [ "${line%:*}" = "$port" ]; then
+					list_add conflicts_self ${line#*:}
 				else
-					pkg_mark_for_removal \
-						$(port_to_pkg ${line#*:}) \
+					pkg_mark_for_removal ${line#*:} \
 						"conflicts with $(to_pkg_str ${line%:*})"
 				fi
 			esac
