@@ -1088,23 +1088,6 @@ to_inst_str() {
 	[ "$str" ] && echo $str
 }
 
-to_reinst_str() {
-	local defect miss pkg port str
-
-	for port in $*; do
-		miss=$(eval echo \$$(to_env_str $port)_miss | sed 's| |,,|g')
-		pkg=$(to_pkg_str $port)
-		case $miss in
-		*.so*)
-			defect="misses,,libraries" ;;
-		*)
-			defect="stale,,dependency"
-		esac
-		list_add str "$pkg,,($defect:,,$miss)"
-	done
-	[ "$str" ] && echo $str
-}
-
 to_obs_str() {
 	local pkg port reason str
 
@@ -1142,6 +1125,23 @@ to_port_str() {
 				list_add str $(pkg_to_port $pkg)
 			done
 		esac
+	done
+	[ "$str" ] && echo $str
+}
+
+to_reinst_str() {
+	local defect miss pkg port str
+
+	for port in $*; do
+		miss=$(eval echo \$$(to_env_str $port)_miss | sed 's| |,,|g')
+		pkg=$(to_pkg_str $port)
+		case $miss in
+		*.so*)
+			defect="misses,,libraries" ;;
+		*)
+			defect="stale,,dependency"
+		esac
+		list_add str "$pkg,,($defect:,,$miss)"
 	done
 	[ "$str" ] && echo $str
 }
