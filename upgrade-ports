@@ -196,93 +196,6 @@ clean_after_build_error() {
 	$SUDO make clean
 }
 
-command_is_valid() {
-	local old_IFS=$IFS
-
-	IFS=" "
-	if [ "${*%% *}" = "pkg" ]; then
-		cmd_pkg_validate ${*#pkg }
-	else
-		cmd_pm_validate ${*#portmaster }
-	fi
-	ret=$?
-	IFS=$old_IFS
-	return $ret
-}
-
-cmd_pkg_validate() {
-	local cmd=${*%% *} exists=0 pkgname
-
-	[ "$cmd" = "delete" -o "$cmd" = "set" ] || return 1
-	shift 1
-	while getopts "fgn:o:y" opt; do
-		case $opt in
-		f|g|y)
-			;;
-		n|o)
-			pkgname=${OPTARG%:*} ;;
-		\?)
-			echo "===> Pkg unhandled option"
-			return 1
-		esac
-	done
-	if [ ! "$cmd" = "set" ]; then
-		shift $((OPTIND-1))
-		pkgname=$*
-	fi
-	for pkg in $pkgname; do
-		pkg_exists $pkg && exists=1
-	done
-	if [ $exists -eq 0 ]; then
-		echo "===> $pkgname is not installed, skipping command"
-		return 1
-	fi
-}
-
-cmd_pm_validate() {
-	local cmdline change_origin=0 exists=0 pkg pkgname
-
-	while getopts "Rafo:r:w" opt; do
-		case $opt in
-		a)
-			echo "===> Skipping upgrade of all packages for now"
-			return 1 ;;
-		f|w|R)
-			;;
-		o)
-			change_origin=1 ;;
-		r)
-			list_add pkgname $OPTARG ;;
-		\?)
-			echo "===> Portmaster unhandled option, skipping"
-			return 1
-		esac
-	done
-	shift $((OPTIND-1))
-	if [ $change_origin -eq 1 ]; then
-		pkgname=$*
-	else
-		case $* in
-		'$('*')')
-			cmdline=$(echo $* | sed 's|^\$(||' | sed 's|)$||') ;;
-		"\`"*"\`")
-			cmdline=$(echo $* | sed 's|`||g') ;;
-		*)
-			list_add pkgname $*
-		esac
-	fi
-	if [ "$cmdline" ]; then
-		[ "$($cmdline)" ] && return 0 || return 1
-	fi
-	for pkg in $pkgname; do
-		pkg_exists $pkg && exists=1
-	done
-	if [ $exists -eq 0 ]; then
-		echo "===> $pkgname is not installed, skipping command"
-		return 1
-	fi
-}
-
 desc_pids() {
 	local pids=$1 ret
 
@@ -634,40 +547,6 @@ pkg_to_port() {
 		echo "$origin@$flavor"
 	else
 		echo $origin
-	fi
-}
-
-pm_fake_run() {
-	local new_origin pkg pkg_list=""
-
-	while getopts "Rfo:r:w" opt; do
-		case $opt in
-		f|w|R)
-			;;
-		o)
-			new_origin=$OPTARG ;;
-		r)
-			case $OPTARG in
-			*/*)
-				[ -d "$PORTSDIR/$OPTARG" ] || continue
-				pkg=$(port_to_pkg $OPTARG) ;;
-			*)
-				pkg=$OPTARG
-			esac
-			[ "$pkg" ] || continue
-			list_add pkg_list $pkg $(pkg-static query %rn $pkg)
-		esac
-	done
-	shift $((OPTIND-1))
-	if [ "$new_origin" ]; then
-		$SUDO pkg-static set -o $*:$new_origin --yes
-		return $?
-	fi
-	list_add pkg_list $*
-	if [ "$pkg_list" ]; then
-		printf "===> Found packages to reinstall in later stage:\n%s\n" \
-			"$pkg_list"
-		need_reinstall_add $pkg_list
 	fi
 }
 
@@ -1221,41 +1100,6 @@ update_ports_tree() {
 	done
 }
 
-updating_commands() {
-	awk -F ':' -v entry="$1" '
-	function strip_command(str) {
-		sub("^[ \t#]*", "", str);
-		in_cmd = sub(/\\$/, "", str);
-		return str;
-	}
-	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
-		if (entry == $1)
-			in_entry=1;
-		else if (in_entry)
-			exit;
-	}
-	in_entry && !in_cmd {
-		if (match($0, /^[ \t#]*(pkg|portmaster) /)) {
-			cmd = strip_command($0);
-			if (!in_cmd) {
-				if (!match(cmd, "^pkg upgrade"))
-					print cmd;
-				cmd="";
-			}
-		}
-		next;
-	}
-	in_entry && in_cmd {
-		line = strip_command($0);
-		if (in_cmd)
-			cmd=cmd line;
-		else {
-			print cmd line;
-			cmd="";
-		}
-	}' "$PORTSDIR/UPDATING"
-}
-
 updating_entry() {
 	awk -F ':' -v entry="$1" '
 	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
@@ -1288,47 +1132,16 @@ upgrade_exit() {
 }
 
 upgrade_ports() {
-	local cmd entry entry_prev old_IFS pkg port ret
+	local entry pkg port
 	# needs to be global, used by upgrade_exit() in few places
 	last_upd=$(get_entry_dates | head -n 1)
 
 	if [ $last_read -lt $last_upd ]; then
-		tmpfile_initialize
 		printf "===> New entries since last upgrade in $PORTSDIR/UPDATING file:\n\n"
 		for entry in $(get_entry_dates | sort -u); do
 			[ $entry -gt $last_read ] || continue
-
 			updating_entry $entry
-			updating_commands $entry > $tmpfile
-
-			old_IFS=$IFS
-			IFS=$'\n'
-
-			for cmd in $(cat $tmpfile); do
-				command_is_valid $cmd || continue
-
-				if ask_yesno "Run '$cmd'"; then
-					IFS=$old_IFS
-					case $cmd in
-					"pkg "*)
-						$SUDO $cmd ;;
-					*)
-						pm_fake_run ${cmd#portmaster }
-					esac
-					ret=$?
-					IFS=$'\n'
-
-					if [ $ret -ne 0 ]; then
-						echo "===> Upgrade command '$cmd' failed" >&2
-						upgrade_exit $ret $entry_prev
-					fi
-				fi
-			done
-
-			IFS=$old_IFS
-			entry_prev=$entry
 		done
-		echo -n > $tmpfile
 	fi
 
 	echo "===> Checking for ports needing upgrade..."
