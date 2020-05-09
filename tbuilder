@@ -236,6 +236,9 @@ for port in $ports; do
 			*)
 				echo "Found match: ${port%%:*}, needs ${option%:*}=${option#*:}" ;;
 			esac
+		else
+			printf "===> No target build jailname provided\n\n" >&2
+			display_usage
 		fi
 		;;
 	*)
