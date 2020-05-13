@@ -3,15 +3,15 @@
 readonly FREEBSD_LOGIN=${FREEBSD_LOGIN:-$USER}
 readonly PAGER=${PAGER:-less}
 readonly POUDRIERE_DIR=${POUDRIERE_DIR:-/usr/local/poudriere}
-readonly POUDRIERE_PORTS=${POUDRIERE_PORTS:-${POUDRIERE_DIR}/ports/default}
 
 cmd=$1
 port=$2
 jail=$3
+ports=$4
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} <send|show> [category/port] [jailname]
+Usage: ${0##*/} <send|show> [category/port] [jailname] [ports]
 
    send - scp(1) build log to freefall
    show - see build log
@@ -26,15 +26,21 @@ poudriere_jails() {
 
 [ "$cmd" != "send" -a "$cmd" != "show" ] && display_usage
 
-if [ ! -d "$POUDRIERE_PORTS" ]; then
-	echo "===> Poudriere ports directory not found: $POUDRIERE_PORTS" >&2
-	echo "===> Try setting POUDRIERE_PORTS environment variable" >&2
-	exit 1
+if [ ! "$ports" ]; then
+	ports=$(poudriere ports -lq | head -n1 | awk '{print $1}')
+	ports_tree=$(poudriere ports -lq | head -n1 | awk '{print $5}')
+else
+	ports_tree=$(poudriere ports -lq | grep "$ports" | awk '{print $5}')
+fi
+
+if [ ! -d "$ports_tree" ]; then
+	printf "===> Poudriere ports not found: %s\n\n" $ports >&2
+	display_usage
 fi
 
 [ "$port" ] || port="."
-if [ "$port" != "." -a ! -d "$POUDRIERE_PORTS/$port" ]; then
-	printf "===> $POUDRIERE_PORTS/%s: no such port found\n\n" "$port" >&2
+if [ "$port" != "." -a ! -d "$ports_tree/$port" ]; then
+	printf "===> $ports_tree/%s: no such port found\n\n" "$port" >&2
 	display_usage
 fi
 
@@ -45,7 +51,7 @@ if [ "$jail" ]; then
 	fi
 fi
 
-[ "$port" = "." ] || cd "$POUDRIERE_PORTS/$port" || exit 1
+[ "$port" = "." ] || cd "$ports_tree/$port" || exit 1
 
 readonly PKGBASE=$(make -V PKGBASE 2>/dev/null)
 readonly PKGVERSION=$(make -V PKGVERSION 2>/dev/null)
@@ -56,11 +62,10 @@ if [ ! "$PKGBASE" ]; then
 fi
 
 logdir="$POUDRIERE_DIR/data/logs/bulk/latest-per-pkg/$PKGBASE/$PKGVERSION"
-ports_tree=$(basename "$POUDRIERE_PORTS")
 
 if [ ! "$jail" ]; then
 	for j in $(poudriere_jails | sort -h); do
-		if [ -f "$logdir/$j-$ports_tree.log" ]; then
+		if [ -f "$logdir/$j-$ports.log" ]; then
 			jail=$j
 			break
 		fi
@@ -72,7 +77,7 @@ if [ ! "$jail" ]; then
 	fi
 fi
 
-logfile="$logdir/$jail-$ports_tree.log"
+logfile="$logdir/$jail-$ports.log"
 if [ ! -f "$logfile" ]; then
 	echo "===> Logfile $logfile does not exist" >&2
 	exit 1
