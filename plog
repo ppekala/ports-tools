@@ -27,10 +27,10 @@ poudriere_jails() {
 [ "$cmd" != "send" -a "$cmd" != "show" ] && display_usage
 
 if [ ! "$ports" ]; then
-	ports=$(poudriere ports -lq | head -n1 | awk '{print $1}')
-	ports_tree=$(poudriere ports -lq | head -n1 | awk '{print $5}')
+	ports=$(poudriere ports -lq | awk 'NR == 1 {print $1}')
+	ports_tree=$(poudriere ports -lq | awk 'NR == 1 {print $5}')
 else
-	ports_tree=$(poudriere ports -lq | grep "$ports" | awk '{print $5}')
+	ports_tree=$(poudriere ports -lq | awk -v p="$ports" '$1 == p {print $5}')
 fi
 
 if [ ! -d "$ports_tree" ]; then
