@@ -1055,7 +1055,7 @@ update_ports_tree() {
 
 	[ $skip_update -eq 0 ] || return
 
-	if ! $SUDO portsnap fetch update; then
+	if ! $SUDO git -C "$PORTSDIR" pull; then
 		echo "===> Ports tree update failed" >&2
 		upgrade_exit 1
 	fi
@@ -1145,7 +1145,7 @@ upgrade_ports() {
 	fi
 
 	echo "===> Checking for ports needing upgrade..."
-	for pkg in $(pkg-static version -l '<' | cut -f1 -d' '); do
+	for pkg in $(pkg-static version --ports --like '<' | cut -f1 -d' '); do
 		pkg_check_status $pkg || continue
 		port=$(pkg_to_port $pkg)
 		list_add need_upgrade $port
