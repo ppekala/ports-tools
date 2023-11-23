@@ -1055,6 +1055,11 @@ update_ports_tree() {
 
 	[ $skip_update -eq 0 ] || return
 
+	if ! which git >/dev/null; then
+		echo "===> git not found, it's needed for ports tree update" >&2
+		exit 1
+	fi
+
 	if ! $SUDO git -C "$PORTSDIR" pull; then
 		echo "===> Ports tree update failed" >&2
 		upgrade_exit 1
