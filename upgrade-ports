@@ -431,7 +431,7 @@ pkg_backup() {
 	local file path=$2 pkg=$1 port
 
 	echo "===> Backuping $(pkg-static query %n-%v $pkg)..."
-	file=$($SUDO pkg-static create --out-dir $path $pkg |
+	file=$($SUDO pkg-static create --out-dir "$path" $pkg |
 		awk '{ print $4 ".pkg" }')
 	[ "$file" ] || return 1
 
