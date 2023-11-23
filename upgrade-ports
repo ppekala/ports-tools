@@ -432,7 +432,7 @@ pkg_backup() {
 
 	echo "===> Backuping $(pkg-static query %n-%v $pkg)..."
 	file=$($SUDO pkg-static create --out-dir $path $pkg |
-		awk '{ print $4 ".txz" }')
+		awk '{ print $4 ".pkg" }')
 	[ "$file" ] || return 1
 
 	port=$(pkg_to_port $pkg)
