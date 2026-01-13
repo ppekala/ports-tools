@@ -31,7 +31,13 @@ pkgname_exact_match() {
 	local flavor flavors pkgbase portdir
 
 	for portdir in $*; do
+		if [ ! -e "$portdir" ]; then
+			echo "===> Directory not found: $portdir, skipping" >&2
+			continue
+		fi
+
 		cd "$portdir"
+
 		flavors=$(make -V FLAVORS)
 		if [ "$flavors" ]; then
 			for flavor in $flavors; do
