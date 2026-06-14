@@ -150,13 +150,16 @@ while true; do
 	ret=$(dialog --stdout --file "$tmpfile" | sed 's|\"||g')
 	[ "$ret" ] || break
 
+	dialog --clear
+	if ! $SUDO pkg-static delete -y $ret; then
+		break
+	fi
+
 	for bytes in $(pkg-static query '%sb' $ret); do
 		rm_freed=$((rm_freed+bytes));
 		rm_count=$((rm_count+1));
 	done
 
-	dialog --clear
-	$SUDO pkg-static delete -y $ret
 done
 
 if [ "$tmpfile" ]; then
