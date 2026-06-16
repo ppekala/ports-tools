@@ -134,7 +134,7 @@ while true; do
 		count=$((count+1))
 	done
 
-	if [ $rm_count -gt 0 -a $count -gt 0 ]; then
+	if [ "$rm_count" -gt 0 -a "$count" -gt 0 ]; then
 		if [ $new_leafs_yes -eq 0 ]; then
 			dialog --yesno "There are new leaf packages. Continue?" 5 43
 			[ $? -eq 1 ] && break
@@ -151,9 +151,7 @@ while true; do
 	[ "$ret" ] || break
 
 	dialog --clear
-	if ! $SUDO pkg-static delete -y $ret; then
-		break
-	fi
+	$SUDO pkg-static delete -y $ret || break
 
 	for bytes in $(pkg-static query '%sb' $ret); do
 		rm_freed=$((rm_freed+bytes));
@@ -169,5 +167,5 @@ fi
 
 [ "$pkg_seen" ] || echo "===> No leaf packages to remove"
 
-[ $rm_count -gt 0 ] &&
+[ "$rm_count" -gt 0 ] &&
 	echo "===> Packages removed: $rm_count  Disk space freed: $(number_humanize $rm_freed)"
