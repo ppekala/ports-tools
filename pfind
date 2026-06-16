@@ -2,10 +2,10 @@
 
 display_usage() {
 	<< EOF >&2 cat
-Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name pattern] [-g regexp]
-       ${0##*/} [-d name pattern ]
-       ${0##*/} [-g regexp] [-s master category/port]
-       ${0##*/} [-N package name ]
+Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name-pattern] [-g regexp]
+       ${0##*/} [-d name-pattern ]
+       ${0##*/} [-g regexp] [-s masters-category/port]
+       ${0##*/} [-N package-name ]
        ${0##*/} -h
 
     -b - port needing certain build dependency
@@ -125,10 +125,10 @@ if [ ! -f "$indexfile" ]; then
 			echo "===> root privileges or properly configured sudo required for fetching ports INDEX file." >&2
 			exit 1
 		fi
-		SUDO="sudo"
+		SUDO="sudo -S"
 	fi
-	echo "===> Fetching missing index file..."
-	if ! $SUDO make fetchindex; then
+	echo "===> Fetching missing index file..." >&2
+	if ! $SUDO make fetchindex >/dev/null; then
 		echo "===> Could not fetch index file" >&2
 		exit 1
 	fi
