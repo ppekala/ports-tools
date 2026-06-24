@@ -151,6 +151,10 @@ function print_dirs(array, file) {
 	store_pathname(path, path separator $0);
 }
 
+/^@comment/ {
+	cmds[++n_cmds] = $0;
+}
+
 /^(%%[0-9A-Z_]*%%)*@dir/ { # dirs
 	keyword_line_tokenize($0, "dir");
 }
@@ -163,12 +167,12 @@ function print_dirs(array, file) {
 	keyword_line_tokenize($0, "sample");
 }
 
-/^(%%[0-9A-Z_]*%%)*@\(.*\)/ {
+/^(%%[0-9A-Z_]*%%)*@\(.*\)/ { # @(owner,group,mode) path
 	keyword_line_tokenize($0, "");
 }
 
 /^(%%[0-9A-Z_]*%%)*@/ { # other commands, @exec, @unexec etc
-	if (match($0, "@(dir|rmtry|sample)") || match($0, "@\\(.*\\)"))
+	if (match($0, "@(comment|dir|rmtry|sample)") || match($0, "@\\(.*\\)"))
 		next;
 
 	cmds[++n_cmds] = $0;
