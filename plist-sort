@@ -75,59 +75,30 @@ function plist_split(string, out) {
 }
 
 function keyword_line_tokenize(line, keyword) {
-	path = chunks = "";
+	path = "";
 	# little hack to get depth first sorting order
-	# suffix is removed after sort in untokenize function
 	suffix = (keyword == "dir") ? "zzz" : "";
 
 	if ((n = split(line, array, "%%")) == 1) {
 		plist_split(array[1], p);
-		store_pathname(p[2], p[2] suffix separator p[1]);
+		store_pathname(p[2], p[2] suffix separator line);
 		return;
 	}
+
 	for (i=1; i <= n; i++) {
 		if (match(array[i], "^@" keyword)) {
 			plist_split(array[i], p);
 			path = p[2];
-			chunks = chunks separator p[1];
 			continue;
 		}
-		if (array[i] in opt_subs) {
-			chunks = chunks separator array[i];
-			continue;
-		}
-		if (array[i] in subs) {
-			path = path subs[array[i]];
-			chunks = chunks separator array[i];
-		} else
-			path = path array[i];
-	}
-	store_pathname(path, path suffix chunks);
-}
 
-function keyword_line_untokenize(line, keyword) {
-	cmd=""
-
-	if ((n = split(line, p, separator)) == 2) {
-		if (keyword == "dir")
-			sub(/zzz$/, "", p[1]);
-		printf("%s %s\n", p[2], p[1]);
-		return;
-	}
-	path = p[1];
-	for (i=2; i <= n; i++) {
-		if (match(p[i], "^@" keyword)) {
-			cmd = cmd p[i];
+		if (array[i] in opt_subs)
 			continue;
-		}
-		if (cmd == "")
-			cmd = "%%" p[i] "%%";
-		else if (p[i] in subs)
-			path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
+
+		path = (array[i] in subs) ? path subs[array[i]] : path array[i];
 	}
-	if (keyword == "dir")
-		sub(/zzz$/, "", path);
-	printf("%s %s\n", cmd, path);
+
+	store_pathname(path, path suffix separator line);
 }
 
 function sort_to_file(array, file) {
@@ -143,62 +114,41 @@ function truncate_file(file) {
 function print_files(array, file) {
 	sort_to_file(array, file);
 
-	while((getline line < file) > 0) {
-		if (match(line, "@\\(.*\\)")) {
-			keyword_line_untokenize(line, "");
-			continue;
-		}
-		if (match(line, "@sample")) {
-			keyword_line_untokenize(line, "sample");
-			continue;
-		}
-		if ((n = split(line, p, separator)) == 1) {
-			print p[1];
-			continue;
-		}
-		path = p[1];
-		for (i=2; i<=n; i++) {
-			if (p[i] in opt_subs) {
-				path = "%%" p[i] "%%" path;
-				continue;
-			}
-			if (p[i] in subs) {
-				path = str_replace(path, subs[p[i]], "%%" p[i] "%%");
-				continue;
-			}
-			path = p[i] path;
-		}
-		print path;
-	}
+	while((getline line < file) > 0)
+		if ((n = split(line, p, separator)) == 2)
+			print p[2];
+		else
+			print line;
+
 	truncate_file(file);
 }
 
 function print_dirs(array, file) {
 	sort_to_file(array, file);
-	while((getline line < tmpfile) > 0)
-		keyword_line_untokenize(line, "dir");
+
+	while((getline line < file) > 0)
+		if ((n = split(line, p, separator)) == 2)
+			print p[2];
+
 	truncate_file(file);
 }
 
 /^(%%[0-9A-Z_]*%%)*([a-z]|\/)+/ { # files
-	path = chunks = "";
+	path = "";
 
 	if ((n = split($0, array, "%%")) == 1) {
-		store_pathname(array[1], array[1]);
+		store_pathname($0, $0);
 		next;
 	}
+
 	for (i=1; i <= n; i++) {
-		if (array[i] in opt_subs) {
-			chunks = chunks separator array[i];
+		if (array[i] in opt_subs)
 			continue;
-		}
-		if (array[i] in subs) {
-			path = path subs[array[i]];
-			chunks = chunks separator array[i];
-		} else
-			path = path array[i];
+
+		path = (array[i] in subs) ? path subs[array[i]] : path array[i];
 	}
-	store_pathname(path, path chunks);
+
+	store_pathname(path, path separator $0);
 }
 
 /^(%%[0-9A-Z_]*%%)*@dir/ { # dirs
