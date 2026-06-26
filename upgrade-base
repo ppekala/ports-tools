@@ -1,7 +1,7 @@
 #!/bin/sh
 
+readonly GIT=${GIT:-git}
 readonly MAKE=${MAKE:-make}
-readonly PSVN=${PSVN:-svn}
 readonly SRCDIR=${SRCDIR:-/usr/src}
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 readonly CONF_FILE="$XDG_CONFIG_HOME/upgrade-base"
@@ -92,7 +92,7 @@ main_loop() {
 	"")
 		if [ $skip_tree_update -eq 0 ]; then
 			l_entry=$(last_updating_entry)
-			if ! $SUDO $PSVN update; then
+			if ! $SUDO $GIT pull; then
 				echo "===> Updating of source tree failed" >&2
 				exit 1
 			fi
