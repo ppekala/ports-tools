@@ -9,7 +9,6 @@ DOCS=		README.md
 SCRIPTS=	mkpatch \
 		pcheck \
 		pclean \
-		pcommit \
 		pfind \
 		plist-sort \
 		plist-update \

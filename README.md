@@ -24,11 +24,6 @@ pclean
 Keeps your ports svn repo tidy, removes work directories, leftover files
 and reverts any changes made.
 
-pcommit
--------
-
-Wrapper for svn commit, removes and adds files, sets props, etc.
-
 pfind
 -----
 
