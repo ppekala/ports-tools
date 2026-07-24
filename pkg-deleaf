@@ -151,13 +151,13 @@ while true; do
 	[ "$ret" ] || break
 
 	dialog --clear
+	list=$(pkg-static query '%sb' $ret)
 	$SUDO pkg-static delete -y $ret || break
 
-	for bytes in $(pkg-static query '%sb' $ret); do
+	for bytes in $list; do
 		rm_freed=$((rm_freed+bytes));
 		rm_count=$((rm_count+1));
 	done
-
 done
 
 if [ "$tmpfile" ]; then
