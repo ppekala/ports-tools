@@ -75,8 +75,8 @@ update_exclude_list() {
 	tmpfile=$(mktmp)
 	echo "--checklist \"Select packages to exclude ($count items):\" \
 		$((tlines-3)) $dwidth $((tlines-5)) $items" > "$tmpfile"
-	excluded=$(dialog --stdout --file "$tmpfile" | sed 's|\"||g')
-	dialog --clear
+	excluded=$($DIALOG --stdout --file "$tmpfile" | sed 's|\"||g')
+	$DIALOG --clear
 	rm "$tmpfile"
 
 	[ "$excluded" ] || exit 0
@@ -113,6 +113,18 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
+for bin in dialog cdialog; do
+	if which $bin >/dev/null; then
+		DIALOG=$bin
+		break
+	fi
+done
+
+if [ ! "$DIALOG" ]; then
+	echo "===> No dialog implementation found, install devel/cdialog port." >&2
+	exit 1
+fi
+
 [ -f "$EXCLUDE_CONF" ] && pkg_exclude=$(grep -v '^#' "$EXCLUDE_CONF")
 [ $exclude_opt -eq 1 ] && update_exclude_list
 
@@ -136,7 +148,7 @@ while true; do
 
 	if [ "$rm_count" -gt 0 -a "$count" -gt 0 ]; then
 		if [ $new_leafs_yes -eq 0 ]; then
-			dialog --yesno "There are new leaf packages. Continue?" 5 43
+			$DIALOG --yesno "There are new leaf packages. Continue?" 5 43
 			[ $? -eq 1 ] && break
 		fi
 	fi
@@ -147,10 +159,10 @@ while true; do
 	echo "--checklist \"Select packages to delete ($count items):\" \
 		$((tlines-3)) $dwidth $((tlines-5)) $items" > "$tmpfile"
 
-	ret=$(dialog --stdout --file "$tmpfile" | sed 's|\"||g')
+	ret=$($DIALOG --stdout --file "$tmpfile" | sed 's|\"||g')
 	[ "$ret" ] || break
 
-	dialog --clear
+	$DIALOG --clear
 	list=$(pkg-static query '%sb' $ret)
 	$SUDO pkg-static delete -y $ret || break
 
@@ -162,7 +174,7 @@ done
 
 if [ "$tmpfile" ]; then
 	rm "$tmpfile"
-	dialog --clear
+	$DIALOG --clear
 fi
 
 [ "$pkg_seen" ] || echo "===> No leaf packages to remove"

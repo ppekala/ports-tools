@@ -328,6 +328,18 @@ interactive_select() {
 
 	[ $interactive -eq 1 ] || return
 
+	for bin in dialog cdialog; do
+	if which $bin >/dev/null; then
+		DIALOG=$bin
+		break
+	fi
+	done
+
+	if [ ! "$DIALOG" ]; then
+	echo "===> No dialog implementation found, install devel/cdialog port." >&2
+	exit 1
+	fi
+
 	shift 1
 	[ "$*" ] || return
 	user_selection=1
@@ -344,8 +356,8 @@ interactive_select() {
 
 	echo "--checklist \"$msg\" \
 		$((tlines-3)) $dwidth $((tlines-5)) $items" > $tmpfile
-	selected=$(dialog --stdout --file $tmpfile)
-	dialog --clear
+	selected=$($DIALOG --stdout --file $tmpfile)
+	$DIALOG --clear
 	echo -n > $tmpfile
 
 	for port in $*; do
