@@ -67,6 +67,7 @@ update_exclude_list() {
 
 	for pkg in $(pkg-static query '%n@%v'); do
 		status="off"
+		case $pkg in FreeBSD-*) continue;; esac
 		case $pkg_exclude in *${pkg%@*}*) status="on" ;; esac
 		items="$items ${pkg%@*} ${pkg#*@} $status"
 		count=$((count+1))
