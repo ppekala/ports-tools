@@ -329,7 +329,7 @@ interactive_select() {
 	[ $interactive -eq 1 ] || return
 
 	for bin in dialog cdialog; do
-	if which $bin >/dev/null; then
+	if which -s $bin; then
 		DIALOG=$bin
 		break
 	fi
@@ -1067,7 +1067,7 @@ update_ports_tree() {
 
 	[ $skip_update -eq 0 ] || return
 
-	if ! which git >/dev/null; then
+	if ! which -s git; then
 		echo "===> git not found, it's needed for ports tree update" >&2
 		exit 1
 	fi
@@ -1284,7 +1284,7 @@ if [ ! -d "$PORTSDIR" ]; then
 fi
 
 if [ $(id -u) -ne 0 ]; then
-	if ! which sudo >/dev/null; then
+	if ! which -s sudo; then
 		echo "===> sudo not found" >&2
 		echo "===> This script requires root privileges or properly configured sudo." >&2
 		upgrade_exit 1
@@ -1292,7 +1292,7 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
-if ! which pfind >/dev/null; then
+if ! which -s pfind; then
 	echo "===> Required script pfind not found" >&2
 	exit 1
 fi

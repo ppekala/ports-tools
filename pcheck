@@ -59,7 +59,7 @@ fi
 
 find -E . \( -name "*.orig" -or -size 0 \) ! -regex "\./(\.svn$wrkdirs)/.*" -delete
 if [ $skip_spellcheck -eq 0 ]; then
-	if which hunspell >/dev/null; then
+	if which -s hunspell; then
 		[ -f "$descr_file" ] && $hunspell "$descr_file"
 		[ -f pkg-message ] && $hunspell pkg-message
 		[ -f files/pkg-message.in ] && $hunspell files/pkg-message.in
@@ -102,7 +102,7 @@ else
 	echo "===> Port's description file is missing"
 fi
 
-if which portlint >/dev/null; then
+if which -s portlint; then
 	echo "===> Portlint output:"
 	portlint -abt
 else
