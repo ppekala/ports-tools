@@ -4,7 +4,7 @@ export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
 readonly hunspell="hunspell -d en_US"
 
-skip_spellcheck=0 # skip spellchecking of descrption/message files
+skip_spellcheck=0 # skip spell checking of descrption/message files
 
 display_usage() {
 	<< EOF >&2 cat
@@ -12,7 +12,7 @@ Usage: ${0##*/} -h
        ${0##*/} [-s]
 
     -h - show this help
-    -s - skip spellcheck
+    -s - skip spell checking
 
 EOF
 	exit 1
@@ -64,7 +64,7 @@ if [ $skip_spellcheck -eq 0 ]; then
 		[ -f pkg-message ] && $hunspell pkg-message
 		[ -f files/pkg-message.in ] && $hunspell files/pkg-message.in
 	else
-		echo "===> Hunspell not found, skipping spellcheck"
+		echo "===> Hunspell not found, skipping spell checking"
 	fi
 fi
 
