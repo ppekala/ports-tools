@@ -1,16 +1,15 @@
 #!/bin/sh
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-readonly EXCLUDE_CONF="$XDG_CONFIG_HOME/pkg-cutter"
-readonly tcols=$(stty size | cut -d" " -f2)
-readonly tlines=$(stty size | cut -d" " -f1)
-
-[ $tcols -lt 80 ] && dwidth=$((tcols-4)) || dwidth=76
+readonly EXCLUDE_CONF="$XDG_CONFIG_HOME/${0##*/}"
+readonly DIALOG=bsddialog
+readonly LINES=$(($(stty size | cut -d" " -f1)-5))
 
 exclude_opt=0	# exclude packages list generation mode
 new_leafs_yes=0	# automatically seek new leafs after pkg removal
 rm_count=0	# removed packages counter
 sel_status="off" # default packages selection state (on|off)
+tmpdir="" # directory for temporary files
 
 display_usage() {
 	<< EOF >&2 cat
@@ -27,11 +26,25 @@ EOF
 	exit 1
 }
 
+get_leafs_data() {
+	pkg-static query -e '%#r = 0 && %n !~ FreeBSD-*' '%n-%v@%sb@%c' | \
+		awk '{ gsub(" ", "%SPC%"); print }' > "$tmpdir/data"
+}
+
+item_prepare() {
+	local pkg=${1%%@*}
+	local bytes=$(echo $1 | awk -F@ '{ print $2 }')
+	local desc=$(echo $1 | awk -F@ '{ gsub("%SPC%", " "); print $3 }')
+	local size=$(printf '%8s' "$(number_humanize $bytes)")
+
+	echo "$pkg \"$size\" \"$2\" \"$desc\"" >> "$tmpdir/items"
+}
+
 mktmp() {
-	local tmp=$(mktemp -t "${0##*/}")
+	local tmp=$(mktemp -dt "${0##*/}")
 
 	if [ ! "$tmp" ]; then
-		echo "===> Failed to create temporary file" >&2
+		echo "===> Failed to create temporary directory" >&2
 		exit 1
 	fi
 	echo "$tmp"
@@ -59,34 +72,35 @@ number_humanize() {
 			printf "%.1f %s", size, unit;
 		else
 			printf "%.0f %s", size, unit;
-	}' | tr ',' '.'
+	}'
 }
 
 update_exclude_list() {
-	local count=0 excluded items pkg status
+	local count=0 line status
 
-	for pkg in $(pkg-static query '%n@%v'); do
+	get_leafs_data
+
+	for line in $(cat "$tmpdir/data"); do
 		status="off"
-		case $pkg in FreeBSD-*) continue;; esac
-		case $pkg_exclude in *${pkg%@*}*) status="on" ;; esac
-		items="$items ${pkg%@*} ${pkg#*@} $status"
+		case $pkg_exclude in *${line%@*}*) status="on" ;; esac
+		item_prepare $line $status
 		count=$((count+1))
 	done
 
-	tmpfile=$(mktmp)
-	echo "--checklist \"Select packages to exclude ($count items):\" \
-		$((tlines-3)) $dwidth $((tlines-5)) $items" > "$tmpfile"
-	excluded=$($DIALOG --stdout --file "$tmpfile" | sed 's|\"||g')
-	$DIALOG --clear
-	rm "$tmpfile"
+	xargs -o $DIALOG \
+		--item-bottom-desc \
+		--separate-output \
+		--title "pkg-deleaf" \
+		--clear-screen \
+		--checklist "Select packages to exclude ($count items):" $LINES 0 $LINES \
+		< "$tmpdir/items" 2> "$tmpdir/selected"
 
-	[ "$excluded" ] || exit 0
-	[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
-	[ -f "$EXCLUDE_CONF" ] && rm -f "$EXCLUDE_CONF"
+	if [ -s "$tmpdir/selected" ]; then
+		[ -d "$XDG_CONFIG_HOME" ] || mkdir "$XDG_CONFIG_HOME"
+		mv "$tmpdir/selected" "$EXCLUDE_CONF"
+	fi
 
-	for pkg in $excluded; do
-		echo "$pkg" >> "$EXCLUDE_CONF"
-	done
+	rm -r "$tmpdir"
 	exit 0
 }
 
@@ -114,56 +128,54 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
-for bin in dialog cdialog; do
-	if which -s $bin; then
-		DIALOG=$bin
-		break
-	fi
-done
-
-if [ ! "$DIALOG" ]; then
-	echo "===> No dialog implementation found, install devel/cdialog port." >&2
+if ! which -s $DIALOG; then
+	echo "===> Required $DIALOG not found." >&2
 	exit 1
 fi
+
+tmpdir=$(mktmp)
 
 [ -f "$EXCLUDE_CONF" ] && pkg_exclude=$(grep -v '^#' "$EXCLUDE_CONF")
 [ $exclude_opt -eq 1 ] && update_exclude_list
 
-echo "===> Checking for leaf packages..."
-while true; do
-	pkg_leafs=$(pkg-static query -e '%#r = 0' %n-%v@%sb)
-	count=0
-	items=""
+$DIALOG --title "pkg-deleaf" --infobox "Checking for leaf packages..." 3 34
 
-	for pkg in $pkg_leafs; do
-		case $pkg in FreeBSD-*) continue;; esac
-		case $pkg_seen in *${pkg%@*}*) continue;; esac
+while true; do
+	count=0
+
+	cat /dev/null > "$tmpdir/items"
+	get_leafs_data
+
+	for line in $(cat "$tmpdir/data"); do
+		pkg=${line%%@*}
+
+		case $pkg_seen in *$pkg*) continue;; esac
+		pkg_seen="$pkg_seen $pkg"
+
 		case $pkg_exclude in *${pkg%-*}*) continue;; esac
 		[ ${pkg%-*} != "pkg" ] || continue
 
-		size=$(number_humanize ${pkg#*@})
-		pkg_seen="${pkg_seen} ${pkg%@*}"
-		items="$items ${pkg%@*} \"$(printf '%8s' "$size")\" $sel_status"
+		item_prepare $line $sel_status
 		count=$((count+1))
 	done
+	[ -s "$tmpdir/items" ] || break
 
-	if [ "$rm_count" -gt 0 -a "$count" -gt 0 ]; then
-		if [ $new_leafs_yes -eq 0 ]; then
+	if [ $rm_count -gt 0 -a $new_leafs_yes -eq 0 ]; then
 			$DIALOG --yesno "There are new leaf packages. Continue?" 5 43
-			[ $? -eq 1 ] && break
-		fi
+			[ $? -eq 0 ] || break
 	fi
 
-	[ $count -eq 0 ] && break
+	xargs -o $DIALOG \
+		--item-bottom-desc \
+		--separate-output \
+		--title "pkg-deleaf" \
+		--clear-screen \
+		--checklist "Select packages to remove ($count items):" $LINES 0 $LINES \
+		< "$tmpdir/items" 2> "$tmpdir/selected"
 
-	[ "$tmpfile" ] || tmpfile=$(mktmp)
-	echo "--checklist \"Select packages to delete ($count items):\" \
-		$((tlines-3)) $dwidth $((tlines-5)) $items" > "$tmpfile"
+	ret=$(cat "$tmpdir/selected")
+	[ -n "$ret" ] || break
 
-	ret=$($DIALOG --stdout --file "$tmpfile" | sed 's|\"||g')
-	[ "$ret" ] || break
-
-	$DIALOG --clear
 	list=$(pkg-static query '%sb' $ret)
 	$SUDO pkg-static delete -y $ret || break
 
@@ -173,10 +185,7 @@ while true; do
 	done
 done
 
-if [ "$tmpfile" ]; then
-	rm "$tmpfile"
-	$DIALOG --clear
-fi
+rm -r "$tmpdir"
 
 [ "$pkg_seen" ] || echo "===> No leaf packages to remove"
 
