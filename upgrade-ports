@@ -2,6 +2,7 @@
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly CONFIG="$XDG_CONFIG_HOME/upgrade-ports"
+readonly DIALOG=bsddialog
 export readonly PORTSDIR=${PORTSDIR:-/usr/ports}
 
 NCPU=$(sysctl -n hw.ncpu)
@@ -248,6 +249,14 @@ detect_conflicts() {
 	done
 }
 
+display_info() {
+	if [ $interactive -eq 0 ]; then
+		echo "===> $2"
+	else
+		$DIALOG --title "$1" --infobox "$2" 0 $((${#2} + 4))
+	fi
+}
+
 display_usage_install() {
 	<< EOF >&2 cat
 Usage: ${0##*/} -h
@@ -324,41 +333,43 @@ get_entry_dates() {
 }
 
 interactive_select() {
-	local dwidth items msg=$1 pkg port selected tcols tlines
+	local items msg=$1 pkg port rows selected
 
 	[ $interactive -eq 1 ] || return
 
-	for bin in dialog cdialog; do
-	if which -s $bin; then
-		DIALOG=$bin
-		break
-	fi
-	done
-
-	if [ ! "$DIALOG" ]; then
-	echo "===> No dialog implementation found, install devel/cdialog port." >&2
-	exit 1
+	if ! which -s $DIALOG; then
+		echo "===> Required $DIALOG not found." >&2
+		exit 1
 	fi
 
 	shift 1
 	[ "$*" ] || return
 	user_selection=1
 
+	tmpfile_initialize
+
 	for port in $*; do
-		pkg=$(pmake $port -V PKGNAME)
-		items="$items $port $pkg on"
+		pmake $port -V PKGVERSION -V COMMENT -V WWW | awk -v port="$port" '
+			NR==1 { printf "\"" port "\" \"" $0 "\" on " }
+			NR==2 { printf "\"" $0 }
+			NR==3 { if ($0 == "") print "\""; else print " | " $0 "\""} ' >> $tmpfile
 	done
 
-	tmpfile_initialize
-	tcols=$(stty size | cut -d" " -f2)
-	tlines=$(stty size | cut -d" " -f1)
-	[ $tcols -lt 80 ] && dwidth=$((tcols-4)) || dwidth=76
+	rows=$(($(stty size | cut -d" " -f1) - 5))
 
-	echo "--checklist \"$msg\" \
-		$((tlines-3)) $dwidth $((tlines-5)) $items" > $tmpfile
-	selected=$($DIALOG --stdout --file $tmpfile)
-	$DIALOG --clear
-	echo -n > $tmpfile
+	tmpselect=$(tmpfile_create "-select")
+	list_add upgrade_tmpfiles $tmpselect
+
+	xargs -o $DIALOG \
+		--item-bottom-desc \
+		--clear-dialog \
+		--separate-output \
+		--title "pinstall" \
+		--checklist "$msg" $rows 0 $rows \
+		< "$tmpfile" 2> $tmpselect
+
+	selected=$(cat $tmpselect)
+	echo -n > "$tmpfile"
 
 	for port in $*; do
 		list_find selected $port && continue
@@ -1302,7 +1313,7 @@ check)
 	check_packages ;;
 install)
 	[ "$*" ] || display_usage_install
-	echo "===> Checking ports selected for install..."
+	display_info "pinstall" "Checking ports selected for install..."
 	for pattern in $*; do
 		case $pattern in
 		*/*)
@@ -1324,7 +1335,7 @@ install)
 	show_operations_summary ;;
 reinstall)
 	[ "$need_reinstall" -o "$*" ] || display_usage_reinstall
-	echo "===> Checking ports selected for reinstall..."
+	display_info "preinstall" "Checking ports selected for reinstall..."
 	for pattern in $*; do
 		case $pattern in
 		*/*)
