@@ -27,8 +27,15 @@ EOF
 }
 
 get_leafs_data() {
-	pkg-static query -e '%#r = 0 && %n !~ FreeBSD-*' '%n-%v@%sb@%c' | \
-		awk '{ gsub(" ", "%SPC%"); print }' > "$tmpdir/data"
+	pkg-static query -e '%#r = 0 && %n !~ FreeBSD-*' '%n-%v@%sb@%c | Installed: %t' | \
+		awk '
+			{
+				"date -r "$NF | getline date;
+				close("date -r "$NF);
+				gsub($NF, date);
+				gsub(" ", "%SPC%");
+				print;
+			}' > "$tmpdir/data"
 }
 
 item_prepare() {
