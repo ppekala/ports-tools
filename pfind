@@ -1,12 +1,15 @@
 #!/bin/sh
 
 display_usage() {
+	local script=${0##*/}
+
 	<< EOF >&2 cat
-Usage: ${0##*/} [-b bdep] [-c category] [-m maintainer] [-n name-pattern] [-g regexp]
-       ${0##*/} [-d name-pattern ]
-       ${0##*/} [-g regexp] [-s masters-category/port]
-       ${0##*/} [-N package-name ]
-       ${0##*/} -h
+Usage: $script name-pattern
+       $script [-b bdep] [-c category] [-m maintainer] [-n name-pattern] [-g regexp]
+       $script [-d name-pattern ]
+       $script [-g regexp] [-s masters-category/port]
+       $script [-N package-name ]
+       $script -h
 
     -b - port needing certain build dependency
     -c - port category
@@ -80,6 +83,8 @@ while getopts "b:c:d:g:hm:n:N:s:" option; do
 		display_usage
 	esac
 done
+
+[ $# -eq 1 ] && name=$1
 
 if [ "$exact_match" ]; then
 	[ "$bdeps" -o "$category" -o "$maintainer" -o "$master" -o "$name" \
