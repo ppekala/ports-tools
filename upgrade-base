@@ -1,15 +1,11 @@
 #!/bin/sh
 
+readonly DIALOG=bsddialog
 readonly GIT=${GIT:-git}
 readonly MAKE=${MAKE:-make}
 readonly SRCDIR=${SRCDIR:-/usr/src}
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 readonly CONF_FILE="$XDG_CONFIG_HOME/upgrade-base"
-
-readonly tcols=$(stty size | cut -d" " -f2)
-readonly tlines=$(stty size | cut -d" " -f1)
-
-[ $tcols -lt 80 ] && dwidth=$((tcols-4)) || dwidth=76
 
 skip_tree_update=0	# don't update system sources before build
 
@@ -30,28 +26,33 @@ ask_yesno() {
 }
 
 delete_old_files() {
-	local file items tmpfile=$(mktemp -t "${0##*/}") to_remove tstr type
+	local file type
+	local tmpdir=$(mktemp -dt "${0##*/}")
 
-	[ "$tmpfile" ] || return
+	[ "$tmpdir" ] || return
 
 	for type in libs files dirs; do
-		$MAKE check-old-$type | grep '^/' > "$tmpfile"
-		tstr=$(echo $type | cut -b1)
-		for file in $(cat "$tmpfile"); do
-			items="$items \"$file\" $tstr on"
-		done
+		# TODO add creation time, file size in bottom description ?
+		$MAKE check-old-$type | awk -v type=${type%s} '
+			/^\// { print "\"" $0 "\" " type " on" }' >> "$tmpdir/items"
 	done
-	if [ "$items" ]; then
-		echo "--stdout --checklist \"Choose old files to delete\" \
-			$((tlines-3)) $dwidth $((tlines-5)) \
-			$items" > "$tmpfile"
-		to_remove=$($DIALOG --file "$tmpfile")
-		$DIALOG --clear
-		for file in $to_remove; do
+
+	if [ -s "$tmpdir/items" ]; then
+		rows=$(($(stty size | cut -d" " -f1) - 5))
+
+		xargs -o $DIALOG \
+			--clear-dialog \
+			--separate-output \
+			--title "upgrade-base" \
+			--checklist "Choose old files to delete" $rows 0 $rows \
+			< "$tmpdir/items" 2> "$tmpdir/selected"
+
+		for file in (cat "$tmpdir/selected"); do
 			$SUDO rm -rf "$file"
 		done
 	fi
-	rm "$tmpfile"
+
+	rm -rf "$tmpdir"
 }
 
 display_usage() {
@@ -177,15 +178,8 @@ if [ $(id -u) -ne 0 ]; then
 	SUDO="sudo"
 fi
 
-for bin in dialog cdialog; do
-	if which -s $bin; then
-		DIALOG=$bin
-		break
-	fi
-done
-
-if [ ! "$DIALOG" ]; then
-	echo "===> No dialog implementation found, install devel/cdialog port." >&2
+if [ which -s $DIALOG ]; then
+	echo "===> Required $DIALOG not found." >&2
 	exit 1
 fi
 
