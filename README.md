@@ -54,6 +54,11 @@ plog
 Easy way to send poudriere build logs to your FreeBSD account by scp or
 view them on your computer.
 
+port-install-deps
+-----------------
+
+Installs all needed packages required to build port from current directory.
+
 reinplace-check
 ---------------
 

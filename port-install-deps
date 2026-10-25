@@ -1,0 +1,27 @@
+#!/bin/sh
+
+if [ ! "$(make -V PKGNAME 2>/dev/null)" ]; then
+	echo "===> This is not port directory" >&2
+	exit 1
+fi
+
+if [ $(id -u) -ne 0 ]; then
+	if ! which -s sudo; then
+		echo "===> Required sudo not found" >&2
+		echo "===> This script requires root privileges or properly configured sudo." >&2
+		exit 1
+	fi
+	SUDO="sudo"
+fi
+
+missing=""
+needed=$(make -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
+	-V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS |
+	tr ' ' '\n' | cut -d: -f2 | sort -u)
+
+for port in $needed; do
+	pkg info --exists $port && continue
+	missing="$missing $port"
+done
+
+$SUDO pkg install $missing
