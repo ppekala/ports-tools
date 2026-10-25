@@ -24,4 +24,9 @@ for port in $needed; do
 	missing="$missing $port"
 done
 
+if [ -z $missing ]; then
+	echo "===> All needed dependencies are already installed."
+	exit 0
+fi
+
 $SUDO pkg install $missing
