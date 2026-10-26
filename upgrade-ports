@@ -1083,7 +1083,13 @@ update_ports_tree() {
 		exit 1
 	fi
 
-	if ! $SUDO git -C "$PORTSDIR" pull; then
+	if [ -w "$PORTSDIR/." ]; then
+		GIT=git
+	else
+		GIT="$SUDO git"
+	fi
+
+	if ! $GIT -C "$PORTSDIR" pull; then
 		echo "===> Ports tree update failed" >&2
 		upgrade_exit 1
 	fi
