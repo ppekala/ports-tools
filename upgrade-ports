@@ -19,6 +19,7 @@ pre_build_clean=1 # run make clean before each build
 run_mode=""	# run mode depending on executed script name and
 		# arguments used: check | install | reinstall | upgrade
 skip_update=0	# don't update ports tree
+tmpdir="" # temporary files directory
 tmpfile=""	# all purpose, global temporary file
 user_selection=0 # user package selection was activated
 wait_for_key=0	# wait for key press after upgrade finish
@@ -166,7 +167,7 @@ check_packages() {
 		fi
 	done
 	if [ "$need_install" -o "$need_reinstall" ]; then
-		tmpfile_initialize
+		tmp_initialize
 		check_for_missing_deps
 		detect_conflicts
 		print_list "Packages need to be REMOVED" $(to_rm_str $need_remove)
@@ -333,7 +334,7 @@ get_entry_dates() {
 }
 
 interactive_select() {
-	local items msg=$1 pkg port rows selected
+	local msg=$1 pkg port rows selected
 
 	[ $interactive -eq 1 ] || return
 
@@ -346,19 +347,17 @@ interactive_select() {
 	[ "$*" ] || return
 	user_selection=1
 
-	tmpfile_initialize
+	tmp_initialize
 
 	for port in $*; do
 		pmake $port -V PKGVERSION -V COMMENT -V WWW | awk -v port="$port" '
 			NR==1 { printf "\"" port "\" \"" $0 "\" on " }
 			NR==2 { printf "\"" $0 }
-			NR==3 { if ($0 == "") print "\""; else print " | " $0 "\""} ' >> $tmpfile
+			NR==3 { if ($0 == "") print "\""; else print " | " $0 "\""}' \
+			>> "$tmpdir/items"
 	done
 
 	rows=$(($(stty size | cut -d" " -f1) - 5))
-
-	tmpselect=$(tmpfile_create "-select")
-	list_add upgrade_tmpfiles $tmpselect
 
 	xargs -o $DIALOG \
 		--item-bottom-desc \
@@ -366,10 +365,9 @@ interactive_select() {
 		--separate-output \
 		--title "pinstall" \
 		--checklist "$msg" $rows 0 $rows \
-		< "$tmpfile" 2> $tmpselect
+		< "$tmpdir/items" 2> "$tmpdir/selected"
 
-	selected=$(cat $tmpselect)
-	echo -n > "$tmpfile"
+	selected=$(cat "$tmpdir/selected")
 
 	for port in $*; do
 		list_find selected $port && continue
@@ -713,10 +711,10 @@ print_list() {
 }
 
 rebuild_ports() {
-	local errlog error full_queue make_cmd port queue ret t
+	local error full_queue make_cmd port queue ret t
 	local operation=$run_mode conflict_port flavor itarget wrkdir
 
-	tmpfile_initialize
+	tmp_initialize
 
 	if [ $# -gt 1 ]; then
 		[ "$operation" = "check" ] && operation="reinstall"
@@ -735,8 +733,7 @@ rebuild_ports() {
 		pkg_remove $conflicts_self
 	fi
 	fetch_distfiles $full_queue
-	errlog=$(tmpfile_create "-errlog")
-	list_add upgrade_tmpfiles $errlog
+
 	for port in $full_queue; do
 		if [ $interrupted -eq 1 ]; then
 			list_add build_skipped $port
@@ -789,12 +786,12 @@ rebuild_ports() {
 			itarget="install clean"
 		fi
 		while true; do
-			$SUDO make $flavor $make_args $itarget 2>$errlog
+			$SUDO make $flavor $make_args $itarget 2> "$tmpdir/errlog"
 			if [ $? -eq 0 ]; then
 				ret=0
 				break
 			fi
-			eval $(cat $errlog | awk '
+			eval $(cat "$tmpdir/errlog" | awk '
 				/conflicts with/ { print "CONFLICT=" $5 }')
 			if [ "$CONFLICT" ]; then
 				conflict_port=$(pkg_to_port $CONFLICT)
@@ -836,7 +833,7 @@ rebuild_ports() {
 			list_add build_ok $port
 		fi
 	done
-	rm "$errlog"
+
 	if [ "$build_failed" -o "$build_interrupted" ]; then
 		if [ $interrupted -eq 1 ]; then
 			printf "\n===> Execution of $operation operation was interrupted.\n"
@@ -865,7 +862,7 @@ reverse_deps() {
 }
 
 show_operations_summary() {
-	tmpfile_initialize
+	tmp_initialize
 	check_for_missing_deps
 	detect_conflicts
 
@@ -920,22 +917,17 @@ skip_reverse_deps() {
 	done
 }
 
-tmpfile_create() {
-	local temp=$(mktemp -t ${0##*/}$1)
+tmp_initialize() {
+	[ "$tmpdir" ] && return
 
-	if [ ! "$temp" ]; then
-		echo "===> Failed to create temporary file" >&2
+	tmpdir=$(mktemp -dt ${0##*/})
+	if [ ! "$tmpdir" ]; then
+		echo "===> Failed to create temporary directory" >&2
 		upgrade_exit 1
 	fi
 
-	echo $temp
-}
-
-tmpfile_initialize() {
-	[ "$tmpfile" ] && return
-
-	tmpfile=$(tmpfile_create)
-	list_add upgrade_tmpfiles $tmpfile
+	tmpfile="$tmpdir/ctx"
+	touch "$tmpfile"
 }
 
 tmpfile_locked_read() {
@@ -1154,9 +1146,7 @@ upgrade_exit() {
 	[ "$2" ] && echo $2 > "$CONFIG"
 	[ "$keywait" ] || keywait=$wait_for_key
 
-	for temp in $upgrade_tmpfiles; do
-		[ -f "$temp" ] && rm -rf "$temp"
-	done
+	[ -d "$tmpdir" ] && rm -rf "$tmpdir"
 
 	if [ $keywait -eq 1 ]; then
 		printf "\n===> Press Enter key to finish.\n\n"
