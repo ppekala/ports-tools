@@ -1121,17 +1121,6 @@ update_ports_tree() {
 	done
 }
 
-updating_entry() {
-	awk -F ':' -v entry="$1" '
-	/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
-		if (entry == $1)
-			in_entry=1;
-		else if (in_entry)
-			exit;
-	}
-	in_entry { print $0 }' "$PORTSDIR/UPDATING"
-}
-
 # $1 - exit status
 # $2 - last read/executed UPDATING entry
 # $3 - wait for final keypress?
@@ -1151,19 +1140,23 @@ upgrade_exit() {
 }
 
 upgrade_ports() {
-	local entry n=0 pkg port
+	local entry lines pkg port
 	# needs to be global, used by upgrade_exit() in few places
 	last_upd=$(get_entry_dates | head -n 1)
 
 	if [ $last_read -lt $last_upd ]; then
 		printf "===> New entries since last upgrade in $PORTSDIR/UPDATING file:\n\n" > "$tmpdir/changes"
-		for entry in $(get_entry_dates | sort -u); do
-			[ $entry -gt $last_read ] || continue
-			updating_entry $entry >> "$tmpdir/changes"
-			n=$((n+1))
-		done
 
-		[ $n -ne 0 ] && $PAGER "$tmpdir/changes"
+		cat "$PORTSDIR/UPDATING" | awk -F ':' -v entry=$last_read '
+			/^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]:/ {
+				if ($1 > entry) {
+					in_unread=1
+				} else if ($1 == entry) exit
+			}
+			in_unread { print $0 }' >> "$tmpdir/changes"
+
+		lines=$(cat "$tmpdir/changes" | wc -l)
+		[ $lines -gt 2 ] && $PAGER "$tmpdir/changes"
 	fi
 
 	echo "===> Checking for ports needing upgrade..."
