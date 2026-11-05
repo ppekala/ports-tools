@@ -124,7 +124,7 @@ fi
 cd "$PORTSDIR"
 indexfile=$(make -V INDEXFILE)
 if [ ! -f "$indexfile" ]; then
-	if [ $(id -u) -ne 0 ]; then
+	if [ ! -w . ]; then
 		if ! which -s sudo; then
 			echo "===> sudo not found" >&2
 			echo "===> root privileges or properly configured sudo required for fetching ports INDEX file." >&2
