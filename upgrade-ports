@@ -88,7 +88,7 @@ check_packages() {
 	for pkg in $(pkg-static lock -lq); do
 		list_add pkg_ignore $(pkg-static query %n $pkg)
 	done
-	eval $($SUDO pkg-static check -dan | awk -v pkg_ignore="$pkg_ignore" '
+	eval $(pkg-static check --all --dependencies --dry-run | awk -v pkg_ignore="$pkg_ignore" '
 	BEGIN {
 		if ((n = split(pkg_ignore, array, " ")))
 			for (i=1; i<=n; i++)
