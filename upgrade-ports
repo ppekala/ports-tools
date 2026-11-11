@@ -333,6 +333,20 @@ get_entry_dates() {
 	grep -E "^[0-9]{8}:" "$PORTSDIR/UPDATING" | sed 's/://'
 }
 
+get_updates() {
+	pkg-static query --evaluate '%n !~ FreeBSD-*' "%n %v %o" |
+		while read name version origin;
+	do
+		[ -d "$PORTSDIR/$origin" ] || continue
+		pversion=$(make -C "$PORTSDIR/$origin" -V PKGVERSION)
+
+		[ "$pversion" != "$version" ] || continue
+		if [ "$(pkg version --test-version "$pversion" "$version")" = '>' ]; then
+			echo "$name-$version"
+		fi
+	done
+}
+
 interactive_select() {
 	local msg=$1 pkg port rows selected
 
@@ -1160,7 +1174,7 @@ upgrade_ports() {
 	fi
 
 	echo "===> Checking for ports needing upgrade..."
-	for pkg in $(pkg-static version --ports --like '<' | cut -f1 -d' '); do
+	for pkg in $(get_updates); do
 		pkg_check_status $pkg || continue
 		port=$(pkg_to_port $pkg)
 		list_add need_upgrade $port
