@@ -133,12 +133,12 @@ check_packages() {
 		print "check_need_install=\"" inst "\" check_need_reinstall=\"" rinst "\"";
 		for (pkg in install) {
 			envname = pkg;
-			gsub(/(\/|-|\.|\+|@)/, "_", envname);
+			gsub(/(\/|-|\.|\,|\+|@)/, "_", envname);
 			print envname "_reqby=\"" install[pkg] "\"";
 		}
 		for (pkg in rebuild) {
 			envname = pkg;
-			gsub(/(\/|-|\.|\+|@)/, "_", envname);
+			gsub(/(\/|-|\.|\,|\+|@)/, "_", envname);
 			print envname "_miss=\"" rebuild[pkg] "\"";
 		}
 	}')
@@ -338,10 +338,29 @@ get_updates() {
 		while read name version origin;
 	do
 		[ -d "$PORTSDIR/$origin" ] || continue
-		pversion=$(make -C "$PORTSDIR/$origin" -V PKGVERSION)
 
+		flavor=$(pkg-static info $name-$version |
+			awk '/flavor/ && NF == 3 && $2 == ":" { print $3 }')
+		[ "$flavor" ] && port="$origin@$flavor" || port="$origin"
+
+		eval $(pmake $port -VPKGVERSION -VPKGBASE | awk '
+			NR == 1 { print "pversion=" $0 }
+			NR == 2 { print "pkgbase=" $0 }
+		')
 		[ "$pversion" != "$version" ] || continue
+
 		if [ "$(pkg version --test-version "$pversion" "$version")" = '>' ]; then
+
+			pkgenv=$(to_env_str $name-$version)
+			echo "export ${pkgenv}_origin=$origin" >> "$tmpdir/data"
+			echo "export ${pkgenv}_pkgbase=$name" >> "$tmpdir/data"
+			echo "export ${pkgenv}_version=$version" >> "$tmpdir/data"
+			[ "$flavor" ] && echo "export ${pkgenv}_flavor=$flavor" >> "$tmpdir/data"
+
+			portenv=$(to_env_str $port)
+			echo "export ${portenv}_pkgbase=$pkgbase" >> "$tmpdir/data"
+			echo "export ${portenv}_version=$pversion" >> "$tmpdir/data"
+
 			echo "$name-$version"
 		fi
 	done
@@ -511,22 +530,10 @@ pkg_check_status() {
 			return 1
 		fi
 	fi
-	setvar $(to_env_str $port)_pkgname $pkgname
-	setvar $(to_env_str $port)_version $(pmake $port -V PKGVERSION)
 }
 
 pkg_exists() {
-	local pkgname
-
-	[ "$1" ] || return 1
-	case $1 in
-	*/*)
-		pkgname=$(port_to_pkg $1) ;;
-	*)
-		pkgname=$1
-	esac
-	[ "$pkgname" ] || return 1
-	pkg-static info --exists $pkgname >/dev/null 2>&1
+	pkg-static info --exists $1 >/dev/null 2>&1
 }
 
 pkg_mark_for_removal() {
@@ -560,10 +567,17 @@ pkg_remove() {
 }
 
 pkg_to_port() {
-	local origin=$(pkg-static query %o $1)
+	local origin=$(eval echo \$$(to_env_str $1)_origin)
+	if [ "$origin" ]; then
+		local flavor=$(eval echo \$$(to_env_str $1)_flavor)
+		[ "$flavor" ] && echo "$origin@$flavor" || echo "$origin"
+		return
+	fi
+
+	origin=$(pkg-static query %o $1)
 	local flavor=$(pkg-static info $1 | awk '
 		/flavor/ && NF == 3 && $2 == ":" { print $3 }')
-	local flavors=$(pmake $origin -V FLAVORS | sed 's,^ ,,')
+	local flavors=$(pmake $origin -V FLAVORS)
 	local f pkgbase pkgname
 
 	if [ "$flavors" -a ! "$flavor" ]; then
@@ -576,11 +590,8 @@ pkg_to_port() {
 			fi
 		done
 	fi
-	if [ "$flavor" ]; then
-		echo "$origin@$flavor"
-	else
-		echo $origin
-	fi
+
+	[ "$flavor" ] && echo "$origin@$flavor" || echo $origin
 }
 
 pmake() {
@@ -600,14 +611,9 @@ port_dependencies() {
 
 port_to_pkg() {
 	local port=$1
-	local pkg=$(eval echo \$$(to_env_str $port)_pkgname)
+	local pkg=$(eval echo \$$(to_env_str $port)_pkgbase)
 
-	if [ "$pkg" ]; then
-		echo $pkg
-		return
-	fi
-	pkg=$(pmake $port -V PKGBASE)
-	echo $pkg
+	[ "$pkg" ] && echo $pkg || $(pmake $port -VPKGBASE)
 }
 
 ports_configure() {
@@ -954,7 +960,7 @@ tmpfile_locked_write() {
 }
 
 to_env_str() {
-	echo "$1" | sed -E 's,(\/|-|\.|\+|@),_,g'
+	echo "$1" | sed -E 's#(\/|-|\.|\,|\+|@)#_#g'
 }
 
 to_fail_str() {
@@ -1175,6 +1181,11 @@ upgrade_ports() {
 
 	echo "===> Checking for ports needing upgrade..."
 	for pkg in $(get_updates); do
+		if [ -f "$tmpdir/data" ]; then
+			. "$tmpdir/data"
+			rm "$tmpdir/data"
+		fi
+
 		pkg_check_status $pkg || continue
 		port=$(pkg_to_port $pkg)
 		list_add need_upgrade $port
