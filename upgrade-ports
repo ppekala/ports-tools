@@ -150,10 +150,7 @@ check_packages() {
 			echo "===> $pkg build already failed, skipping"
 			continue
 		fi
-		to_env_str $pkg pkgenv
-		data=$(eval echo \$${pkgenv}_miss)
-		to_env_str $port portenv
-		setvar ${portenv}_miss "$data"
+		var_set "$port" "miss" $(var_get "$pkg" "miss")
 		need_reinstall_add $pkg
 	done
 
@@ -163,11 +160,9 @@ check_packages() {
 			echo "===> $pkg build already failed, skipping"
 			continue
 		fi
-		to_env_str $pkg pkgenv
-		data=$(eval echo \$${pkgenv}_reqby)
+
 		if [ "$port" ]; then
-			to_env_str $port portenv
-			setvar ${portenv}_reqby "$data"
+			var_set "$port" "reqby" $(var_get "$pkg" "reqby")
 			list_add need_install $port
 		else
 			[ $force_recompile -eq 1 ] && need_reinstall_add $data
@@ -191,8 +186,7 @@ clean_after_build_error() {
 	port_to_pkg $1 pkg
 
 	if list_find conflicts_self $pkg || [ "$2" = "install" ]; then
-		to_env_str $1 portenv
-		pkgfile=$(eval echo \$${portenv}_backup)
+		pkgfile=$(var_get "$1" "$backup")
 	fi
 	if [ "$pkgfile" -a -f "$pkgfile" ]; then
 		echo "===> Restoring older package version from backup..."
@@ -331,8 +325,7 @@ fetch_distfiles() {
 gather_missing_dependencies() {
 	local port
 
-	to_env_str $1 portenv
-	for port in $(eval echo \$${portenv}_mdeps); do
+	for port in $(var_get "$1" "mdeps"); do
 		gather_missing_dependencies $port
 		echo $port
 	done
@@ -497,8 +490,7 @@ pkg_backup() {
 	[ "$file" ] || return 1
 
 	pkg_to_port $pkg port
-	to_env_str $port portenv
-	setvar ${portenv}_backup "$path/$file"
+	var_set "$port" "backup" "$path/$file"
 }
 
 pkg_check_status() {
@@ -550,8 +542,8 @@ pkg_mark_for_removal() {
 	local pkg
 
 	list_add need_remove $1
-	to_env_str $1 pkgenv
-	setvar ${pkgenv}_conflicts "$2"
+	var_set "$1" "conflicts" "$2"
+
 	[ "$3" ] && return
 	for pkg in $(pkg-static query %rn $1); do
 		# make sure that new version of port needs conflicting
@@ -580,10 +572,10 @@ pkg_remove() {
 }
 
 pkg_to_port() {
-	to_env_str $1 pkgenv
-	local origin=$(eval echo \$${pkgenv}_origin)
+	local origin=$(var_get "$1" "origin")
+
 	if [ "$origin" ]; then
-		local flavor=$(eval echo \$${pkgenv}_flavor)
+		local flavor=$(var_get "$1" "flavor")
 		[ "$flavor" ] && setvar $2 "$origin@$flavor" || setvar $2 "$origin"
 		return
 	fi
@@ -624,9 +616,7 @@ port_dependencies() {
 }
 
 port_to_pkg() {
-	local port=$1
-	to_env_str $port portenv
-	local pkgbase=$(eval echo \$${portenv}_pkgbase)
+	local port=$1 pkgbase=$(var_get "$porte" "pkgbase")
 
 	[ "$pkgbase" ] && setvar $2 $pkgbase || setvar $2 $(pmake $port -VPKGBASE)
 }
@@ -925,17 +915,16 @@ signal_handler() {
 
 skip_reverse_deps() {
 	local consumer rev_deps
-	to_env_str $1 portenv
 
 	if ! list_find build_skipped $1; then
 		list_add build_failed $1
-		setvar ${portenv}_fail "$2"
+		var_set "$1" "fail" "$2"
 	fi
 
 	if pkg_exists $1; then
 		rev_deps=$(reverse_deps $1)
 	else
-		rev_deps=$(eval echo \$${portenv}_reqby)
+		rev_deps=$(var_get "$1" "reqby")
 	fi
 	for consumer in $rev_deps; do
 		if list_find need_install $consumer ||
@@ -986,8 +975,7 @@ to_fail_str() {
 	local failure port str
 
 	for port in $*; do
-		to_env_str $port portenv
-		failure=$(eval echo \$${portenv}_fail | sed 's| |,,|g')
+		failure=$(var_get "$port" "fail" | sed 's| |,,|g')
 		[ "$failure" ] && list_add str "$port,,($failure)" ||
 			list_add str $port
 	done
@@ -999,8 +987,7 @@ to_inst_str() {
 
 	for port in $*; do
 		msg=$port
-		to_env_str $port portenv
-		reqby=$(eval echo \$${portenv}_reqby)
+		reqby=$(var_get "$port" "reqby")
 
 		if [ "$reqby" ]; then
 			msg="$msg,,(required,,by,,"
@@ -1064,8 +1051,7 @@ to_reinst_str() {
 	local defect miss pkg port str
 
 	for port in $*; do
-		to_env_str $port portenv
-		miss=$(eval echo \$${portenv}_miss | sed 's| |,,|g')
+		miss=$(var_get "$port" "miss" | sed 's| |,,|g')
 		pkg=$(to_pkg_str $port)
 		case $miss in
 		*.so*)
@@ -1096,8 +1082,7 @@ to_upgrade_str() {
 	for port in $*; do
 		port_to_pkg $port pkg
 		curr=$(pkg-static query "%n:,,%v" $pkg)
-		to_env_str $port portenv
-		new_ver=$(eval echo \$${portenv}_version)
+		new_ver=$(var_get "$port" "version")
 		list_add str "$curr,,->,,$new_ver"
 	done
 	[ "$str" ] && echo $str
@@ -1224,11 +1209,20 @@ upgrade_ports() {
 	show_operations_summary
 }
 
+# $1 - pkg/port name, $2 - var suffix
+var_get() {
+	to_env_str $1 vg_env
+	eval echo \$${vg_env}_${2}
+}
+
+# #1 - pkg/port name, $2 - var suffix, $3 - var data
+var_set() {
+	to_env_str $1 vs_env
+	setvar ${vs_env}_${2} "$3"
+}
+
 wait_for_distfiles() {
-	local done=0 f_res=0
-	to_env_str $1 portenv
-	local fetched=$(eval echo \$${portenv}_fetch)
-	local msg_shown=0 res
+	local done=0 f_res=0 fetched=$(var_get "$1" "fetch") msg_shown=0 res
 
 	[ "$fetched" ] && return $fetched
 
@@ -1238,8 +1232,7 @@ wait_for_distfiles() {
 				fetcher_pid=${res#*:}
 				continue
 			fi
-			to_env_str ${res%:*} portenv
-			setvar ${portenv}_fetch ${res#*:}
+			var_set "${res%:*}" "fetch" "${res#*:}"
 			if [ "${res%:*}" = "$1" ]; then
 				done=1
 				f_res=${res#*:}
