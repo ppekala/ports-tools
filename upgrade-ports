@@ -72,9 +72,11 @@ check_for_missing_deps() {
 				jobs=$((jobs-1)) ;;
 			*)
 				list_find pkgs_done ${line#*:} && continue
+				to_env_str ${line#*:} check_dep
+				to_env_str ${line%:*} check_cur
 				list_add need_install ${line#*:}
-				list_add $(to_env_str ${line#*:})_reqby ${line%:*}
-				list_add $(to_env_str ${line%:*})_mdeps ${line#*:}
+				list_add ${check_dep}_reqby ${line%:*}
+				list_add ${check_cur}_mdeps ${line#*:}
 				list_add pkgs_to_check ${line#*:}
 			esac
 		done
@@ -143,13 +145,15 @@ check_packages() {
 		}
 	}')
 	for pkg in $check_need_reinstall; do
-		port=$(pkg_to_port $pkg)
+		pkg_to_port $pkg port
 		if list_find build_failed $port; then
 			echo "===> $pkg build already failed, skipping"
 			continue
 		fi
-		data=$(eval echo \$$(to_env_str $pkg)_miss)
-		setvar $(to_env_str $port)_miss "$data"
+		to_env_str $pkg pkgenv
+		data=$(eval echo \$${pkgenv}_miss)
+		to_env_str $port portenv
+		setvar ${portenv}_miss "$data"
 		need_reinstall_add $pkg
 	done
 
@@ -159,9 +163,11 @@ check_packages() {
 			echo "===> $pkg build already failed, skipping"
 			continue
 		fi
-		data=$(eval echo \$$(to_env_str $pkg)_reqby)
+		to_env_str $pkg pkgenv
+		data=$(eval echo \$${pkgenv}_reqby)
 		if [ "$port" ]; then
-			setvar $(to_env_str $port)_reqby "$data"
+			to_env_str $port portenv
+			setvar ${portenv}_reqby "$data"
 			list_add need_install $port
 		else
 			[ $force_recompile -eq 1 ] && need_reinstall_add $data
@@ -182,9 +188,11 @@ check_packages() {
 
 clean_after_build_error() {
 	local pkgfile=""
+	port_to_pkg $1 pkg
 
-	if list_find conflicts_self $(port_to_pkg $1) || [ "$2" = "install" ]; then
-		pkgfile=$(eval echo \$$(to_env_str $1)_backup)
+	if list_find conflicts_self $pkg || [ "$2" = "install" ]; then
+		to_env_str $1 portenv
+		pkgfile=$(eval echo \$${portenv}_backup)
 	fi
 	if [ "$pkgfile" -a -f "$pkgfile" ]; then
 		echo "===> Restoring older package version from backup..."
@@ -209,7 +217,7 @@ desc_pids() {
 }
 
 detect_conflicts() {
-	local cnfl jobs=0 line pkg port ports_to_check
+	local cnfl jobs=0 line pkg ports_to_check
 
 	list_add ports_to_check $need_upgrade $need_install $need_reinstall
 
@@ -238,7 +246,7 @@ detect_conflicts() {
 				jobs=$((jobs-1))
 				list_remove ports_to_check ${line#*:} ;;
 			*)
-				port=$(pkg_to_port ${line#*:})
+				pkg_to_port ${line#*:} port
 				if [ "${line%:*}" = "$port" ]; then
 					list_add conflicts_self ${line#*:}
 				else
@@ -323,7 +331,8 @@ fetch_distfiles() {
 gather_missing_dependencies() {
 	local port
 
-	for port in $(eval echo \$$(to_env_str $1)_mdeps); do
+	to_env_str $1 portenv
+	for port in $(eval echo \$${portenv}_mdeps); do
 		gather_missing_dependencies $port
 		echo $port
 	done
@@ -351,13 +360,13 @@ get_updates() {
 
 		if [ "$(pkg version --test-version "$pversion" "$version")" = '>' ]; then
 
-			pkgenv=$(to_env_str $name-$version)
+			to_env_str $name-$version pkgenv
 			echo "export ${pkgenv}_origin=$origin" >> "$tmpdir/data"
 			echo "export ${pkgenv}_pkgbase=$name" >> "$tmpdir/data"
 			echo "export ${pkgenv}_version=$version" >> "$tmpdir/data"
 			[ "$flavor" ] && echo "export ${pkgenv}_flavor=$flavor" >> "$tmpdir/data"
 
-			portenv=$(to_env_str $port)
+			to_env_str $port portenv
 			echo "export ${portenv}_pkgbase=$pkgbase" >> "$tmpdir/data"
 			echo "export ${portenv}_version=$pversion" >> "$tmpdir/data"
 
@@ -461,12 +470,12 @@ need_install_add() {
 }
 
 need_reinstall_add() {
-	local pkg port
+	local pkg
 
 	for pkg in $*; do
 		pkg_exists $pkg || continue
 		pkg_check_status $pkg || continue
-		port=$(pkg_to_port $pkg)
+		pkg_to_port $pkg port
 
 		case $(pkg-static version -n $pkg | awk '{print $2}') in
 		'>')
@@ -480,26 +489,27 @@ need_reinstall_add() {
 }
 
 pkg_backup() {
-	local file path=$2 pkg=$1 port
+	local file path=$2 pkg=$1
 
 	echo "===> Backuping $(pkg-static query %n-%v $pkg)..."
 	file=$($SUDO pkg-static create --out-dir "$path" $pkg |
 		awk '{ print $4 ".pkg" }')
 	[ "$file" ] || return 1
 
-	port=$(pkg_to_port $pkg)
-	setvar $(to_env_str $port)_backup "$path/$file"
+	pkg_to_port $pkg port
+	to_env_str $port portenv
+	setvar ${portenv}_backup "$path/$file"
 }
 
 pkg_check_status() {
-	local neworigin pkg=$1 pkgbase pkgname port
+	local neworigin pkg=$1 pkgbase pkgname
 
 	if [ "$(pkg-static info -kq $pkg)" = "yes" ]; then
 		echo "===> $pkg is locked, skipping"
 		return 1
 	fi
 
-	port=$(pkg_to_port $pkg)
+	pkg_to_port $pkg port
 	if [ ! -d "$PORTSDIR/${port%%@*}" ]; then
 		echo "===> ${port%%@*} not found in ports tree, skipping"
 		return 1
@@ -540,7 +550,8 @@ pkg_mark_for_removal() {
 	local pkg
 
 	list_add need_remove $1
-	setvar $(to_env_str $1)_conflicts "$2"
+	to_env_str $1 pkgenv
+	setvar ${pkgenv}_conflicts "$2"
 	[ "$3" ] && return
 	for pkg in $(pkg-static query %rn $1); do
 		# make sure that new version of port needs conflicting
@@ -548,8 +559,10 @@ pkg_mark_for_removal() {
 		# positives on major component upgrades where conflicting
 		# package changes origin, for example samba
 		if [ $run_mode = 'upgrade' ]; then
-			cnfl_deps=$(port_dependencies $(pkg_to_port $pkg));
-			list_find cnfl_deps $(pkg_to_port $1) || continue
+			pkg_to_port $pkg port
+			cnfl_deps=$(port_dependencies $port);
+			pkg_to_port $1 port
+			list_find cnfl_deps $port || continue
 		fi
 
 		pkg_mark_for_removal $pkg "depends on $1"
@@ -567,10 +580,11 @@ pkg_remove() {
 }
 
 pkg_to_port() {
-	local origin=$(eval echo \$$(to_env_str $1)_origin)
+	to_env_str $1 pkgenv
+	local origin=$(eval echo \$${pkgenv}_origin)
 	if [ "$origin" ]; then
-		local flavor=$(eval echo \$$(to_env_str $1)_flavor)
-		[ "$flavor" ] && echo "$origin@$flavor" || echo "$origin"
+		local flavor=$(eval echo \$${pkgenv}_flavor)
+		[ "$flavor" ] && setvar $2 "$origin@$flavor" || setvar $2 "$origin"
 		return
 	fi
 
@@ -585,13 +599,13 @@ pkg_to_port() {
 		for f in $flavors; do
 			pkgbase=$(pmake $origin@$f -V PKGBASE)
 			if [ "$pkgname" = "$pkgbase" ]; then
-				echo "$origin@$f"
+				setvar $2 "$origin@$f"
 				return
 			fi
 		done
 	fi
 
-	[ "$flavor" ] && echo "$origin@$flavor" || echo $origin
+	[ "$flavor" ] && setvar $2 "$origin@$flavor" || setvar $2 "$origin"
 }
 
 pmake() {
@@ -611,9 +625,10 @@ port_dependencies() {
 
 port_to_pkg() {
 	local port=$1
-	local pkg=$(eval echo \$$(to_env_str $port)_pkgbase)
+	to_env_str $port portenv
+	local pkgbase=$(eval echo \$${portenv}_pkgbase)
 
-	[ "$pkg" ] && echo $pkg || $(pmake $port -VPKGBASE)
+	[ "$pkgbase" ] && setvar $2 $pkgbase || setvar $2 $(pmake $port -VPKGBASE)
 }
 
 ports_configure() {
@@ -649,13 +664,13 @@ ports_upgrade_sort() {
 		for line in $(tmpfile_locked_read); do
 			case ${line%:*} in
 			START)
-				port=$(to_env_str ${line#*:}) ;;
+				to_env_str ${line#*:} portenv ;;
 			END)
-				eval export ${port}_alldeps
+				eval export ${portenv}_alldeps
 				djobs=$((djobs-1)) ;;
 			*)
 				list_find all_ports $line &&
-					list_add ${port}_alldeps $line
+					list_add ${portenv}_alldeps $line
 			esac
 		done
 	done
@@ -730,7 +745,7 @@ print_list() {
 
 rebuild_ports() {
 	local error full_queue make_cmd port queue ret t
-	local operation=$run_mode conflict_port flavor itarget wrkdir
+	local operation=$run_mode flavor itarget wrkdir
 
 	if [ $# -gt 1 ]; then
 		[ "$operation" = "check" ] && operation="reinstall"
@@ -793,7 +808,8 @@ rebuild_ports() {
 			itarget="deinstall install clean"
 		else
 			if pkg_exists $port; then
-				pkg_backup $(port_to_pkg $port) "$wrkdir"
+				port_to_pkg $port pkg
+				pkg_backup $pkg "$wrkdir"
 				if ! $SUDO make $flavor $make_args deinstall; then
 					clean_after_build_error $port deinstall
 					continue
@@ -810,7 +826,7 @@ rebuild_ports() {
 			eval $(cat "$tmpdir/errlog" | awk '
 				/conflicts with/ { print "CONFLICT=" $5 }')
 			if [ "$CONFLICT" ]; then
-				conflict_port=$(pkg_to_port $CONFLICT)
+				pkg_to_port $CONFLICT conflict_port
 				if [ "${port%%@*}" = "${conflict_port%%@*}" ]; then
 					# probably shifting from non-flavored
 					# to flavored version, should be safe to remove
@@ -867,12 +883,12 @@ rebuild_ports() {
 }
 
 reverse_deps() {
-	local dep pkg port
+	local dep
 
-	pkg=$(port_to_pkg $1)
+	port_to_pkg $1 pkg
 	[ "$pkg" ] || return
 	for dep in $(pkg-static query %rn $pkg); do
-		port=$(pkg_to_port $dep)
+		pkg_to_port $dep port
 		[ "$port" ] && echo $port
 	done
 }
@@ -909,16 +925,17 @@ signal_handler() {
 
 skip_reverse_deps() {
 	local consumer rev_deps
+	to_env_str $1 portenv
 
 	if ! list_find build_skipped $1; then
 		list_add build_failed $1
-		setvar $(to_env_str $1)_fail "$2"
+		setvar ${portenv}_fail "$2"
 	fi
 
 	if pkg_exists $1; then
 		rev_deps=$(reverse_deps $1)
 	else
-		rev_deps=$(eval echo \$$(to_env_str $1)_reqby)
+		rev_deps=$(eval echo \$${portenv}_reqby)
 	fi
 	for consumer in $rev_deps; do
 		if list_find need_install $consumer ||
@@ -926,7 +943,8 @@ skip_reverse_deps() {
 		   list_find need_upgrade $consumer;
 		then
 			list_add build_skipped $consumer
-			setvar $(to_env_str $consumer)_fail "$1: $2"
+			to_env_str $consumer $consenv
+			setvar ${consenv}_fail "$1: $2"
 			skip_reverse_deps $consumer "dependency skipped"
 		fi
 	done
@@ -960,14 +978,16 @@ tmpfile_locked_write() {
 }
 
 to_env_str() {
-	echo "$1" | sed -E 's#(\/|-|\.|\,|\+|@)#_#g'
+	local str=$(echo "$1" | sed -E 's#(\/|-|\.|\,|\+|@)#_#g')
+	setvar $2 "$str"
 }
 
 to_fail_str() {
 	local failure port str
 
 	for port in $*; do
-		failure=$(eval echo \$$(to_env_str $port)_fail | sed 's| |,,|g')
+		to_env_str $port portenv
+		failure=$(eval echo \$${portenv}_fail | sed 's| |,,|g')
 		[ "$failure" ] && list_add str "$port,,($failure)" ||
 			list_add str $port
 	done
@@ -979,7 +999,8 @@ to_inst_str() {
 
 	for port in $*; do
 		msg=$port
-		reqby=$(eval echo \$$(to_env_str $port)_reqby)
+		to_env_str $port portenv
+		reqby=$(eval echo \$${portenv}_reqby)
 
 		if [ "$reqby" ]; then
 			msg="$msg,,(required,,by,,"
@@ -998,10 +1019,10 @@ to_inst_str() {
 }
 
 to_obs_str() {
-	local pkg port reason str
+	local pkg reason str
 
 	for pkg in $*; do
-		port=$(pkg_to_port $pkg)
+		pkg_to_port $pkg port
 		reason=$(moved_reason $port | sed 's| |,,|g')
 		list_add str "$pkg,,($reason)"
 	done
@@ -1009,10 +1030,10 @@ to_obs_str() {
 }
 
 to_pkg_str() {
-	local pkg port str
+	local port str
 
 	for port in $*; do
-		pkg=$(port_to_pkg $port)
+		port_to_pkg $port pkg
 		pkg=$(pkg-static query %n-%v $pkg)
 		[ "$pkg" ] || pkg=$port
 		list_add str $pkg
@@ -1031,7 +1052,8 @@ to_port_str() {
 			matched=$(pkg-static info --quiet | grep ^$arg)
 			[ "$matched" ] || continue
 			for pkg in $matched; do
-				list_add str $(pkg_to_port $pkg)
+				pkg_to_port $pkg port
+				list_add str $port
 			done
 		esac
 	done
@@ -1042,7 +1064,8 @@ to_reinst_str() {
 	local defect miss pkg port str
 
 	for port in $*; do
-		miss=$(eval echo \$$(to_env_str $port)_miss | sed 's| |,,|g')
+		to_env_str $port portenv
+		miss=$(eval echo \$${portenv}_miss | sed 's| |,,|g')
 		pkg=$(to_pkg_str $port)
 		case $miss in
 		*.so*)
@@ -1059,7 +1082,8 @@ to_rm_str() {
 	local pkg pkgname reason str
 
 	for pkg in $*; do
-		reason=$(eval echo \$$(to_env_str $pkg)_conflicts | sed 's| |,,|g')
+		to_env_str $pkg pkgenv
+		reason=$(eval echo \$${pkgenv}_conflicts | sed 's| |,,|g')
 		pkgname=$(pkg-static query %n-%v $pkg)
 		list_add str "$pkgname,,($reason)"
 	done
@@ -1067,12 +1091,13 @@ to_rm_str() {
 }
 
 to_upgrade_str() {
-	local curr new_ver pkg port str
+	local curr new_ver port str
 
 	for port in $*; do
-		pkg=$(port_to_pkg $port)
+		port_to_pkg $port pkg
 		curr=$(pkg-static query "%n:,,%v" $pkg)
-		new_ver=$(eval echo \$$(to_env_str $port)_version)
+		to_env_str $port portenv
+		new_ver=$(eval echo \$${portenv}_version)
 		list_add str "$curr,,->,,$new_ver"
 	done
 	[ "$str" ] && echo $str
@@ -1160,7 +1185,7 @@ upgrade_exit() {
 }
 
 upgrade_ports() {
-	local entry lines pkg port
+	local entry lines pkg
 	# needs to be global, used by upgrade_exit() in few places
 	last_upd=$(get_entry_dates | head -n 1)
 
@@ -1187,7 +1212,7 @@ upgrade_ports() {
 		fi
 
 		pkg_check_status $pkg || continue
-		port=$(pkg_to_port $pkg)
+		pkg_to_port $pkg port
 		list_add need_upgrade $port
 		list_remove need_reinstall $port
 	done
@@ -1200,7 +1225,9 @@ upgrade_ports() {
 }
 
 wait_for_distfiles() {
-	local done=0 f_res=0 fetched=$(eval echo \$$(to_env_str $1)_fetch)
+	local done=0 f_res=0
+	to_env_str $1 portenv
+	local fetched=$(eval echo \$${portenv}_fetch)
 	local msg_shown=0 res
 
 	[ "$fetched" ] && return $fetched
@@ -1211,7 +1238,8 @@ wait_for_distfiles() {
 				fetcher_pid=${res#*:}
 				continue
 			fi
-			setvar $(to_env_str ${res%:*})_fetch ${res#*:}
+			to_env_str ${res%:*} portenv
+			setvar ${portenv}_fetch ${res#*:}
 			if [ "${res%:*}" = "$1" ]; then
 				done=1
 				f_res=${res#*:}
@@ -1354,7 +1382,8 @@ reinstall)
 	for pattern in $*; do
 		case $pattern in
 		*/*)
-			need_reinstall_add $(port_to_pkg $pattern) ;;
+			port_to_pkg $pattern pkg
+			need_reinstall_add $pkg ;;
 		*)
 			if pkg_exists $pattern; then
 				need_reinstall_add $pattern
