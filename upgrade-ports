@@ -467,8 +467,8 @@ need_reinstall_add() {
 
 	for pkg in $*; do
 		pkg_exists $pkg || continue
-		pkg_check_status $pkg || continue
 		pkg_to_port $pkg port
+		pkg_check_status $pkg $port || continue
 
 		case $(pkg-static version -n $pkg | awk '{print $2}') in
 		'>')
@@ -494,22 +494,21 @@ pkg_backup() {
 }
 
 pkg_check_status() {
-	local neworigin pkg=$1 pkgbase pkgname
+	local neworigin pkg=$1 port=$2 portname pkgname
 
 	if [ "$(pkg-static info -kq $pkg)" = "yes" ]; then
 		echo "===> $pkg is locked, skipping"
 		return 1
 	fi
 
-	pkg_to_port $pkg port
 	if [ ! -d "$PORTSDIR/${port%%@*}" ]; then
 		echo "===> ${port%%@*} not found in ports tree, skipping"
 		return 1
 	fi
-	pkgbase=$(pmake $port -V PKGBASE)
-	pkgname=$(pkg-static query %n $pkg)
+	portname=$(var_get "$port" "pkgbase")
+	pkgname=$(var_get "$pkg" "pkgbase")
 
-	if [ "$pkgbase" != "$pkgname" ]; then
+	if [ "$portname" != "$pkgname" ]; then
 		neworigin=$(pfind -N $pkgname | cut -f1 -d' ')
 
 		if [ "$neworigin" -a "${port%@*}" != "${neworigin%@*}" ]; then
@@ -524,10 +523,7 @@ pkg_check_status() {
 		fi
 	fi
 	if [ "$run_mode" = "upgrade" ] && [ "$pkgname" = "perl5" ]; then
-		pkg_version=$(pkg-static query %v $pkg)
-		port_version=$(pmake $port -V PKGVERSION)
-
-		if [ "$pkg_version" = "$port_version" ]; then
+		if [ "$(var_get "$pkg" "version")" = "$(var_get "$port" "version")" ]; then
 			echo "===> $pkgname needs manual intervention to upgrade, skipping"
 			return 1
 		fi
@@ -1196,8 +1192,8 @@ upgrade_ports() {
 			rm "$tmpdir/data"
 		fi
 
-		pkg_check_status $pkg || continue
 		pkg_to_port $pkg port
+		pkg_check_status $pkg $port || continue
 		list_add need_upgrade $port
 		list_remove need_reinstall $port
 	done
