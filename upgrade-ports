@@ -612,7 +612,7 @@ port_dependencies() {
 }
 
 port_to_pkg() {
-	local port=$1 pkgbase=$(var_get "$porte" "pkgbase")
+	local port=$1 pkgbase=$(var_get "$port" "pkgbase")
 
 	[ "$pkgbase" ] && setvar $2 $pkgbase || setvar $2 $(pmake $port -VPKGBASE)
 }
