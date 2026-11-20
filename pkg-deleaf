@@ -2,8 +2,8 @@
 
 readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 readonly EXCLUDE_CONF="$XDG_CONFIG_HOME/${0##*/}"
-readonly DIALOG=bsddialog
 readonly LINES=$(($(stty size | cut -d" " -f1)-5))
+DIALOG=bsddialog
 
 exclude_opt=0	# exclude packages list generation mode
 new_leafs_yes=0	# automatically seek new leafs after pkg removal
@@ -97,7 +97,6 @@ update_exclude_list() {
 	xargs -o $DIALOG \
 		--item-bottom-desc \
 		--separate-output \
-		--title "pkg-deleaf" \
 		--clear-screen \
 		--checklist "Select packages to exclude ($count items):" $LINES 0 $LINES \
 		< "$tmpdir/items" 2> "$tmpdir/selected"
@@ -138,6 +137,8 @@ fi
 if ! which -s $DIALOG; then
 	echo "===> Required $DIALOG not found." >&2
 	exit 1
+else
+	DIALOG="$DIALOG --backtitle ${0##*/}"
 fi
 
 tmpdir=$(mktmp)
@@ -145,7 +146,7 @@ tmpdir=$(mktmp)
 [ -f "$EXCLUDE_CONF" ] && pkg_exclude=$(grep -v '^#' "$EXCLUDE_CONF")
 [ $exclude_opt -eq 1 ] && update_exclude_list
 
-$DIALOG --title "pkg-deleaf" --infobox "Checking for leaf packages..." 3 34
+$DIALOG --infobox "Checking for leaf packages..." 3 34
 
 while true; do
 	count=0
@@ -175,7 +176,6 @@ while true; do
 	xargs -o $DIALOG \
 		--item-bottom-desc \
 		--separate-output \
-		--title "pkg-deleaf" \
 		--clear-screen \
 		--checklist "Select packages to remove ($count items):" $LINES 0 $LINES \
 		< "$tmpdir/items" 2> "$tmpdir/selected"
@@ -194,7 +194,8 @@ done
 
 rm -r "$tmpdir"
 
-[ "$pkg_seen" ] || echo "===> No leaf packages to remove"
+[ "$pkg_seen" ] || $DIALOG --msgbox "No leaf packages to remove" 5 43
 
 [ "$rm_count" -gt 0 ] &&
-	echo "===> Packages removed: $rm_count  Disk space freed: $(number_humanize $rm_freed)"
+	$DIALOG --msgbox "Packages removed: $rm_count\nDisk space freed: $(number_humanize $rm_freed)" 6 43
+
