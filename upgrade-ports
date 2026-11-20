@@ -963,8 +963,15 @@ tmpfile_locked_write() {
 }
 
 to_env_str() {
-	local str=$(echo "$1" | sed -E 's#(\/|-|\.|\,|\+|@)#_#g')
-	setvar $2 "$str"
+	local bad envsafe=$1
+
+	for bad in '/' '-' '.' ',' '@' '+'; do
+		while [ "${envsafe%%${bad}*}" != "${envsafe#*${bad}}" ]; do
+			envsafe="${envsafe%%${bad}*}_${envsafe#*${bad}}"
+		done
+	done
+
+	setvar "$2" "$envsafe"
 }
 
 to_fail_str() {
